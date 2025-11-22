@@ -1,227 +1,180 @@
-"use client"
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { useActions } from "../../hooks/useActions"
-import { useForm } from 'react-hook-form';
-import Cookies from 'js-cookie';
-import { PublicKey } from '@solana/web3.js';
-import { useState } from 'react';
-const page = () => {
-    const publicKey = Cookies.get("user")!
+import React, { useEffect, useState } from 'react';
+// import { EscrowFormModalProps } from '@/app/types/props';
+// import { EscrowFormState } from '@/app/types/states';
+// import { useMutations } from '@/app/hooks/useMutations';
+// import { toast } from 'react-toastify';
 
-    interface FormData {
-        payerKey: string;
-        payeeKey: string;
-        mintKey: string;
-        globalStatsKey: string;
-        amount: number;
-        periodSeconds: number;
-        firstPaymentTs: string;
-        autoRenew: boolean;
-    }
-    const periodOptions = [
-        { label: "Daily", seconds: 60 * 60 * 24 },
-        { label: "Weekly", seconds: 60 * 60 * 24 * 7 },
-        { label: "Monthly", seconds: 60 * 60 * 24 * 30 },
-        { label: "Quarterly", seconds: 60 * 60 * 24 * 90 },
-        { label: "Annually", seconds: 60 * 60 * 24 * 365 },
-    ];
-    const today = new Date();
-    today.setDate(today.getDate() + 1); // Set default to tomorrow
-    const defaultDate = today.toISOString().split('T')[0];
-    const { fetchUserSubscriptions } = useActions()
+type FormElement = HTMLInputElement | HTMLSelectElement;
 
-    const { data, isLoading, isFetching, refetch, isError } = useQuery({
-        queryKey: ["GlobalStats"],
-        queryFn: () => fetchUserSubscriptions(),
-        staleTime: 1000 * 60 * 5,
-    });
+const initialFormState: EscrowFormState = {
+    initializerAmount: '',
+    takerExpectedAmount: '',
+    initializerDepositMint: '',
+    takerExpectedMint: '',
+    durationValue: '7',
+    durationUnit: 'days'
+};
 
-    const { register, handleSubmit, formState: { errors, isSubmitting }, watch } = useForm<FormData>({
-        defaultValues: {
-            payerKey: publicKey,
-            payeeKey: "",
-            mintKey: "",
-            // globalStatsKey: MOCK_GLOBAL_STATS_KEY,
-            amount: 0.1,
-            periodSeconds: periodOptions[2].seconds, // Default to Monthly
-            firstPaymentTs: defaultDate,
-            autoRenew: true,
+export const EscrowFormModal: React.FC<EscrowFormModalProps> = ({ isOpen, onClose, initializerDepositMint, data }) => {
+
+    const { createEscrow, isMutating } = useMutations()
+    const [formData, setFormData] = useState<EscrowFormState>(initialFormState);
+    const [successPDA, setSuccessPDA] = useState<string | null>(null);
+    console.log(formData)
+
+    useEffect(() => {
+        if (data) setFormData(data)
+    }, [data])
+
+    const handleChange = (e: React.ChangeEvent<FormElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleClose = () => {
+        if (!isMutating) {
+            onClose();
+            setTimeout(() => {
+                setSuccessPDA(null);
+                setFormData(initialFormState);
+            }, 300);
         }
-    });
-
-    const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string | null }>({ type: null, message: null });
-
-    const selectedPeriod = watch('periodSeconds');
-
-    const onSubmit = async (data: FormData) => {
-        setStatus({ type: null, message: null });
-        // try {
-        //     const result = await mockInitializeSubscription(data);
-        //     if (result) {
-        //         setStatus({ type: 'success', message: `Subscription successfully initialized! PDA: ${result.toBase58()}` });
-        //     } else {
-        //         setStatus({ type: 'error', message: "Failed to get PDA key after transaction. Check console." });
-        //     }
-        // } catch (e) {
-        //     setStatus({ type: 'error', message: e.message || "An unknown error occurred during transaction." });
-        // }
     };
 
-    const StatusMessage = () => {
-        if (!status.message) return null;
-        const baseClasses = "p-4 rounded-lg font-medium mb-4 shadow-md";
-        const colorClasses = status.type === 'success'
-            ? "bg-green-100 border border-green-400 text-green-700"
-            : "bg-red-100 border border-red-400 text-red-700";
-        return (
-            <div className={`${baseClasses} ${colorClasses} break-all text-sm`}>
-                {status.message}
-            </div>
-        );
-    };
+    const modalClasses = isOpen
+        ? 'opacity-100 translate-y-0 scale-100'
+        : 'opacity-0 translate-y-4 scale-95 pointer-events-none';
 
-    const InputField = ({ label, name, register, options, type = 'text', readOnly = false }: { label: string, name: string, register: string, options: string, type: string, readOnly: boolean }) => (
-        <div className="flex flex-col space-y-1">
-            <label htmlFor={name} className="text-sm font-medium text-gray-700">{label}</label>
-            <input
-                id={name}
-                type={type}
-                className={`w-full p-3 border ${errors[name] ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${readOnly ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-                readOnly={readOnly}
-                {...register(name, options)}
-            />
-            {errors[name] && <p className="text-xs text-red-500 mt-1">{errors[name].message}</p>}
-        </div>
-    );
+    if (!isOpen) return null;
+
 
     return (
-        // Modal-like overlay wrapper
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-70 flex justify-center items-center p-4">
-            {/* Form Card */}
-            <div className="w-full max-w-lg bg-white p-8 rounded-3xl shadow-2xl space-y-6">
-                <h2 className="text-3xl font-bold text-indigo-700 text-center">
-                    New Subscription
-                </h2>
-                <p className="text-gray-500 text-center">
-                    Define the parameters for the automatic recurring payment.
-                </p>
-
-                <StatusMessage />
-
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-
-                    {/* Public Key Inputs (Read-Only Payer) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <InputField
-                            label="Payer Wallet (You)"
-                            name="payerKey"
-                            register={register}
-                            readOnly
-                            options={{ required: "Payer key is required" }}
-                        />
-                        <InputField
-                            label="Payee Key (Recipient)"
-                            name="payeeKey"
-                            register={register}
-                            options={{ required: "Payee key is required", pattern: { value: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/, message: "Invalid Solana Address" } }}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <InputField
-                            label="Token Mint Address"
-                            name="mintKey"
-                            register={register}
-                            options={{ required: "Mint key is required", pattern: { value: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/, message: "Invalid Solana Address" } }}
-                        />
-                        <InputField
-                            label="Global Stats Key (Admin)"
-                            name="globalStatsKey"
-                            register={register}
-                            options={{ required: "Global Stats key is required", pattern: { value: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/, message: "Invalid Solana Address" } }}
-                        />
-                    </div>
-
-                    <h3 className="text-xl font-semibold text-gray-700 pt-3 border-t">Payment Details</h3>
-
-                    {/* Amount, Period, and Date Inputs */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <InputField
-                            label="Amount (e.g., 0.1)"
-                            name="amount"
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-gray-900/50 transition-opacity duration-300"
+            onClick={handleClose}
+        >
+            <div
+                className={`bg-white/5 rounded-xl shadow-2xl w-full max-w-lg transition-all duration-300 ease-out ${modalClasses} p-6 space-y-6`}
+                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+            >
+                <div className=" dark:border-gray-700 flex justify-between items-center ">
+                    <h2 className="text-2xl font-bold text-white ">{data && "Re-"}Create Deal</h2>
+                    <button
+                        onClick={handleClose}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                        disabled={isMutating}
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <hr className="border-t border-gray-600" />
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    setSuccessPDA(null);
+                    createEscrow.mutateAsync({ ...formData, initializerDepositMint: initializerDepositMint || formData.initializerDepositMint }).then(() => { handleClose(); toast.success("Successfully Created Deal") });
+                }} className=" space-y-6">
+                    <InputGroup label="Token A Mint Address" name="initializerDepositMint" value={(initializerDepositMint || formData.initializerDepositMint)!} onChange={handleChange} placeholder="Base58 Mint Address (Token A)" disabled />
+                    <InputGroup label="Deposit Amount (Token A)" name="initializerAmount" type="number" value={formData.initializerAmount} onChange={handleChange} placeholder="e.g., 10000" disabled={isMutating} />
+                    <InputGroup label="Token B Mint Address" name="takerExpectedMint" value={formData.takerExpectedMint} onChange={handleChange} placeholder="Base58 Mint Address (Token B)" disabled={isMutating || !!data} />
+                    <InputGroup label="Expected Amount (Token B)" name="takerExpectedAmount" type="number" value={formData.takerExpectedAmount} onChange={handleChange} placeholder="e.g., 10" disabled={isMutating} />
+                    <div className="flex gap-3 items-end">
+                        <InputGroup
                             type="number"
-                            register={register}
-                            options={{
-                                required: "Amount is required",
-                                valueAsNumber: true,
-                                min: { value: 0.000001, message: "Amount must be positive" }
-                            }}
+                            name="durationValue"
+                            value={formData.durationValue}
+                            onChange={handleChange}
+                            placeholder="e.g., 7"
+                            label=' Escrow Expiration Duration'
+                            disabled={isMutating}
                         />
-
-                        {/* Period Selection */}
-                        <div className="flex flex-col space-y-1">
-                            <label htmlFor="periodSeconds" className="text-sm font-medium text-gray-700">Payment Frequency</label>
-                            <select
-                                id="periodSeconds"
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white"
-                                {...register("periodSeconds", { valueAsNumber: true, required: "Frequency is required" })}
-                            >
-                                {periodOptions.map(option => (
-                                    <option key={option.seconds} value={option.seconds}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="text-xs text-gray-500 mt-1">
-                                {selectedPeriod} seconds per period
-                            </p>
+                        <select
+                            name="durationUnit"
+                            value={formData.durationUnit}
+                            onChange={handleChange}
+                            className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
+                            required
+                            disabled={isMutating}
+                        >
+                            <option value="days">Days</option>
+                            <option value="hours">Hours</option>
+                            <option value="mins">Minutes</option>
+                            <option value="sec">Seconds</option>
+                        </select>
+                    </div>
+                    {/* {isError && (
+                        <div className="p-3 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded-lg text-sm">
+                            Error: {error.message}
                         </div>
+                    )} */}
 
-                        {/* First Payment Timestamp */}
-                        <InputField
-                            label="First Payment Date"
-                            name="firstPaymentTs"
-                            type="date"
-                            register={register}
-                            options={{ required: "Date is required" }}
-                        />
-                    </div>
+                    {successPDA && (
+                        <div className="p-4 bg-green-100 dark:bg-green-800 rounded-lg shadow-inner text-green-800 dark:text-green-200">
+                            <p className="font-semibold">✅ Escrow Initialized Successfully!</p>
+                            <p className="text-xs mt-1 break-all">
+                                PDA Address: <code className="font-mono text-xs">{successPDA}</code>
+                            </p>
+                            <button
+                                onClick={handleClose}
+                                type="button"
+                                className="mt-3 w-full py-2 text-sm font-semibold rounded-lg text-white bg-green-600 hover:bg-green-700 transition"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    )}
 
-                    {/* Auto Renew Toggle */}
-                    <div className="flex items-center space-x-3 pt-3">
-                        <input
-                            id="autoRenew"
-                            type="checkbox"
-                            className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                            {...register("autoRenew")}
-                        />
-                        <label htmlFor="autoRenew" className="text-sm font-medium text-gray-700 select-none">
-                            Auto Renew Subscription
-                        </label>
-                    </div>
-
-                    {/* Submit Button */}
                     <button
                         type="submit"
-                        className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed flex justify-center items-center"
-                        disabled={isSubmitting}
+                        disabled={isMutating || !!successPDA}
+                        className={`w-full py-3 rounded-xl text-white font-bold transition duration-150 ${isMutating || !!successPDA
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-violet-900/70 hover:bg-violet-700/90 shadow-md hover:shadow-lg'
+                            }`}
                     >
-                        {isSubmitting ? (
-                            <>
+                        {isMutating ? (
+                            <div className="flex items-center justify-center">
                                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Sending Transaction...
-                            </>
+                                Creating...
+                            </div>
                         ) : (
-                            "Create Subscription"
+                            <>
+                                {data && "Re-"}Create
+                            </>
                         )}
                     </button>
                 </form>
             </div>
         </div>
     );
-}
+};
 
-export default page
+const InputGroup: React.FC<{
+    label: string;
+    name: keyof EscrowFormState;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    placeholder: string;
+    type?: string;
+    disabled: boolean;
+}> = ({ label, name, value, onChange, placeholder, type = 'text', disabled }) => (
+    <div className='w-full '>
+        <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            {label}
+        </label>
+        <input
+            id={name}
+            name={name}
+            type={type}
+            step={type === 'number' ? 'any' : undefined}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            disabled={disabled}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition"
+        />
+    </div>
+);
+
