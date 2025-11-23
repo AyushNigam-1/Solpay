@@ -4,22 +4,11 @@ import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
 import Cookies from "js-cookie"
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-export interface Subscription {
-    payer: web3.PublicKey;
-    payee: web3.PublicKey;
-    mint: web3.PublicKey;
-    amount: anchor.BN;
-    periodSeconds: anchor.BN;
-    nextPaymentTs: anchor.BN;
-    active: boolean;
-    autoRenew: boolean;
-    vaultTokenAccount: web3.PublicKey;
-    bump: number;
-}
+import { Subscription } from "../types";
 
 const ACTIVE_STATUS_OFFSET = 128;
 
-export const useActions = () => {
+export const useProgramActions = () => {
     const { program } = useProgram()
 
     async function fetchUserSubscriptions() {
@@ -41,12 +30,12 @@ export const useActions = () => {
         ];
 
         try {
-            const subscriptions: anchor.ProgramAccount<Subscription>[] = await (program!.account as any).subscription.all(filters);
-            if (subscriptions.length === 0) {
-                console.log("✅ No active or inactive subscriptions found for this user.");
-                return;
-            }
-            console.log(subscriptions)
+            const subscriptions: Subscription[] = await (program!.account as any).subscription.all(filters);
+            // if (subscriptions.length === 0) {
+            //     console.log("✅ No active or inactive subscriptions found for this user.");
+            //     return;
+            // }
+            return subscriptions
             // subscriptions.forEach((subscription: { subscription: { account: Subscription }[] }, index: number) => {
             //     console.log(`\n--- Subscription #${index + 1} ---`);
             //     console.log(`Account Address: ${subscription.publicKey.toBase58()}`);
@@ -60,6 +49,7 @@ export const useActions = () => {
 
         } catch (error) {
             console.error("❌ Error fetching subscriptions:", error);
+            return []
         }
     }
 

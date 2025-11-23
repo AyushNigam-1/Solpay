@@ -34,7 +34,7 @@ export default function RootLayout({
           >
             <div className="absolute inset-0 z-0">
               <div
-                className="w-full h-full bg-[url('/bg.jpg')] bg-cover bg-center filter blur-md"
+                className="w-full brightness-50 h-full bg-[url('/bg2.jpg')] bg-cover bg-center filter blur-md"
               >
                 {/* Optional: Add a subtle overlay for better text contrast */}
                 <div className="absolute inset-0 bg-black/40"></div>

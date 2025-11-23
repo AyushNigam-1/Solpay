@@ -1,0 +1,20 @@
+import Navbar from "../components/ui/Navbar";
+import Sidebar from "../components/ui/Sidebar";
+
+export default function AppLayout({ children }: Readonly<{
+    children: React.ReactNode;
+}>) {
+    return (
+        <div className='relative w-full h-screen overflow-hidden'>
+            <div className="relative z-10 flex h-full">
+                <Sidebar />
+                <div className="w-full flex flex-col">
+                    <Navbar />
+                    <main className='p-4 overflow-y-auto flex-1'>
+                        {children}
+                    </main>
+                </div>
+            </div>
+        </div>
+    );
+}
