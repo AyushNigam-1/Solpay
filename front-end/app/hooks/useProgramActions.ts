@@ -5,11 +5,12 @@ import { PublicKey } from "@solana/web3.js";
 import Cookies from "js-cookie"
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Subscription } from "../types";
+import { getMintProgramId } from "../utils/token";
 
 const ACTIVE_STATUS_OFFSET = 128;
 
 export const useProgramActions = () => {
-    const { program } = useProgram()
+    const { program, getGlobalStatsPDA, PROGRAM_ID } = useProgram()
 
     async function fetchUserSubscriptions() {
         // console.log(`\nAttempting to fetch subscriptions for Payer: ${payerKey.toBase58()}`);
@@ -57,17 +58,17 @@ export const useProgramActions = () => {
         payerKey: web3.PublicKey,
         payeeKey: web3.PublicKey,
         mintKey: web3.PublicKey,
-        globalStatsKey: web3.PublicKey,
         amount: number | string,
         periodSeconds: number | string,
         firstPaymentTs: number | string,
         autoRenew: boolean,
     ): Promise<web3.PublicKey | undefined> {
-
+        console.log(payeeKey, payerKey, mintKey, amount, periodSeconds, firstPaymentTs, autoRenew)
         // Convert numerical inputs to Anchor's Big Number (BN)
         const amountBN = new anchor.BN(amount);
         const periodSecondsBN = new anchor.BN(periodSeconds);
         const firstPaymentTsBN = new anchor.BN(firstPaymentTs);
+        const depositTokenProgramId = await getMintProgramId(mintKey);
 
         const [subscriptionKey, subscriptionBump] = web3.PublicKey.findProgramAddressSync(
             [
@@ -76,18 +77,19 @@ export const useProgramActions = () => {
                 payeeKey.toBuffer(),
                 mintKey.toBuffer(),
             ],
-            program!.programId
+            PROGRAM_ID
         );
 
         const [vaultTokenAccount, vaultBump] = web3.PublicKey.findProgramAddressSync(
             [
+                anchor.utils.bytes.utf8.encode("vault"),
                 subscriptionKey.toBuffer(), // Seed the vault with the Subscription PDA itself
-                TOKEN_PROGRAM_ID.toBuffer(),
-                mintKey.toBuffer(),
+                // TOKEN_PROGRAM_ID.toBuffer(),
+                // mintKey.toBuffer(),
             ],
-            program!.programId
+            PROGRAM_ID
         );
-
+        const globalStatsPDA = getGlobalStatsPDA(PROGRAM_ID); // NEW: Global stats PDA
         try {
             const tx = await program!.methods
                 .initializeSubscription(
@@ -101,10 +103,10 @@ export const useProgramActions = () => {
                     payer: payerKey,
                     payee: payeeKey,
                     mint: mintKey,
-                    globalStats: globalStatsKey,
+                    globalStats: globalStatsPDA,
                     vaultTokenAccount: vaultTokenAccount,
                     systemProgram: web3.SystemProgram.programId,
-                    tokenProgram: TOKEN_PROGRAM_ID,
+                    tokenProgram: depositTokenProgramId,
                 })
                 .rpc();
 

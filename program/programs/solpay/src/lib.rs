@@ -1,9 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
-use anchor_spl::token::Token;
-use anchor_spl::token::{self, CloseAccount, Mint, TokenAccount, TransferChecked};
+// use anchor_spl::token::Token;
+// use anchor_spl::token::{self, CloseAccount, Mint, TokenAccount, TransferChecked};
+use anchor_spl::token_interface::{
+    Mint, TokenAccount, TokenInterface, TransferChecked, CloseAccount,
+};
 // Program id - replace with your actual program id from Anchor.toml / `anchor build`
-declare_id!("6ttTmuXJ1WTw6k8LQpJkQcAsnvofipeBCPGTFdgtNYiM");
+declare_id!("DSPgJHR4uWN8tL24eZjASof6a3oxtemVA2KCmLpSWU2b");
 
 pub const SUBSCRIPTION_SEED: &[u8] = b"subscription";
 pub const VAULT_SEED: &[u8] = b"vault";
@@ -26,6 +29,8 @@ pub const GLOBAL_STATS_SPACE: usize = 8 + 8 + 8 + 16 + 1; // adjust as needed
 
 #[program]
 pub mod recurring_payments {
+    use anchor_spl::token_interface;
+
     use super::*;
 
     /// Initialize global stats singleton (call once)
@@ -44,59 +49,107 @@ pub mod recurring_payments {
 
     /// Create a subscription and initialize PDA-owned vault token account.
     /// Payer is required to be signer and fund the rent for new accounts.
-    #[allow(clippy::too_many_arguments)]
-    pub fn initialize_subscription(
-        ctx: Context<InitializeSubscription>,
-        amount: u64,
-        period_seconds: i64,
-        first_payment_ts: i64,
-        auto_renew: bool,
-    ) -> Result<()> {
-        let subscription = &mut ctx.accounts.subscription;
+#[allow(clippy::too_many_arguments)]
+pub fn initialize_subscription(
+    ctx: Context<InitializeSubscription>,
+    amount: u64,                    // Amount per payment (e.g. 50 USDC)
+    period_seconds: i64,
+    first_payment_ts: i64,
+    auto_renew: bool,
+    prefunding_amount: u64,         // ← NEW: how much to deposit upfront (0 = none)
+) -> Result<()> {
+    // 1. DEPOSIT TOKENS (only if prefunding_amount > 0)
+    if prefunding_amount > 0 {
+        require!(
+            ctx.accounts.payer_token_account.amount >= prefunding_amount,
+            ErrorCode::InsufficientFunds
+        );
 
-        // set fields
-        subscription.payer = ctx.accounts.payer.key();
-        subscription.payee = ctx.accounts.payee.key();
-        subscription.mint = ctx.accounts.mint.key();
+        let cpi_accounts = TransferChecked {
+            from: ctx.accounts.payer_token_account.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.vault_token_account.to_account_info(),
+            authority: ctx.accounts.payer.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
-        subscription.amount = amount;
-        subscription.period_seconds = period_seconds;
-        subscription.next_payment_ts = first_payment_ts;
-        subscription.auto_renew = auto_renew;
-        subscription.active = true;
-        subscription.vault = ctx.accounts.vault_token_account.key();
-        subscription.bump = ctx.bumps.subscription;
-
-        // Update global stats (best-effort)
-        let stats = &mut ctx.accounts.global_stats;
-        stats.total_subscriptions = stats
-            .total_subscriptions
-            .checked_add(1)
-            .ok_or(ErrorCode::NumericalOverflow)?;
-        emit!(SubscriptionInitialized {
-            subscription: subscription.key(),
-            payer: subscription.payer,
-            payee: subscription.payee,
-            amount,
-            period_seconds,
-            next_payment_ts: subscription.next_payment_ts,
-        });
-
-        Ok(())
+        token_interface::transfer_checked(
+            cpi_ctx,
+            prefunding_amount,
+            ctx.accounts.mint.decimals,
+        )?;
     }
+
+    // 2. INITIALIZE SUBSCRIPTION STATE
+    let subscription = &mut ctx.accounts.subscription;
+    subscription.payer = ctx.accounts.payer.key();
+    subscription.payee = ctx.accounts.payee.key();
+    subscription.mint = ctx.accounts.mint.key();
+    subscription.amount = amount;
+    subscription.period_seconds = period_seconds;
+    subscription.next_payment_ts = first_payment_ts;
+    subscription.auto_renew = auto_renew;
+    subscription.active = true;
+    subscription.vault = ctx.accounts.vault_token_account.key();
+    subscription.bump = ctx.bumps.subscription;
+
+    // 3. UPDATE GLOBAL STATS
+    let stats = &mut ctx.accounts.global_stats;
+    stats.total_subscriptions = stats
+        .total_subscriptions
+        .checked_add(1)
+        .ok_or(ErrorCode::NumericalOverflow)?;
+
+    // 4. EMIT EVENT
+    emit!(SubscriptionInitialized {
+        subscription: subscription.key(),
+        payer: subscription.payer,
+        payee: subscription.payee,
+        amount,
+        period_seconds,
+        next_payment_ts: first_payment_ts,
+        prefunded_amount: prefunding_amount,  // ← optional: add to event
+    });
+
+    Ok(())
+}
 
     /// Top up the vault token account (user sends SPL tokens directly to vault).
     /// This instruction simply emits an event that a top-up occurred; the actual transfer
     /// is generally done by the client wallet via SPL transfer to the vault address.
-    pub fn topup_subscription(_ctx: Context<TopupSubscription>, topup_amount: u64) -> Result<()> {
-        // The client should have performed a token transfer to the vault.
-        emit!(SubscriptionTopup {
-            subscription: _ctx.accounts.subscription.key(),
-            topup_amount,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
-        Ok(())
-    }
+pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) -> Result<()> {
+    // 1. PERFORM THE TOKEN TRANSFER
+    
+    // CPI Context for the Token Transfer from Payer to Vault
+    let cpi_accounts = TransferChecked {
+        from: ctx.accounts.payer_token_account.to_account_info(), // SOURCE: Payer's ATA
+        mint: ctx.accounts.mint.to_account_info(),
+        to: ctx.accounts.vault_token_account.to_account_info(),   // DESTINATION: Subscription Vault
+        authority: ctx.accounts.payer.to_account_info(),          // AUTHORITY: Payer (Signer)
+    };
+    
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+
+    // Call the SPL Token Program to move the tokens.
+    // This will fail if the payer_token_account does not have sufficient funds.
+    token_interface::transfer_checked(
+        cpi_ctx, 
+        topup_amount, 
+        ctx.accounts.mint.decimals
+    )?;
+    
+    // 2. EMIT EVENT
+    // The event is only emitted if the transfer was successful, ensuring atomicity.
+    emit!(SubscriptionTopup {
+        subscription: ctx.accounts.subscription.key(),
+        topup_amount,
+        timestamp: Clock::get()?.unix_timestamp,
+    });
+
+    Ok(())
+}
 
     pub fn execute_payment(ctx: Context<ExecutePayment>) -> Result<()> {
         let clock = Clock::get()?;
@@ -138,7 +191,7 @@ pub mod recurring_payments {
         // The temporary immutable borrow for the CPI is fully contained here.
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-        token::transfer_checked(
+        token_interface::transfer_checked(
             // Assuming 'token' is the correct module
             cpi_ctx,
             subscription.amount,
@@ -209,7 +262,7 @@ pub mod recurring_payments {
                 signer_seeds,
             );
 
-            token::transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
+            token_interface::transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
             // Use `token` module
         }
 
@@ -227,7 +280,7 @@ pub mod recurring_payments {
             signer_seeds,
         );
 
-        token::close_account(cpi_ctx_close)?; // Use `token` module
+        token_interface::close_account(cpi_ctx_close)?; // Use `token` module
                                               // --- Deactivate subscription ---
                                               // MUTABLE BORROW IS USED HERE AGAIN
         subscription.active = false;
@@ -284,7 +337,7 @@ pub mod recurring_payments {
             let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-            token::transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
+            token_interface::transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
         }
 
         // close the vault to payer
@@ -299,7 +352,7 @@ pub mod recurring_payments {
             cpi_accounts_close,
             signer_seeds,
         );
-        token::close_account(cpi_ctx_close)?;
+        token_interface::close_account(cpi_ctx_close)?;
 
         // No further mutable access to `subscription` is needed, but the original mutable borrow ends here.
 
@@ -377,7 +430,7 @@ pub struct InitializeSubscription<'info> {
         payer = payer,
         space = SUBSCRIPTION_SPACE,
         // Seeds corrected from previous interactions:
-        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref()], 
+        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , payee.key().as_ref(),mint.key().as_ref()], 
         bump
     )]
     pub subscription: Account<'info, Subscription>,
@@ -388,13 +441,19 @@ pub struct InitializeSubscription<'info> {
         payer = payer,
         token::mint = mint,
         token::authority = subscription,
+        token::token_program = token_program,  // ← THIS LINE IS REQUIRED
         seeds = [VAULT_SEED, subscription.key().as_ref()],
         bump
     )]
-    pub vault_token_account: Account<'info, TokenAccount>,
-
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+            mut,
+            token::mint = mint,
+            token::authority = payer,
+        )]
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
     /// Mint for this subscription
-    pub mint: Account<'info, Mint>,
+    pub mint:InterfaceAccount<'info, Mint>,
 
     /// The payee token account where payments will be sent (must be correct mint)
     /// NOTE: It is recommended to validate the payee token account's mint in indexer / off-chain prior to use.
@@ -406,17 +465,50 @@ pub struct InitializeSubscription<'info> {
     pub global_stats: Account<'info, GlobalStats>,
 
     pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
+#[instruction(topup_amount: u64)]
 pub struct TopupSubscription<'info> {
-    pub subscription: Account<'info, Subscription>,
+    #[account(mut)]
+    /// CHECK: Must be the original payer of the subscription
     pub payer: Signer<'info>,
-    /// Vault token account (must be the subscription vault)
-    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: Account<'info, TokenAccount>,
+
+    #[account(
+        mut, 
+        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref(), subscription.payee.as_ref(), subscription.mint.as_ref()], 
+        bump = subscription.bump,
+        has_one = payer, // Ensure only the original payer can top up
+        has_one = vault_token_account,
+    )]
+    pub subscription: Account<'info, Subscription>,
+
+    #[account(
+        mut,
+        // The vault must be owned by the subscription PDA
+        token::authority = subscription,
+        token::mint = mint,
+        token::token_program = token_program,
+        seeds = [VAULT_SEED, subscription.key().as_ref()],
+        bump
+    )]
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+    
+    /// The payer's token account from which funds are drawn
+    #[account(
+        mut, 
+        token::mint = mint,
+        token::authority = payer,
+        token::token_program = token_program,
+    )]
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(address = subscription.mint @ ErrorCode::IncorrectMint)]
+    pub mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -427,21 +519,21 @@ pub struct ExecutePayment<'info> {
 
     /// Vault token account (owned by subscription PDA)
     #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// Mint for the token
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
 
     /// Payee token account (destination)
     #[account(mut)]
-    pub payee_token_account: Account<'info, TokenAccount>,
+    pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// Global stats (mutable)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
 
     /// Token program
-    pub token_program: Program<'info, Token>,
+pub token_program: Interface<'info, TokenInterface>
 }
 
 #[derive(Accounts)]
@@ -454,20 +546,20 @@ pub struct CancelSubscription<'info> {
 
     /// Vault token account (owned by subscription PDA)
     #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// Mint for the token
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
 
     /// Payer token account (destination for refund)
     #[account(mut)]
-    pub payer_token_account: Account<'info, TokenAccount>,
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// Global stats (mutable)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
 
-    pub token_program: Program<'info, Token>,
+pub token_program: Interface<'info, TokenInterface>
 }
 
 #[derive(Accounts)]
@@ -479,14 +571,14 @@ pub struct WithdrawRemaining<'info> {
     pub subscription: Account<'info, Subscription>,
 
     #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: Account<'info, TokenAccount>,
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    pub mint: Account<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(mut)]
-    pub payer_token_account: Account<'info, TokenAccount>,
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    pub token_program: Program<'info, Token>,
+pub token_program: Interface<'info, TokenInterface>
 }
 
 #[derive(Accounts)]
@@ -508,12 +600,14 @@ pub struct Subscription {
     pub payee: Pubkey,
     pub mint: Pubkey,
     pub amount: u64,
+    pub vault_token_account: Pubkey,
     pub period_seconds: i64,
     pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,
     pub vault: Pubkey,
     pub bump: u8,
+    pub prefunded_amount: u64,  // ← shows how much was deposited
 }
 
 #[account]
@@ -536,6 +630,7 @@ pub struct SubscriptionInitialized {
     pub amount: u64,
     pub period_seconds: i64,
     pub next_payment_ts: i64,
+     pub prefunded_amount:u64
 }
 
 #[event]
@@ -609,4 +704,6 @@ pub enum ErrorCode {
     NumericalOverflow,
     #[msg("Subscription still active")]
     SubscriptionActive,
+    #[msg("Subscription still active")]
+    IncorrectMint,
 }

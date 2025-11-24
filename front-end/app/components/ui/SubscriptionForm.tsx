@@ -3,15 +3,19 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { UserTokenAccount } from "@/app/types";
-
+import { useProgramActions } from "@/app/hooks/useProgramActions";
+import { useProgram } from "@/app/hooks/useProgram";
+import { PublicKey } from "@solana/web3.js";
 
 type FormElement = HTMLInputElement | HTMLSelectElement;
 
 interface SubscriptionFormState {
-    reciever: string
+    payeeKey: string
     amount: string
-    tokenMint: string
-    frequency: string
+    mintKey: string
+    durationValue: number
+    frequency: number,
+    firstPaymentDate: string;
 }
 
 interface SubscriptionFormModalProps {
@@ -20,15 +24,15 @@ interface SubscriptionFormModalProps {
     tokens: UserTokenAccount[]
 }
 
-
-
 export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen, onClose, tokens }) => {
 
     const initialFormState: SubscriptionFormState = {
-        reciever: "",
+        payeeKey: "",
         amount: "",
-        tokenMint: ",",
-        frequency: ""
+        mintKey: ",",
+        frequency: 0,
+        durationValue: 0,
+        firstPaymentDate: ""
     };
 
     const [formData, setFormData] = useState<SubscriptionFormState>(initialFormState);
@@ -39,6 +43,9 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
+    const { initializeSubscription } = useProgramActions()
+
+    const { publicKey } = useProgram()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,24 +100,49 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                     </button>
                 </div>
                 <hr className="border-t border-gray-600" />
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <InputGroup label="Reciever" name="reciever" value={(formData.reciever)!} onChange={handleChange} placeholder="Reciever" />
+                <form onSubmit={(e) => { e.preventDefault(); initializeSubscription(publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, Math.floor(new Date(formData.firstPaymentDate).getTime() / 1000), false) }} className="space-y-6">
+                    <InputGroup label="Reciever" name="payeeKey" value={(formData.payeeKey)!} onChange={handleChange} placeholder="Reciever" />
                     <InputGroup label="Amount" name="amount" value={(formData.amount)!} onChange={handleChange} placeholder="Amount" />
+                    <InputGroup label="First Payment Date" name="firstPaymentDate" type="date" value={(formData.firstPaymentDate)!} onChange={handleChange} placeholder="Date" />
                     <div>
                         <label className="block text-sm font-medium mb-2">Token</label>
                         <select
-                            name="tokenMint"
-                            value={formData.tokenMint}
+                            name="mintKey"
+                            value={formData.mintKey}
                             onChange={handleChange}
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none dark:bg-gray-700 dark:text-gray-200"
+                            className="w-full px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none dark:bg-gray-700 dark:text-gray-200 transition appearance-none"
                         >
                             {
-                                tokens.map(token => <option key={token.name} value={token.mint} >{token.name} ({token.symbol})</option>
+                                tokens?.map(token => <option key={token.name} value={token.mint} >{token.name} ({token.symbol})</option>
                                 )
                             }
                         </select>
                     </div>
-                    <div>
+                    <div className="flex gap-3 items-end">
+                        <InputGroup
+                            type="number"
+                            name="durationValue"
+                            value={formData.durationValue}
+                            onChange={handleChange}
+                            placeholder="e.g., 7"
+                            label='Subscription Duration'
+                        // disabled={isMutating}
+                        />
+                        <select
+                            name="frequency"
+                            value={formData.frequency}
+                            onChange={handleChange}
+                            className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
+                            required
+                        // disabled={isMutating}
+                        >
+                            <option value={86400}>Days</option>
+                            <option value={3600}>Hours</option>
+                            <option value={60}>Minutes</option>
+                            <option value={1}>Seconds</option>
+                        </select>
+                    </div>
+                    {/* <div>
                         <label className="block text-sm font-medium mb-2">Every</label>
                         <select
                             name="frequency"
@@ -123,7 +155,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                             <option value="monthly">Month</option>
                             <option value="yearly">Year</option>
                         </select>
-                    </div>
+                    </div> */}
 
                     <button
                         type="submit"
@@ -153,7 +185,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
 const InputGroup: React.FC<{
     label: string;
     name: keyof SubscriptionFormState;
-    value: string;
+    value: string | number;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder: string;
     type?: string;

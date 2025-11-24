@@ -56,7 +56,7 @@ export const useProgram = () => {
 
     const getGlobalStatsPDA = (programId: PublicKey) => {
         const [pda, _] = PublicKey.findProgramAddressSync(
-            [Buffer.from("global-stats")],
+            [Buffer.from("global_stats")],
             programId
         );
         return pda;
