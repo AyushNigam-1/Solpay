@@ -16,6 +16,7 @@ interface SubscriptionFormState {
     durationValue: number
     frequency: number,
     firstPaymentDate: string;
+    prefundAmount: number
 }
 
 interface SubscriptionFormModalProps {
@@ -32,7 +33,8 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
         mintKey: ",",
         frequency: 0,
         durationValue: 0,
-        firstPaymentDate: ""
+        firstPaymentDate: "",
+        prefundAmount: 0
     };
 
     const [formData, setFormData] = useState<SubscriptionFormState>(initialFormState);
@@ -100,7 +102,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                     </button>
                 </div>
                 <hr className="border-t border-gray-600" />
-                <form onSubmit={(e) => { e.preventDefault(); initializeSubscription(publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, Math.floor(new Date(formData.firstPaymentDate).getTime() / 1000), false) }} className="space-y-6">
+                <form onSubmit={(e) => { e.preventDefault(); initializeSubscription(publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, Math.floor(new Date(formData.firstPaymentDate).getTime() / 1000), formData.prefundAmount, false) }} className="space-y-6">
                     <InputGroup label="Reciever" name="payeeKey" value={(formData.payeeKey)!} onChange={handleChange} placeholder="Reciever" />
                     <InputGroup label="Amount" name="amount" value={(formData.amount)!} onChange={handleChange} placeholder="Amount" />
                     <InputGroup label="First Payment Date" name="firstPaymentDate" type="date" value={(formData.firstPaymentDate)!} onChange={handleChange} placeholder="Date" />
@@ -142,21 +144,15 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                             <option value={1}>Seconds</option>
                         </select>
                     </div>
-                    {/* <div>
-                        <label className="block text-sm font-medium mb-2">Every</label>
-                        <select
-                            name="frequency"
-                            value={formData.frequency}
-                            onChange={handleChange}
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-400 focus:ring-2 outline-none dark:bg-gray-700 dark:text-gray-200 "
-                        >
-                            <option value="daily">Day</option>
-                            <option value="weekly">Week</option>
-                            <option value="monthly">Month</option>
-                            <option value="yearly">Year</option>
-                        </select>
-                    </div> */}
-
+                    <InputGroup
+                        type="number"
+                        name="prefundAmount"
+                        value={formData.prefundAmount}
+                        onChange={handleChange}
+                        placeholder=""
+                        label='Prefund Amount'
+                    // disabled={isMutating}
+                    />
                     <button
                         type="submit"
                         disabled={loading}

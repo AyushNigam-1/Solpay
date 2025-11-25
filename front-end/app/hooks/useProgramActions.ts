@@ -3,9 +3,9 @@ import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
 import Cookies from "js-cookie"
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Subscription } from "../types";
-import { getMintProgramId } from "../utils/token";
+import { generateUniqueSeed, getMintProgramId } from "../utils/token";
 
 const ACTIVE_STATUS_OFFSET = 128;
 
@@ -61,21 +61,24 @@ export const useProgramActions = () => {
         amount: number | string,
         periodSeconds: number | string,
         firstPaymentTs: number | string,
+        prefundingAmount: number | string,
         autoRenew: boolean,
+
     ): Promise<web3.PublicKey | undefined> {
         console.log(payeeKey, payerKey, mintKey, amount, periodSeconds, firstPaymentTs, autoRenew)
         // Convert numerical inputs to Anchor's Big Number (BN)
         const amountBN = new anchor.BN(amount);
         const periodSecondsBN = new anchor.BN(periodSeconds);
         const firstPaymentTsBN = new anchor.BN(firstPaymentTs);
+        const prefundingAmountBN = new anchor.BN(prefundingAmount); // NEW BN conversion
         const depositTokenProgramId = await getMintProgramId(mintKey);
+        const uniqueSeed = generateUniqueSeed();
 
         const [subscriptionKey, subscriptionBump] = web3.PublicKey.findProgramAddressSync(
             [
                 anchor.utils.bytes.utf8.encode("subscription"), // Your custom seed string
                 payerKey.toBuffer(),
-                payeeKey.toBuffer(),
-                mintKey.toBuffer(),
+                Buffer.from(uniqueSeed)  // ← MUST INCLUDE THIS
             ],
             PROGRAM_ID
         );
@@ -84,12 +87,17 @@ export const useProgramActions = () => {
             [
                 anchor.utils.bytes.utf8.encode("vault"),
                 subscriptionKey.toBuffer(), // Seed the vault with the Subscription PDA itself
-                // TOKEN_PROGRAM_ID.toBuffer(),
-                // mintKey.toBuffer(),
             ],
             PROGRAM_ID
         );
         const globalStatsPDA = getGlobalStatsPDA(PROGRAM_ID); // NEW: Global stats PDA
+        const payerTokenAccount = getAssociatedTokenAddressSync(
+            mintKey,
+            payerKey,
+            false, // Allow owner to be PDA if needed, but here owner is Payer (wallet)
+            depositTokenProgramId, // Use the correct token program ID
+        );
+
         try {
             const tx = await program!.methods
                 .initializeSubscription(
@@ -97,6 +105,8 @@ export const useProgramActions = () => {
                     periodSecondsBN,
                     firstPaymentTsBN,
                     autoRenew,
+                    prefundingAmountBN,
+                    uniqueSeed.toJSON().data
                 )
                 .accounts({
                     subscription: subscriptionKey,
@@ -104,6 +114,7 @@ export const useProgramActions = () => {
                     payee: payeeKey,
                     mint: mintKey,
                     globalStats: globalStatsPDA,
+                    payerTokenAccount: payerTokenAccount,
                     vaultTokenAccount: vaultTokenAccount,
                     systemProgram: web3.SystemProgram.programId,
                     tokenProgram: depositTokenProgramId,

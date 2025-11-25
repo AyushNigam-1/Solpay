@@ -57,6 +57,7 @@ pub fn initialize_subscription(
     first_payment_ts: i64,
     auto_renew: bool,
     prefunding_amount: u64,         // ← NEW: how much to deposit upfront (0 = none)
+    unique_seed: [u8; 8], // ← FIX: Added missing argument
 ) -> Result<()> {
     // 1. DEPOSIT TOKENS (only if prefunding_amount > 0)
     if prefunding_amount > 0 {
@@ -93,7 +94,7 @@ pub fn initialize_subscription(
     subscription.active = true;
     subscription.vault = ctx.accounts.vault_token_account.key();
     subscription.bump = ctx.bumps.subscription;
-
+    subscription.unique_seed = unique_seed;  // ← FIXED: Save unique seed
     // 3. UPDATE GLOBAL STATS
     let stats = &mut ctx.accounts.global_stats;
     stats.total_subscriptions = stats
@@ -419,7 +420,7 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, period_seconds: i64, first_payment_ts: i64, auto_renew: bool)]
+#[instruction(amount: u64, period_seconds: i64, first_payment_ts: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -430,7 +431,7 @@ pub struct InitializeSubscription<'info> {
         payer = payer,
         space = SUBSCRIPTION_SPACE,
         // Seeds corrected from previous interactions:
-        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , payee.key().as_ref(),mint.key().as_ref()], 
+        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , unique_seed.as_ref()], 
         bump
     )]
     pub subscription: Account<'info, Subscription>,
@@ -470,7 +471,7 @@ pub struct InitializeSubscription<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(topup_amount: u64)]
+#[instruction(topup_amount: u64,unique_seed: [u8; 8])]
 pub struct TopupSubscription<'info> {
     #[account(mut)]
     /// CHECK: Must be the original payer of the subscription
@@ -478,7 +479,7 @@ pub struct TopupSubscription<'info> {
 
     #[account(
         mut, 
-        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref(), subscription.payee.as_ref(), subscription.mint.as_ref()], 
+        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref(), unique_seed.as_ref()], 
         bump = subscription.bump,
         has_one = payer, // Ensure only the original payer can top up
         has_one = vault_token_account,
@@ -607,6 +608,7 @@ pub struct Subscription {
     pub active: bool,
     pub vault: Pubkey,
     pub bump: u8,
+    pub unique_seed: [u8; 8],
     pub prefunded_amount: u64,  // ← shows how much was deposited
 }
 
@@ -630,7 +632,7 @@ pub struct SubscriptionInitialized {
     pub amount: u64,
     pub period_seconds: i64,
     pub next_payment_ts: i64,
-     pub prefunded_amount:u64
+    pub prefunded_amount:u64
 }
 
 #[event]
