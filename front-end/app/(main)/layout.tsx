@@ -7,7 +7,7 @@ export default function AppLayout({ children }: Readonly<{
     return (
         <div className='relative w-full h-screen overflow-hidden'>
             <div className="relative z-10 flex h-full">
-                <Sidebar />
+                {/* <Sidebar /> */}
                 <div className="w-full flex flex-col">
                     <Navbar />
                     <main className='p-4 overflow-y-auto flex-1'>

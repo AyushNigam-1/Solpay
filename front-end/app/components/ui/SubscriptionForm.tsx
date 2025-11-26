@@ -1,29 +1,12 @@
 "use client"
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
-import { UserTokenAccount } from "@/app/types";
+import { FormElement, SubscriptionFormModalProps, SubscriptionFormState, UserTokenAccount } from "@/app/types";
 import { useProgramActions } from "@/app/hooks/useProgramActions";
 import { useProgram } from "@/app/hooks/useProgram";
 import { PublicKey } from "@solana/web3.js";
-
-type FormElement = HTMLInputElement | HTMLSelectElement;
-
-interface SubscriptionFormState {
-    payeeKey: string
-    amount: string
-    mintKey: string
-    durationValue: number
-    frequency: number,
-    firstPaymentDate: string;
-    prefundAmount: number
-}
-
-interface SubscriptionFormModalProps {
-    isOpen: boolean
-    onClose: () => void
-    tokens: UserTokenAccount[]
-}
+import { useMutations } from "@/app/hooks/useMutations";
+import InputGroup from "./Input";
 
 export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen, onClose, tokens }) => {
 
@@ -46,7 +29,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
         setFormData(prev => ({ ...prev, [name]: value }));
     };
     const { initializeSubscription } = useProgramActions()
-
+    const { createSubscription, isMutating } = useMutations()
     const { publicKey } = useProgram()
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -158,18 +141,24 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                         disabled={loading}
                         className="w-full bg-blue-400 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold p-3 rounded-lg transition flex items-center justify-center gap-2 "
                     >
-                        {loading ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                Creating...
-                            </>
-                        ) : <>
+                        <>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
-                            Create Subscription
+                            {isMutating ? (
+                                <div className="flex items-center justify-center">
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Creating...
+                                </div>
+                            ) : (
+                                <>
+                                    Create
+                                </>
+                            )}
                         </>
-                        }
                     </button>
                 </form>
             </div>
@@ -178,29 +167,3 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
 }
 
 
-const InputGroup: React.FC<{
-    label: string;
-    name: keyof SubscriptionFormState;
-    value: string | number;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    placeholder: string;
-    type?: string;
-    disabled?: boolean;
-}> = ({ label, name, value, onChange, placeholder, type = 'text', disabled }) => (
-    <div className='w-full '>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {label}
-        </label>
-        <input
-            id={name}
-            name={name}
-            type={type}
-            step={type === 'number' ? 'any' : undefined}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            disabled={disabled}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition"
-        />
-    </div>
-);

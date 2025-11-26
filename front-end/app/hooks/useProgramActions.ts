@@ -6,8 +6,9 @@ import Cookies from "js-cookie"
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Subscription } from "../types";
 import { generateUniqueSeed, getMintProgramId } from "../utils/token";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
-const ACTIVE_STATUS_OFFSET = 128;
+const ACTIVE_STATUS_OFFSET = 225;
 
 export const useProgramActions = () => {
     const { program, getGlobalStatsPDA, PROGRAM_ID } = useProgram()
@@ -25,13 +26,14 @@ export const useProgramActions = () => {
             {
                 memcmp: {
                     offset: ACTIVE_STATUS_OFFSET,
-                    bytes: 'AQ',
+                    bytes: bs58.encode([1]),
                 },
-            },
+            }
         ];
 
         try {
-            const subscriptions: Subscription[] = await (program!.account as any).subscription.all(filters);
+            const subscriptions = await (program!.account as any).subscription.all(filters);
+            console.log(subscriptions, "subs")
             // if (subscriptions.length === 0) {
             //     console.log("✅ No active or inactive subscriptions found for this user.");
             //     return;
@@ -97,7 +99,12 @@ export const useProgramActions = () => {
             false, // Allow owner to be PDA if needed, but here owner is Payer (wallet)
             depositTokenProgramId, // Use the correct token program ID
         );
-
+        const payeeTokenAccount = getAssociatedTokenAddressSync(
+            mintKey,
+            payeeKey,
+            false,
+            depositTokenProgramId
+        )
         try {
             const tx = await program!.methods
                 .initializeSubscription(
@@ -115,6 +122,7 @@ export const useProgramActions = () => {
                     mint: mintKey,
                     globalStats: globalStatsPDA,
                     payerTokenAccount: payerTokenAccount,
+                    payeeTokenAccount: payeeTokenAccount,
                     vaultTokenAccount: vaultTokenAccount,
                     systemProgram: web3.SystemProgram.programId,
                     tokenProgram: depositTokenProgramId,

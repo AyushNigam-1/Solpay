@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
-// use anchor_spl::token::Token;
-// use anchor_spl::token::{self, CloseAccount, Mint, TokenAccount, TransferChecked};
 use anchor_spl::token_interface::{
     Mint, TokenAccount, TokenInterface, TransferChecked, CloseAccount,
 };
@@ -12,28 +10,11 @@ pub const SUBSCRIPTION_SEED: &[u8] = b"subscription";
 pub const VAULT_SEED: &[u8] = b"vault";
 pub const GLOBAL_STATS_SEED: &[u8] = b"global_stats";
 
-// Account space constants (approximate; adjust if you add more fields)
-pub const SUBSCRIPTION_SPACE: usize = 8 + // discriminator
-    32 + // payer
-    32 + // payee
-    32 + // mint
-    8  + // amount
-    8  + // period_seconds
-    8  + // next_payment_ts
-    1  + // auto_renew
-    1  + // active
-    32 + // vault token account pubkey
-    1; // bump
-
-pub const GLOBAL_STATS_SPACE: usize = 8 + 8 + 8 + 16 + 1; // adjust as needed
-
 #[program]
 pub mod recurring_payments {
     use anchor_spl::token_interface;
 
     use super::*;
-
-    /// Initialize global stats singleton (call once)
     pub fn initialize_global_stats(ctx: Context<InitializeGlobalStats>) -> Result<()> {
         let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = 0;
@@ -92,7 +73,9 @@ pub fn initialize_subscription(
     subscription.next_payment_ts = first_payment_ts;
     subscription.auto_renew = auto_renew;
     subscription.active = true;
-    subscription.vault = ctx.accounts.vault_token_account.key();
+    subscription.payer_token_account = ctx.accounts.payer_token_account.key();
+    subscription.payee_token_account = ctx.accounts.payee_token_account.key();
+    subscription.vault_token_account = ctx.accounts.vault_token_account.key();
     subscription.bump = ctx.bumps.subscription;
     subscription.unique_seed = unique_seed;  // ← FIXED: Save unique seed
     // 3. UPDATE GLOBAL STATS
@@ -169,7 +152,7 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
             ErrorCode::InsufficientFunds
         );
 
-        // ---- PDA Signer Seeds ----
+        // ---- PDA Signer Seeds ----accounts
         let seeds = &[
             SUBSCRIPTION_SEED,
             subscription.payer.as_ref(),
@@ -409,7 +392,7 @@ pub struct InitializeGlobalStats<'info> {
       payer = payer,
       seeds = [GLOBAL_STATS_SEED],
       bump,
-      space = GLOBAL_STATS_SPACE
+      space = 8 + GlobalStats::INIT_SPACE
     )]
     pub global_stats: Account<'info, GlobalStats>,
 
@@ -424,12 +407,11 @@ pub struct InitializeGlobalStats<'info> {
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-
     /// Subscription PDA
     #[account(
         init,
         payer = payer,
-        space = SUBSCRIPTION_SPACE,
+        space = 8 + Subscription::INIT_SPACE,
         // Seeds corrected from previous interactions:
         seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , unique_seed.as_ref()], 
         bump
@@ -455,12 +437,14 @@ pub struct InitializeSubscription<'info> {
     pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
     /// Mint for this subscription
     pub mint:InterfaceAccount<'info, Mint>,
-
-    /// The payee token account where payments will be sent (must be correct mint)
-    /// NOTE: It is recommended to validate the payee token account's mint in indexer / off-chain prior to use.
     /// CHECK: The payee key is only saved for later payment processing. It is not used for direct signing or transfer authority in this instruction.
-    pub payee: AccountInfo<'info>,
-
+    pub payee: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = payee_token_account.mint == mint.key(),
+        constraint = payee_token_account.owner == payee.key(),
+    )]
+    pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
     /// Global stats (singleton)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
@@ -596,9 +580,12 @@ ACCOUNT DATA STRUCTS
 --------------------------- */
 
 #[account]
+#[derive(InitSpace)]  // ← THIS IS MAGIC
 pub struct Subscription {
     pub payer: Pubkey,
     pub payee: Pubkey,
+    pub payer_token_account: Pubkey,
+    pub payee_token_account: Pubkey,
     pub mint: Pubkey,
     pub amount: u64,
     pub vault_token_account: Pubkey,
@@ -606,13 +593,13 @@ pub struct Subscription {
     pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,
-    pub vault: Pubkey,
     pub bump: u8,
     pub unique_seed: [u8; 8],
     pub prefunded_amount: u64,  // ← shows how much was deposited
 }
 
 #[account]
+#[derive(InitSpace)]  // ← THIS IS MAGIC
 pub struct GlobalStats {
     pub total_subscriptions: u64,
     pub total_payments_executed: u64,

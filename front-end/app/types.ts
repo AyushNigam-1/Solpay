@@ -54,3 +54,21 @@ export interface TableHeaderProps {
     icon: React.ReactNode
     title: string
 }
+
+export type FormElement = HTMLInputElement | HTMLSelectElement;
+
+export interface SubscriptionFormState {
+    payeeKey: string
+    amount: string
+    mintKey: string
+    durationValue: number
+    frequency: number,
+    firstPaymentDate: string;
+    prefundAmount: number
+}
+
+export interface SubscriptionFormModalProps {
+    isOpen: boolean
+    onClose: () => void
+    tokens: UserTokenAccount[]
+}
