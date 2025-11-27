@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
 use anchor_spl::token_interface::{
-    Mint, TokenAccount, TokenInterface, TransferChecked, CloseAccount,
+    Mint, TokenAccount, TokenInterface, TransferChecked, CloseAccount,transfer_checked , close_account
 };
 // Program id - replace with your actual program id from Anchor.toml / `anchor build`
-declare_id!("DSPgJHR4uWN8tL24eZjASof6a3oxtemVA2KCmLpSWU2b");
+declare_id!("3X4345dDnMwui3j9TXDTdQVfjsNGEJbXyvsfTAAZWzDp");
 
 pub const SUBSCRIPTION_SEED: &[u8] = b"subscription";
 pub const VAULT_SEED: &[u8] = b"vault";
@@ -12,8 +12,6 @@ pub const GLOBAL_STATS_SEED: &[u8] = b"global_stats";
 
 #[program]
 pub mod recurring_payments {
-    use anchor_spl::token_interface;
-
     use super::*;
     pub fn initialize_global_stats(ctx: Context<InitializeGlobalStats>) -> Result<()> {
         let stats = &mut ctx.accounts.global_stats;
@@ -33,6 +31,7 @@ pub mod recurring_payments {
 #[allow(clippy::too_many_arguments)]
 pub fn initialize_subscription(
     ctx: Context<InitializeSubscription>,
+    // name:String,
     amount: u64,                    // Amount per payment (e.g. 50 USDC)
     period_seconds: i64,
     first_payment_ts: i64,
@@ -56,7 +55,7 @@ pub fn initialize_subscription(
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
 
-        token_interface::transfer_checked(
+        transfer_checked(
             cpi_ctx,
             prefunding_amount,
             ctx.accounts.mint.decimals,
@@ -65,6 +64,7 @@ pub fn initialize_subscription(
 
     // 2. INITIALIZE SUBSCRIPTION STATE
     let subscription = &mut ctx.accounts.subscription;
+    // subscription.name = name;
     subscription.payer = ctx.accounts.payer.key();
     subscription.payee = ctx.accounts.payee.key();
     subscription.mint = ctx.accounts.mint.key();
@@ -118,7 +118,7 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
 
     // Call the SPL Token Program to move the tokens.
     // This will fail if the payer_token_account does not have sufficient funds.
-    token_interface::transfer_checked(
+    transfer_checked(
         cpi_ctx, 
         topup_amount, 
         ctx.accounts.mint.decimals
@@ -175,7 +175,7 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
         // The temporary immutable borrow for the CPI is fully contained here.
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-        token_interface::transfer_checked(
+        transfer_checked(
             // Assuming 'token' is the correct module
             cpi_ctx,
             subscription.amount,
@@ -209,16 +209,12 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
 
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         let clock = Clock::get()?;
-        let subscription = &mut ctx.accounts.subscription; // MUTABLE BORROW STARTS HERE
+        let subscription = &mut ctx.accounts.subscription;
 
-        // --- Authorization ---
-        require_keys_eq!(
-            subscription.payer,
-            *ctx.accounts.payer.key,
-            ErrorCode::Unauthorized
-        );
+        // --- AUTH ---
+        require_keys_eq!(subscription.payer, *ctx.accounts.payer.key, ErrorCode::Unauthorized);
 
-        // --- Prepare signer seeds ---
+        // --- PDA Signer Seeds ---
         let seeds = &[
             SUBSCRIPTION_SEED,
             subscription.payer.as_ref(),
@@ -226,18 +222,15 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
         ];
         let signer_seeds = &[&seeds[..]];
 
-        // --- Refund any remaining balance from vault ---
         let vault_amount = ctx.accounts.vault_token_account.amount;
 
+        // --- Refund remaining funds ---
         if vault_amount > 0 {
-            // FIX 1: Pass .to_account_info() directly into the CPI struct.
-            // This avoids holding multiple simultaneous immutable references (AccountInfo clones)
-            // that conflict with the primary mutable reference ('subscription').
             let cpi_accounts = TransferChecked {
                 from: ctx.accounts.vault_token_account.to_account_info(),
                 mint: ctx.accounts.mint.to_account_info(),
                 to: ctx.accounts.payer_token_account.to_account_info(),
-                authority: subscription.to_account_info(), // Use mutable ref temporarily as immutable AccountInfo
+                authority: subscription.to_account_info(),
             };
 
             let cpi_ctx = CpiContext::new_with_signer(
@@ -246,45 +239,46 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
                 signer_seeds,
             );
 
-            token_interface::transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
-            // Use `token` module
+            transfer_checked(
+                cpi_ctx,
+                vault_amount,
+                ctx.accounts.mint.decimals,
+            )?;
         }
 
-        // --- Close vault account back to payer ---
-        // FIX 2: Pass .to_account_info() directly into the CPI struct.
-        let cpi_accounts_close = CloseAccount {
-            account: ctx.accounts.vault_token_account.to_account_info(), // Vault to be closed
-            destination: ctx.accounts.payer.to_account_info(),           // payer receives rent
-            authority: subscription.to_account_info(), // Subscription PDA is the authority
+        // --- Close Vault ---
+        let cpi_close = CloseAccount {
+            account: ctx.accounts.vault_token_account.to_account_info(),
+            destination: ctx.accounts.payer.to_account_info(),
+            authority: subscription.to_account_info(),
         };
 
         let cpi_ctx_close = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            cpi_accounts_close,
+            cpi_close,
             signer_seeds,
         );
 
-        token_interface::close_account(cpi_ctx_close)?; // Use `token` module
-                                              // --- Deactivate subscription ---
-                                              // MUTABLE BORROW IS USED HERE AGAIN
-        subscription.active = false;
+        close_account(cpi_ctx_close)?;
 
-        // --- Update global stats ---
-        let stats = &mut ctx.accounts.global_stats; // NEW MUTABLE BORROW
-
+        // --- Update stats ---
+        let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = stats
             .total_subscriptions
             .checked_sub(1)
             .ok_or(error!(ErrorCode::NumericalOverflow))?;
 
+        // --- Emit Event ---
         emit!(SubscriptionCancelled {
             subscription: subscription.key(),
             payer: subscription.payer,
             timestamp: clock.unix_timestamp,
         });
 
+        // PDA is auto-closed due to `close = payer` in account constraints
         Ok(())
     }
+
 
     pub fn withdraw_remaining(ctx: Context<WithdrawRemaining>) -> Result<()> {
         let subscription = &mut ctx.accounts.subscription; // MUTABLE BORROW starts
@@ -321,7 +315,7 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
             let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-            token_interface::transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
+            transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
         }
 
         // close the vault to payer
@@ -336,7 +330,7 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
             cpi_accounts_close,
             signer_seeds,
         );
-        token_interface::close_account(cpi_ctx_close)?;
+        close_account(cpi_ctx_close)?;
 
         // No further mutable access to `subscription` is needed, but the original mutable borrow ends here.
 
@@ -497,9 +491,10 @@ pub struct TopupSubscription<'info> {
 }
 
 #[derive(Accounts)]
+
 pub struct ExecutePayment<'info> {
     /// Subscription account (PDA)
-    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref()], bump = subscription.bump)]
+    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref() ,subscription.unique_seed.as_ref()], bump = subscription.bump)]
     pub subscription: Account<'info, Subscription>,
 
     /// Vault token account (owned by subscription PDA)
@@ -526,7 +521,7 @@ pub struct CancelSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref()], bump = subscription.bump)]
+    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref(), subscription.unique_seed.as_ref()], bump = subscription.bump)]
     pub subscription: Account<'info, Subscription>,
 
     /// Vault token account (owned by subscription PDA)
@@ -544,7 +539,7 @@ pub struct CancelSubscription<'info> {
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
 
-pub token_program: Interface<'info, TokenInterface>
+    pub token_program: Interface<'info, TokenInterface>
 }
 
 #[derive(Accounts)]
@@ -584,6 +579,8 @@ ACCOUNT DATA STRUCTS
 pub struct Subscription {
     pub payer: Pubkey,
     pub payee: Pubkey,
+    // #[max_len(32)]   
+    // pub name :String,
     pub payer_token_account: Pubkey,
     pub payee_token_account: Pubkey,
     pub mint: Pubkey,

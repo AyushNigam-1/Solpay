@@ -11,7 +11,10 @@ export interface Subscription {
     nextPaymentTs: anchor.BN;
     active: boolean;
     autoRenew: boolean;
+    tokenMetadata: FullTokenMetadata,
     vaultTokenAccount: web3.PublicKey;
+    prefundedAmount: anchor.BN;
+    uniqueSeed: anchor.BN
     bump: number;
 }
 
@@ -58,6 +61,7 @@ export interface TableHeaderProps {
 export type FormElement = HTMLInputElement | HTMLSelectElement;
 
 export interface SubscriptionFormState {
+    name: string
     payeeKey: string
     amount: string
     mintKey: string

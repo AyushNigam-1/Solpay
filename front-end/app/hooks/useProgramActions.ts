@@ -5,7 +5,7 @@ import { PublicKey } from "@solana/web3.js";
 import Cookies from "js-cookie"
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Subscription } from "../types";
-import { generateUniqueSeed, getMintProgramId } from "../utils/token";
+import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const ACTIVE_STATUS_OFFSET = 225;
@@ -38,6 +38,12 @@ export const useProgramActions = () => {
             //     console.log("✅ No active or inactive subscriptions found for this user.");
             //     return;
             // }
+
+            // const tokenMetadata = fetchTokenMetadata(subscriptions)
+            for (const { pubkey, account } of subscriptions) {
+                const metadata = await fetchTokenMetadata(new PublicKey(account.mint))
+                account.tokenMetadata = metadata
+            }
             return subscriptions
             // subscriptions.forEach((subscription: { subscription: { account: Subscription }[] }, index: number) => {
             //     console.log(`\n--- Subscription #${index + 1} ---`);
@@ -57,6 +63,7 @@ export const useProgramActions = () => {
     }
 
     async function initializeSubscription(
+        name: string,
         payerKey: web3.PublicKey,
         payeeKey: web3.PublicKey,
         mintKey: web3.PublicKey,
@@ -108,12 +115,13 @@ export const useProgramActions = () => {
         try {
             const tx = await program!.methods
                 .initializeSubscription(
+                    name,
                     amountBN,
                     periodSecondsBN,
                     firstPaymentTsBN,
                     autoRenew,
                     prefundingAmountBN,
-                    uniqueSeed.toJSON().data
+                    uniqueSeed.toJSON().data,
                 )
                 .accounts({
                     subscription: subscriptionKey,
@@ -141,7 +149,58 @@ export const useProgramActions = () => {
             return undefined;
         }
     }
-    return { fetchUserSubscriptions, initializeSubscription }
+    async function cancelSubscription(
+        payerKey: web3.PublicKey,
+        uniqueSeed: Buffer,
+        mintAddress: PublicKey,
+        vaultTokenAccount: PublicKey
+    ): Promise<string | undefined> {
+
+        const tokenProgramId = TOKEN_PROGRAM_ID; // Placeholder
+
+        const payerTokenAccount = getAssociatedTokenAddressSync(
+            mintAddress,
+            payerKey,
+            false,
+            tokenProgramId
+        );
+
+        const [subscriptionKey] = web3.PublicKey.findProgramAddressSync(
+            [
+                anchor.utils.bytes.utf8.encode("subscription"), // SUBSCRIPTION_SEED
+                payerKey.toBuffer(),
+                Buffer.from(uniqueSeed),      // The unique seed
+            ],
+            PROGRAM_ID
+        );
+
+        const globalStatsPDA = getGlobalStatsPDA(PROGRAM_ID);
+
+        try {
+            const tx = await program!.methods
+                .cancelSubscription()
+                .accounts({
+                    payer: payerKey,
+                    subscription: subscriptionKey,
+                    vaultTokenAccount: vaultTokenAccount,
+                    payerTokenAccount: payerTokenAccount,
+                    mint: mintAddress,
+                    globalStats: globalStatsPDA,
+                    tokenProgram: tokenProgramId,
+                })
+                .rpc();
+
+            console.log(`\n✅ Subscription Cancelled!`);
+        } catch (error) {
+            console.error("❌ Error cancelling subscription:", error);
+            // Log the full error message for debugging
+            if (error instanceof Error) {
+                console.error("Error Details:", error.message);
+            }
+            return undefined;
+        }
+    }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription }
 }
 
 

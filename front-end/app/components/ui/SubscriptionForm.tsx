@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react";
-import { FormElement, SubscriptionFormModalProps, SubscriptionFormState, UserTokenAccount } from "@/app/types";
+import { FormElement, SubscriptionFormModalProps, SubscriptionFormState } from "@/app/types";
 import { useProgramActions } from "@/app/hooks/useProgramActions";
 import { useProgram } from "@/app/hooks/useProgram";
 import { PublicKey } from "@solana/web3.js";
@@ -11,6 +11,7 @@ import InputGroup from "./Input";
 export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen, onClose, tokens }) => {
 
     const initialFormState: SubscriptionFormState = {
+        name: "",
         payeeKey: "",
         amount: "",
         mintKey: ",",
@@ -85,7 +86,12 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                     </button>
                 </div>
                 <hr className="border-t border-gray-600" />
-                <form onSubmit={(e) => { e.preventDefault(); initializeSubscription(publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, Math.floor(new Date(formData.firstPaymentDate).getTime() / 1000), formData.prefundAmount, false) }} className="space-y-6">
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    initializeSubscription(formData.name, publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, Math.floor(new Date(formData.firstPaymentDate).getTime() / 1000), formData.prefundAmount, false)
+
+                }} className="space-y-6">
+                    <InputGroup label="Name" name="name" value={(formData.name)!} onChange={handleChange} placeholder="e.g ChatGPT , Netflix " />
                     <InputGroup label="Reciever" name="payeeKey" value={(formData.payeeKey)!} onChange={handleChange} placeholder="Reciever" />
                     <InputGroup label="Amount" name="amount" value={(formData.amount)!} onChange={handleChange} placeholder="Amount" />
                     <InputGroup label="First Payment Date" name="firstPaymentDate" type="date" value={(formData.firstPaymentDate)!} onChange={handleChange} placeholder="Date" />

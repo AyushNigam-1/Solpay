@@ -51,7 +51,7 @@ const Sidebar = () => {
         >
             <div className="h-full  overflow-y-auto bg-white/5">
                 <div className="text-3xl font-extrabold text-gray-900 dark:text-white p-3.5 border-b-2 border-b-white/5">
-                    Escrow
+                    Solpay
                 </div>
                 <ul className="space-y-2 font-medium p-3">
                     {navOptions.map((option, index) => (

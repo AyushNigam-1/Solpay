@@ -15,7 +15,7 @@ const Navbar = () => {
     return (
         <nav className="bg-white/5 w-full font-mono">
             <div className=" flex flex-wrap items-center justify-between p-4">
-                <div className='text-2xl ' >Solpay</div>
+                <div className='text-2xl ' ></div>
                 <div className="flex items-center">
                     <button type="button" className="flex text-sm bg-gray-800 rounded-full md:me-0 focus:ring-4 focus:ring-purple-300 dark:focus:ring-gray-600" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="bottom" aria-expanded={isDropdownOpen}
                         onClick={toggleDropdown}>

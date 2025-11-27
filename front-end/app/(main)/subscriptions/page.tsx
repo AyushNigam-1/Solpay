@@ -16,17 +16,17 @@ import { PublicKey } from '@solana/web3.js';
 import { fetchUserTokenAccounts } from '@/app/utils/token';
 import Cookies from "js-cookie"
 import { formatPeriod } from '@/app/utils/duration';
-import { ChevronsUpDown, CircleMinus, Delete, Expand, RemoveFormatting } from 'lucide-react';
+import { Banknote, ChevronsUpDown, CircleDot, CircleMinus, CircleUserRound, Coins, Delete, MousePointerClick, Timer, Wallet } from 'lucide-react';
 
 const page = () => {
     const [isOpen, setOpen] = useState<boolean>(false)
     // const publicKey = Cookies.get("user")!
-    const [pendingId, setPendingId] = useState<string | null>(null);
+    // const [pendingId, setPendingId] = useState<string | null>(null);
     // const { exchangeEscrow, cancelEscrow, isMutating } = useMutations({ setPendingId })
     // const { publicKey } = useProgram()
     const publicKey = new PublicKey(Cookies.get("user")!)
 
-    const contractActions = useProgramActions();
+    const { cancelSubscription, fetchUserSubscriptions } = useProgramActions();
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     interface query {
         publickey: PublicKey, account: Subscription
@@ -39,7 +39,7 @@ const page = () => {
         refetch,
     } = useQuery<query[]>({
         queryKey: ["AllEscrows"],
-        queryFn: () => contractActions.fetchUserSubscriptions(),
+        queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
     });
     console.log("subscriptions", subscriptions)
@@ -74,53 +74,46 @@ const page = () => {
     const headers = [
         {
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                </svg>
+                <CircleUserRound />
             ),
             title: "Reciever"
         },
         {
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
+                <Coins />
             ),
             title: "Token"
         },
         {
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
+                <Banknote />
             ),
             title: "Amount"
         },
-
         {
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                </svg>
+                <Wallet />
+            ),
+            title: "Balance"
+        },
+        {
+            icon: (
+                <Timer />
             ),
             title: "Duration"
         },
         {
             icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" />
-                </svg>
+                <CircleDot />
             ),
-            title: "Next Payment"
+            title: "Status"
         },
-        {
-            icon: (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672ZM12 2.25V4.5m5.834.166-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243-1.59-1.59" />
-                </svg>
-            ),
-            title: "Actions"
-        }
+        // {
+        //     icon: (
+        //         <MousePointerClick />
+        //     ),
+        //     title: "Actions"
+        // }
     ]
 
 
@@ -140,63 +133,48 @@ const page = () => {
                                         <tbody>
                                             {filteredData!.map((subscription) => {
                                                 return (
-                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5">
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-end gap-2">
-                                                                <p className="text-xl font-semibold text-white">
-                                                                    {subscription.account.payee.toBase58().slice(0, 15)}...
-
-                                                                </p>
-                                                                {/* <img
-                                                                    src={escrow.tokenA.metadata.image}
-                                                                    className='w-6 rounded-full object-cover'
-                                                                    alt={`${escrow.tokenA.metadata.symbol} icon`}
-                                                                />
-                                                                <p className="text-xl font-semibold text-white"> */}
-                                                                {/* {numeral(escrow.tokenA.amount).format('0a')} */}
-                                                                {/* </p> */}
-                                                                <p className="text-xl text-gray-400">
-                                                                    {/* {escrow.tokenA.metadata.symbol} */}
-                                                                </p>
-                                                            </div>
+                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer">
+                                                        <td className="px-6 py-2 text-xl font-semibold text-white">
+                                                            {subscription.account.payer.toBase58().slice(0, 10)}...
                                                         </td>
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
-                                                                {/* <img
-                                                                    src={escrow.tokenB.metadata.image}
+                                                                <img
+                                                                    src={subscription.account.tokenMetadata.image}
                                                                     className='w-6 rounded-full object-cover'
-                                                                    alt={`${escrow.tokenB.metadata.symbol} icon`}
-                                                                /> */}
-                                                                {/* <p className="text-xl font-semibold text-white "> */}
-                                                                {/* {numeral(escrow.tokenB.amount).format('0a')} */}
-                                                                {/* </p> */}
-                                                                {/* <p className="text-xl text-gray-400">
-                                                                    {escrow.tokenB.metadata.symbol}
-                                                                </p> */}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-baseline gap-2">
-                                                                <p className="text-xl text-gray-400 leading-none">
-                                                                    {subscription.account.amount.toString()}
+                                                                    alt={`${subscription.account.tokenMetadata.symbol} icon`}
+                                                                />
+                                                                <p className="text-xl text-gray-400">
+                                                                    {subscription.account.tokenMetadata.symbol}
                                                                 </p>
                                                             </div>
                                                         </td>
+                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
+                                                            {subscription.account.amount.toString()}
+                                                        </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(subscription.account.periodSeconds)}
+                                                            {subscription.account.prefundedAmount.toString()}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {formatPeriod(subscription.account.periodSeconds)}
                                                         </td>
-                                                        {/* <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(subscription.account.periodSeconds)}
-                                                        </td> */}
-                                                        <td className="relative px-6 py-2">  {/* ← relative + no z-50 */}
-                                                            <Menu as="div" className="relative inline-block text-center">
-                                                                <MenuButton className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition">
+                                                        <td className="px-6 py-2 text-xl text-gray-400">
+                                                            {subscription.account.active ? "Active" : "Disabled"}
+                                                            <button
+                                                                onClick={() => cancelSubscription(subscription.account.payer, subscription.account.uniqueSeed, subscription.account.mint, subscription.account.vaultTokenAccount)}
+                                                                className={` w-full text-left group flex items-center gap-3 px-4 py-3 text-lg hover:bg-red-500/20 transition cursor-pointer`}
+                                                            >
+                                                                <Delete className="w-5 h-5" />
+                                                                Delete
+                                                            </button>
+                                                        </td>
+                                                        {/* <td className="relative px-6 py-2">  */}
+                                                        {/* <Menu as="div" className="relative inline-block     text-center">
+                                                                <MenuButton className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition text-blue-400">
                                                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                                                                     </svg>
+                                                                    Options
                                                                 </MenuButton>
 
                                                                 <MenuItems
@@ -231,6 +209,7 @@ const page = () => {
                                                                         <MenuItem>
                                                                             {({ active }) => (
                                                                                 <button
+                                                                                    // onClick={() => cancelSubscription(subscription.account.payer,subscription.account.uniqE)}
                                                                                     className={`${active ? 'bg-red-500/20 text-red-400' : 'text-red-400'
                                                                                         } w-full text-left group flex items-center gap-3 px-4 py-3 text-lg hover:bg-red-500/20 transition cursor-pointer`}
                                                                                 >
@@ -241,8 +220,8 @@ const page = () => {
                                                                         </MenuItem>
                                                                     </div>
                                                                 </MenuItems>
-                                                            </Menu>
-                                                        </td>
+                                                            </Menu> */}
+                                                        {/* </td> */}
                                                     </tr>
                                                 )
                                             })}
