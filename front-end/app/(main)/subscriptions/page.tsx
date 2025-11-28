@@ -17,27 +17,28 @@ import { fetchUserTokenAccounts } from '@/app/utils/token';
 import Cookies from "js-cookie"
 import { formatPeriod } from '@/app/utils/duration';
 import { Banknote, ChevronsUpDown, CircleDot, CircleMinus, CircleUserRound, Coins, Delete, MousePointerClick, Timer, Wallet } from 'lucide-react';
+import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
 
 const page = () => {
     const [isOpen, setOpen] = useState<boolean>(false)
-    // const publicKey = Cookies.get("user")!
-    // const [pendingId, setPendingId] = useState<string | null>(null);
-    // const { exchangeEscrow, cancelEscrow, isMutating } = useMutations({ setPendingId })
-    // const { publicKey } = useProgram()
+    const [subscription, setSubscription] = useState<Subscription | null>()
+    const [openDetails, setOpenDetails] = useState<boolean>(false)
     const publicKey = new PublicKey(Cookies.get("user")!)
 
     const { cancelSubscription, fetchUserSubscriptions } = useProgramActions();
     const [searchQuery, setSearchQuery] = useState<string | null>("")
-    interface query {
-        publickey: PublicKey, account: Subscription
-    }
+    // interface query {
+    //     publicKey: PublicKey, account: Subscription
+    // }
     const {
         data: subscriptions,
         isLoading,
         isFetching,
         isError: isQueryError,
         refetch,
-    } = useQuery<query[]>({
+    } = useQuery<{
+        publicKey: PublicKey, account: Subscription
+    }[]>({
         queryKey: ["AllEscrows"],
         queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
@@ -108,12 +109,6 @@ const page = () => {
             ),
             title: "Status"
         },
-        // {
-        //     icon: (
-        //         <MousePointerClick />
-        //     ),
-        //     title: "Actions"
-        // }
     ]
 
 
@@ -133,9 +128,9 @@ const page = () => {
                                         <tbody>
                                             {filteredData!.map((subscription) => {
                                                 return (
-                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer">
+                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscription.account); setOpenDetails(true) }}>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {subscription.account.payer.toBase58().slice(0, 10)}...
+                                                            {subscription.account.name}
                                                         </td>
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
@@ -160,68 +155,7 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}
-                                                            <button
-                                                                onClick={() => cancelSubscription(subscription.account.payer, subscription.account.uniqueSeed, subscription.account.mint, subscription.account.vaultTokenAccount)}
-                                                                className={` w-full text-left group flex items-center gap-3 px-4 py-3 text-lg hover:bg-red-500/20 transition cursor-pointer`}
-                                                            >
-                                                                <Delete className="w-5 h-5" />
-                                                                Delete
-                                                            </button>
                                                         </td>
-                                                        {/* <td className="relative px-6 py-2">  */}
-                                                        {/* <Menu as="div" className="relative inline-block     text-center">
-                                                                <MenuButton className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 transition text-blue-400">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
-                                                                    </svg>
-                                                                    Options
-                                                                </MenuButton>
-
-                                                                <MenuItems
-                                                                    anchor="bottom"
-                                                                    className="absolute right-0 mt-2 w-48 origin-top-right rounded-xl bg-white/5  z-50"
-                                                                >
-                                                                    <div className="py-1">
-                                                                        <MenuItem>
-                                                                            {({ active }) => (
-                                                                                <button
-                                                                                    className={`${active ? 'bg-white/10' : ''
-                                                                                        } w-full group flex items-center gap-3 px-4 py-3 text-lg text-gray-200 hover:text-white transition cursor-pointer`}
-                                                                                >
-                                                                                    <ChevronsUpDown className="w-5 h-5" />
-                                                                                    Details
-                                                                                </button>
-                                                                            )}
-                                                                        </MenuItem>
-
-                                                                        <MenuItem>
-                                                                            {({ active }) => (
-                                                                                <button
-                                                                                    className={`${active ? 'bg-white/10' : ''
-                                                                                        } w-full text-left group flex items-center gap-3 px-4 py-3 text-lg text-gray-200 hover:text-white transition cursor-pointer`}
-                                                                                >
-                                                                                    <CircleMinus className="w-5 h-5" />
-                                                                                    Deactivate
-                                                                                </button>
-                                                                            )}
-                                                                        </MenuItem>
-
-                                                                        <MenuItem>
-                                                                            {({ active }) => (
-                                                                                <button
-                                                                                    // onClick={() => cancelSubscription(subscription.account.payer,subscription.account.uniqE)}
-                                                                                    className={`${active ? 'bg-red-500/20 text-red-400' : 'text-red-400'
-                                                                                        } w-full text-left group flex items-center gap-3 px-4 py-3 text-lg hover:bg-red-500/20 transition cursor-pointer`}
-                                                                                >
-                                                                                    <Delete className="w-5 h-5" />
-                                                                                    Delete
-                                                                                </button>
-                                                                            )}
-                                                                        </MenuItem>
-                                                                    </div>
-                                                                </MenuItems>
-                                                            </Menu> */}
-                                                        {/* </td> */}
                                                     </tr>
                                                 )
                                             })}
@@ -239,6 +173,7 @@ const page = () => {
                 )}
             </div>
             <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} tokens={tokens!} />
+            <SubscriptionDetails isOpen={openDetails!} subscription={subscription!} onClose={() => setOpenDetails(false)} />
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}
 
         </div>

@@ -11,7 +11,6 @@ solpay = "6ttTmuXJ1WTw6k8LQpJkQcAsnvofipeBCPGTFdgtNYiM"
 [programs.devnet]
 RecurringPayments = "3X4345dDnMwui3j9TXDTdQVfjsNGEJbXyvsfTAAZWzDp"
 
-
 [registry]
 url = "https://api.apr.dev"
 

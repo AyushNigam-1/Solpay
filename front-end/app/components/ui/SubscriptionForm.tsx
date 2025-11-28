@@ -14,7 +14,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
         name: "",
         payeeKey: "",
         amount: "",
-        mintKey: ",",
+        mintKey: "",
         frequency: 0,
         durationValue: 0,
         firstPaymentDate: "",
@@ -33,22 +33,6 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
     const { createSubscription, isMutating } = useMutations()
     const { publicKey } = useProgram()
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        // if (!receiver || !amount) return;
-
-        setLoading(true);
-        try {
-            // Your wallet adapter + Anchor call here
-            // console.log("Creating subscription:", { receiver, amount, token, frequency });
-            // await createSubscriptionOnChain({ receiver, amount: Number(amount), token, frequency });
-            alert("Subscription created!");
-        } catch (err) {
-            alert("Failed to create subscription");
-        } finally {
-            setLoading(false);
-        }
-    };
     const handleClose = () => {
         // if (!isMutating) {
         onClose();

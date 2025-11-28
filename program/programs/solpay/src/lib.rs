@@ -6,7 +6,7 @@ use anchor_spl::token_interface::{
 // Program id - replace with your actual program id from Anchor.toml / `anchor build`
 declare_id!("3X4345dDnMwui3j9TXDTdQVfjsNGEJbXyvsfTAAZWzDp");
 
-pub const SUBSCRIPTION_SEED: &[u8] = b"subscription";
+pub const SUBSCRIPTION_SEED: &[u8] = b"subscription"; 
 pub const VAULT_SEED: &[u8] = b"vault";
 pub const GLOBAL_STATS_SEED: &[u8] = b"global_stats";
 
@@ -31,7 +31,7 @@ pub mod recurring_payments {
 #[allow(clippy::too_many_arguments)]
 pub fn initialize_subscription(
     ctx: Context<InitializeSubscription>,
-    // name:String,
+    name:String,
     amount: u64,                    // Amount per payment (e.g. 50 USDC)
     period_seconds: i64,
     first_payment_ts: i64,
@@ -64,7 +64,7 @@ pub fn initialize_subscription(
 
     // 2. INITIALIZE SUBSCRIPTION STATE
     let subscription = &mut ctx.accounts.subscription;
-    // subscription.name = name;
+    subscription.name = name;
     subscription.payer = ctx.accounts.payer.key();
     subscription.payee = ctx.accounts.payee.key();
     subscription.mint = ctx.accounts.mint.key();
@@ -77,6 +77,7 @@ pub fn initialize_subscription(
     subscription.payee_token_account = ctx.accounts.payee_token_account.key();
     subscription.vault_token_account = ctx.accounts.vault_token_account.key();
     subscription.bump = ctx.bumps.subscription;
+    subscription.prefunded_amount = prefunding_amount;
     subscription.unique_seed = unique_seed;  // ← FIXED: Save unique seed
     // 3. UPDATE GLOBAL STATS
     let stats = &mut ctx.accounts.global_stats;
@@ -218,6 +219,7 @@ pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) ->
         let seeds = &[
             SUBSCRIPTION_SEED,
             subscription.payer.as_ref(),
+            subscription.unique_seed.as_ref(),
             &[subscription.bump],
         ];
         let signer_seeds = &[&seeds[..]];
@@ -397,7 +399,7 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, period_seconds: i64, first_payment_ts: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
+#[instruction(name:String,amount: u64, period_seconds: i64, first_payment_ts: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -579,8 +581,8 @@ ACCOUNT DATA STRUCTS
 pub struct Subscription {
     pub payer: Pubkey,
     pub payee: Pubkey,
-    // #[max_len(32)]   
-    // pub name :String,
+    #[max_len(32)]   
+    pub name :String,
     pub payer_token_account: Pubkey,
     pub payee_token_account: Pubkey,
     pub mint: Pubkey,

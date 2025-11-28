@@ -26,20 +26,25 @@ export const getMintProgramId = async (mint: PublicKey): Promise<PublicKey> => {
     }
 };
 
-export const generateUniqueSeed = (): Buffer => {
-    // window.crypto.getRandomValues generates secure random numbers for the Uint8Array
-    const buffer = new Uint8Array(8);
-    if (typeof window !== 'undefined' && window.crypto) {
-        window.crypto.getRandomValues(buffer);
-    } else {
-        console.warn("Using insecure fallback for random seed generation. Ensure window.crypto is available.");
-        for (let i = 0; i < 8; i++) {
-            buffer[i] = Math.floor(Math.random() * 256);
-        }
-    }
-    // Convert the Uint8Array to a Buffer, which is what PDA calculations prefer
-    return Buffer.from(buffer);
-};
+// export const generateUniqueSeed = (): Buffer => {
+//     // window.crypto.getRandomValues generates secure random numbers for the Uint8Array
+//     const buffer = new Uint8Array(8);
+//     if (typeof window !== 'undefined' && window.crypto) {
+//         window.crypto.getRandomValues(buffer);
+//     } else {
+//         console.warn("Using insecure fallback for random seed generation. Ensure window.crypto is available.");
+//         for (let i = 0; i < 8; i++) {
+//             buffer[i] = Math.floor(Math.random() * 256);
+//         }
+//     }
+//     // Convert the Uint8Array to a Buffer, which is what PDA calculations prefer
+//     return Buffer.from(buffer);
+// };
+export function generateUniqueSeed(): Buffer {
+    const arr = new Uint8Array(8);
+    window.crypto.getRandomValues(arr);
+    return Buffer.from(arr);
+}
 
 export async function fetchTokenMetadata(
     mintAddress: PublicKey,

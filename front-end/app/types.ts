@@ -1,8 +1,10 @@
 import { web3 } from "@coral-xyz/anchor";
 import * as anchor from "@coral-xyz/anchor"
+import { LucideIcon } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
 
 export interface Subscription {
+    name: string;
     payer: web3.PublicKey;
     payee: web3.PublicKey;
     mint: web3.PublicKey;
@@ -75,4 +77,10 @@ export interface SubscriptionFormModalProps {
     isOpen: boolean
     onClose: () => void
     tokens: UserTokenAccount[]
+}
+
+export interface StatCardProps {
+    title: string;
+    value: string;
+    icon: LucideIcon;
 }

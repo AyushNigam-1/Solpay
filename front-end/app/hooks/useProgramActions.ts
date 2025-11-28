@@ -4,16 +4,16 @@ import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
 import Cookies from "js-cookie"
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Subscription } from "../types";
 import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Subscription } from "../types";
 
 const ACTIVE_STATUS_OFFSET = 225;
 
 export const useProgramActions = () => {
     const { program, getGlobalStatsPDA, PROGRAM_ID } = useProgram()
 
-    async function fetchUserSubscriptions() {
+    async function fetchUserSubscriptions(): Promise<{ account: Subscription; publicKey: PublicKey; }[]> {
         // console.log(`\nAttempting to fetch subscriptions for Payer: ${payerKey.toBase58()}`);
         const payerKey = new PublicKey(Cookies.get("user")!)
         const filters = [
@@ -32,7 +32,7 @@ export const useProgramActions = () => {
         ];
 
         try {
-            const subscriptions = await (program!.account as any).subscription.all(filters);
+            const subscriptions = await (program!.account as any).subscription.all();
             console.log(subscriptions, "subs")
             // if (subscriptions.length === 0) {
             //     console.log("✅ No active or inactive subscriptions found for this user.");
@@ -83,11 +83,11 @@ export const useProgramActions = () => {
         const depositTokenProgramId = await getMintProgramId(mintKey);
         const uniqueSeed = generateUniqueSeed();
 
-        const [subscriptionKey, subscriptionBump] = web3.PublicKey.findProgramAddressSync(
+        const [subscriptionKey, subscriptionBump] = PublicKey.findProgramAddressSync(
             [
-                anchor.utils.bytes.utf8.encode("subscription"), // Your custom seed string
+                new TextEncoder().encode("subscription"), // Your custom seed string
                 payerKey.toBuffer(),
-                Buffer.from(uniqueSeed)  // ← MUST INCLUDE THIS
+                uniqueSeed  // ← MUST INCLUDE THIS
             ],
             PROGRAM_ID
         );
@@ -121,7 +121,7 @@ export const useProgramActions = () => {
                     firstPaymentTsBN,
                     autoRenew,
                     prefundingAmountBN,
-                    uniqueSeed.toJSON().data,
+                    [...uniqueSeed],
                 )
                 .accounts({
                     subscription: subscriptionKey,
@@ -156,7 +156,7 @@ export const useProgramActions = () => {
         vaultTokenAccount: PublicKey
     ): Promise<string | undefined> {
 
-        const tokenProgramId = TOKEN_PROGRAM_ID; // Placeholder
+        const tokenProgramId = await getMintProgramId(mintAddress);
 
         const payerTokenAccount = getAssociatedTokenAddressSync(
             mintAddress,
