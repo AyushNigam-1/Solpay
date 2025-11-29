@@ -1,0 +1,282 @@
+use anchor_lang::prelude::*;
+use crate::constants::*;
+use anchor_spl::token_interface::{
+    Mint, TokenAccount, TokenInterface,
+};
+use crate::errors::ErrorCode;
+
+#[derive(Accounts)]
+pub struct InitializeGlobalStats<'info> {
+    #[account(
+      init,
+      payer = payer,
+      seeds = [GLOBAL_STATS_SEED],
+      bump,
+      space = 8 + GlobalStats::INIT_SPACE
+    )]
+    pub global_stats: Account<'info, GlobalStats>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(name:String,amount: u64, period_seconds: i64, first_payment_ts: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
+pub struct InitializeSubscription<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// Subscription PDA
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + Subscription::INIT_SPACE,
+        // Seeds corrected from previous interactions:
+        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , unique_seed.as_ref()], 
+        bump
+    )]
+    pub subscription: Account<'info, Subscription>,
+
+    /// Vault token account (PDA owned token account)
+    #[account(
+        init,
+        payer = payer,
+        token::mint = mint,
+        token::authority = subscription,
+        token::token_program = token_program,  // ← THIS LINE IS REQUIRED
+        seeds = [VAULT_SEED, subscription.key().as_ref()],
+        bump
+    )]
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+    #[account(
+            mut,
+            token::mint = mint,
+            token::authority = payer,
+        )]
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// Mint for this subscription
+    pub mint:InterfaceAccount<'info, Mint>,
+    /// CHECK: The payee key is only saved for later payment processing. It is not used for direct signing or transfer authority in this instruction.
+    pub payee: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = payee_token_account.mint == mint.key(),
+        constraint = payee_token_account.owner == payee.key(),
+    )]
+    pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// Global stats (singleton)
+    #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
+    pub global_stats: Account<'info, GlobalStats>,
+
+    pub system_program: Program<'info, System>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+#[instruction(topup_amount: u64,unique_seed: [u8; 8])]
+pub struct TopupSubscription<'info> {
+    #[account(mut)]
+    /// CHECK: Must be the original payer of the subscription
+    pub payer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref(), unique_seed.as_ref()], 
+        bump = subscription.bump,
+        has_one = payer, // Ensure only the original payer can top up
+        has_one = vault_token_account,
+    )]
+    pub subscription: Account<'info, Subscription>,
+
+    #[account(
+        mut,
+        // The vault must be owned by the subscription PDA
+        token::authority = subscription,
+        token::mint = mint,
+        token::token_program = token_program,
+        seeds = [VAULT_SEED, subscription.key().as_ref()],
+        bump
+    )]
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+    
+    /// The payer's token account from which funds are drawn
+    #[account(
+        mut, 
+        token::mint = mint,
+        token::authority = payer,
+        token::token_program = token_program,
+    )]
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(address = subscription.mint @ ErrorCode::IncorrectMint)]
+    pub mint: InterfaceAccount<'info, Mint>,
+
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+
+pub struct ExecutePayment<'info> {
+    /// Subscription account (PDA)
+    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref() ,subscription.unique_seed.as_ref()], bump = subscription.bump)]
+    pub subscription: Account<'info, Subscription>,
+
+    /// Vault token account (owned by subscription PDA)
+    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    /// Mint for the token
+    pub mint: InterfaceAccount<'info, Mint>,
+
+    /// Payee token account (destination)
+    #[account(mut)]
+    pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    /// Global stats (mutable)
+    #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
+    pub global_stats: Account<'info, GlobalStats>,
+
+    /// Token program
+pub token_program: Interface<'info, TokenInterface>
+}
+
+#[derive(Accounts)]
+pub struct CancelSubscription<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref(), subscription.unique_seed.as_ref()], bump = subscription.bump)]
+    pub subscription: Account<'info, Subscription>,
+
+    /// Vault token account (owned by subscription PDA)
+    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    /// Mint for the token
+    pub mint: InterfaceAccount<'info, Mint>,
+
+    /// Payer token account (destination for refund)
+    #[account(mut)]
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    /// Global stats (mutable)
+    #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
+    pub global_stats: Account<'info, GlobalStats>,
+
+    pub token_program: Interface<'info, TokenInterface>
+}
+
+#[derive(Accounts)]
+pub struct WithdrawRemaining<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref()], bump = subscription.bump)]
+    pub subscription: Account<'info, Subscription>,
+
+    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
+    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    pub mint: InterfaceAccount<'info, Mint>,
+
+    #[account(mut)]
+    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+
+pub token_program: Interface<'info, TokenInterface>
+}
+
+
+#[derive(Accounts)]
+#[instruction(field: SubscriptionUpdateField, new_value_u64: u64)] // Updated instruction attributes
+pub struct UpdateSchedule<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        mut, 
+        // Assuming 3-seed structure for fetching the existing subscription PDA
+        seeds = [
+            SUBSCRIPTION_SEED, 
+            payer.key().as_ref(), 
+            subscription.unique_seed.as_ref()
+        ], 
+        bump = subscription.bump,
+        has_one = payer, // Ensure only the original payer can update
+    )]
+    pub subscription: Account<'info, Subscription>,
+}
+
+#[derive(Accounts)]
+pub struct CreatePlan<'info> {
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    #[account(
+        init,
+        payer = creator,
+        space = 8 + PlanAccount::INIT_SPACE,
+        seeds = [b"plan", creator.key().as_ref()],
+        bump
+    )]
+    pub plan: Account<'info, PlanAccount>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct PlanAccount {
+    pub creator: Pubkey,
+    #[max_len(64)]
+    pub name: String,  // e.g., "Spotify Premium Pack"
+    #[max_len(10)]
+    pub tiers: Vec<SubscriptionTier>,  // Array of plans
+    pub bump: u8,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
+#[derive(InitSpace)]
+pub struct SubscriptionTier {
+    #[max_len(32)]
+    pub tier_name: String,  // "Basic"
+    pub amount: u64,        // $10 in USDC
+    pub period_seconds: i64, // 2592000 (1 month)
+    pub token :Pubkey
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub enum SubscriptionUpdateField {
+    Amount,
+    PeriodSeconds,
+}
+
+#[account]
+#[derive(InitSpace)]  
+pub struct Subscription {
+    pub payer: Pubkey,
+    pub payee: Pubkey,
+    #[max_len(32)]   
+    pub name :String,
+    pub payer_token_account: Pubkey,
+    pub payee_token_account: Pubkey,
+    pub mint: Pubkey,
+    pub amount: u64,
+    pub vault_token_account: Pubkey,
+    pub period_seconds: i64,
+    pub next_payment_ts: i64,
+    pub auto_renew: bool,
+    pub active: bool,
+    pub bump: u8,
+    pub unique_seed: [u8; 8],
+    pub prefunded_amount: u64,  // ← shows how much was deposited
+}
+
+#[account]
+#[derive(InitSpace)]  // ← THIS IS MAGIC
+pub struct GlobalStats {
+    pub total_subscriptions: u64,
+    pub total_payments_executed: u64,
+    pub total_value_released: u128,
+    pub bump: u8,
+}

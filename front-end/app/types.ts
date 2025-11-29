@@ -1,7 +1,21 @@
 import { web3 } from "@coral-xyz/anchor";
 import * as anchor from "@coral-xyz/anchor"
+import { PublicKey } from "@solana/web3.js";
 import { LucideIcon } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
+
+
+export interface Plans {
+    publicKey: web3.PublicKey;
+    account: {
+        provider: web3.PublicKey;
+        mint: web3.PublicKey;
+        amount: bigint;
+        periodSeconds: bigint;
+        name: string;
+        bump: number;
+    };
+}
 
 export interface Subscription {
     name: string;
@@ -52,7 +66,7 @@ export interface HeaderProps {
     refetch: () => void;
     setSearchQuery: (query: string) => void;
     isFetching: boolean;
-    setOpen: Dispatch<SetStateAction<boolean>>
+    setOpen?: Dispatch<SetStateAction<boolean>>
 }
 
 export interface TableHeaderProps {
@@ -61,6 +75,13 @@ export interface TableHeaderProps {
 }
 
 export type FormElement = HTMLInputElement | HTMLSelectElement;
+// This interface must match the Rust `SubscriptionTier` struct exactly.
+export interface SubscriptionTier {
+    tierName: string;      // Max 32 chars
+    amount: anchor.BN;     // u64 -> BN
+    periodSeconds: anchor.BN; // i64 -> BN
+    token: PublicKey;      // Pubkey -> PublicKey
+}
 
 export interface SubscriptionFormState {
     name: string
@@ -69,14 +90,13 @@ export interface SubscriptionFormState {
     mintKey: string
     durationValue: number
     frequency: number,
-    firstPaymentDate: string;
+    // firstPaymentDate: string;
     prefundAmount: number
 }
 
 export interface SubscriptionFormModalProps {
     isOpen: boolean
     onClose: () => void
-    tokens: UserTokenAccount[]
 }
 
 export interface StatCardProps {

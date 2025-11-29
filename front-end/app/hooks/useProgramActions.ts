@@ -3,16 +3,39 @@ import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
 import Cookies from "js-cookie"
-import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Subscription } from "../types";
+import { Plans, Subscription, SubscriptionTier } from "../types";
 
 const ACTIVE_STATUS_OFFSET = 225;
 
 export const useProgramActions = () => {
     const { program, getGlobalStatsPDA, PROGRAM_ID } = useProgram()
 
+    async function fetchAllSubscriptionPlans(): Promise<Plans[]> {
+        try {
+            // Fetch ALL plan accounts using .all() with no filter
+            const plans = await (program!.account as any).PlanAccount.all();
+            console.log(plans)
+            return plans
+            // Map to clean format
+            // return plans.map((plan) => ({
+            //     publicKey: plan.publicKey,
+            //     account: {
+            //         provider: plan.account.provider,
+            //         mint: plan.account.mint,
+            //         amount: plan.account.amount.toBigInt(),
+            //         periodSeconds: plan.account.periodSeconds.toBigInt(),
+            //         name: plan.account.name,
+            //         bump: plan.account.bump,
+            //     },
+            // }));
+        } catch (error) {
+            console.error("Failed to fetch subscription plans:", error);
+            return [];
+        }
+    }
     async function fetchUserSubscriptions(): Promise<{ account: Subscription; publicKey: PublicKey; }[]> {
         // console.log(`\nAttempting to fetch subscriptions for Payer: ${payerKey.toBase58()}`);
         const payerKey = new PublicKey(Cookies.get("user")!)
@@ -177,7 +200,7 @@ export const useProgramActions = () => {
         const globalStatsPDA = getGlobalStatsPDA(PROGRAM_ID);
 
         try {
-            const tx = await program!.methods
+            await program!.methods
                 .cancelSubscription()
                 .accounts({
                     payer: payerKey,
@@ -200,7 +223,66 @@ export const useProgramActions = () => {
             return undefined;
         }
     }
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription }
+
+
+    async function createPlan(
+        creatorKey: web3.PublicKey,
+        planName: string,
+        tiers: {
+            tierName: string,
+            amount: number | string,
+            periodSeconds: number | string,
+            token: PublicKey
+        }[]
+    ): Promise<string | undefined> {
+
+        console.log(`Creating Plan: "${planName}" with ${tiers.length} tiers.`);
+
+        const formattedTiers: SubscriptionTier[] = tiers.map(tier => ({
+            tierName: tier.tierName,
+            amount: new anchor.BN(tier.amount),
+            periodSeconds: new anchor.BN(tier.periodSeconds),
+            token: tier.token,
+        }));
+
+        const [planPDA] = PublicKey.findProgramAddressSync(
+            [
+                anchor.utils.bytes.utf8.encode("plan"),
+                creatorKey.toBuffer(),
+            ],
+            PROGRAM_ID
+        );
+
+        console.log(`Derived Plan PDA: ${planPDA.toBase58()}`);
+
+        try {
+            const tx = await program!.methods
+                .createPlan(
+                    planName,
+                    formattedTiers
+                )
+                .accounts({
+                    creator: creatorKey,
+                    plan: planPDA,
+                    systemProgram: web3.SystemProgram.programId,
+                    rent: web3.SYSVAR_RENT_PUBKEY,
+                })
+                .rpc();
+            console.log(`\n✅ Plan Created Successfully!`);
+            console.log(`Transaction Signature: ${tx}`);
+            console.log(`Plan Account Address: ${planPDA.toBase58()}`);
+            return tx;
+
+        } catch (error) {
+            console.error("❌ Error creating plan:", error);
+            if (error instanceof Error) {
+                console.error("Error Message:", error.message);
+            }
+            return undefined;
+        }
+    }
+
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan }
 }
 
 

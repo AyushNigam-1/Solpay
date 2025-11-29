@@ -24,9 +24,9 @@ const page = () => {
     const [subscription, setSubscription] = useState<Subscription | null>()
     const [openDetails, setOpenDetails] = useState<boolean>(false)
     const publicKey = new PublicKey(Cookies.get("user")!)
+    const [searchQuery, setSearchQuery] = useState<string | null>("")
 
     const { cancelSubscription, fetchUserSubscriptions } = useProgramActions();
-    const [searchQuery, setSearchQuery] = useState<string | null>("")
     // interface query {
     //     publicKey: PublicKey, account: Subscription
     // }
@@ -39,25 +39,25 @@ const page = () => {
     } = useQuery<{
         publicKey: PublicKey, account: Subscription
     }[]>({
-        queryKey: ["AllEscrows"],
+        queryKey: ["AllSubscriptions"],
         queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
     });
     console.log("subscriptions", subscriptions)
-    const {
-        data: tokens,
-        // isLoading,
-        // isFetching,
-        isError,
-        error,
-        // refetch,
-    } = useQuery({
-        queryKey: ['userTokens', publicKey!.toString()],
-        queryFn: () => fetchUserTokenAccounts(new PublicKey(publicKey!)),
-        enabled: !!publicKey!.toString(),
-        staleTime: 1000 * 3000,
-    });
-    console.log(tokens)
+    // const {
+    //     data: tokens,
+    //     // isLoading,
+    //     // isFetching,
+    //     isError,
+    //     error,
+    //     // refetch,
+    // } = useQuery({
+    //     queryKey: ['userTokens', publicKey!.toString()],
+    //     queryFn: () => fetchUserTokenAccounts(new PublicKey(publicKey!)),
+    //     enabled: !!publicKey!.toString(),
+    //     staleTime: 1000 * 3000,
+    // });
+    // console.log(tokens)
 
     const filteredData = useMemo(() => {
         if (!searchQuery) {
@@ -114,7 +114,7 @@ const page = () => {
 
     return (
         <div className='flex flex-col gap-4 font-mono' >
-            <Header setOpen={setOpen} title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
+            <Header title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
             <div className=''>
                 {isLoading || isFetching ? (
                     <Loader />
@@ -172,7 +172,7 @@ const page = () => {
                     </div>
                 )}
             </div>
-            <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} tokens={tokens!} />
+            <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} />
             <SubscriptionDetails isOpen={openDetails!} subscription={subscription!} onClose={() => setOpenDetails(false)} />
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}
 

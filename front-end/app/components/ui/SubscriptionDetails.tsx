@@ -4,6 +4,7 @@ import { formatPeriod } from '@/app/utils/duration';
 import { Banknote, Pencil, Timer, Trash } from 'lucide-react';
 
 const SubscriptionDetails = ({ isOpen, subscription, onClose }: { isOpen: boolean, subscription: Subscription, onClose: () => void }) => {
+
     const modalClasses = isOpen
         ? 'opacity-100 translate-y-0 scale-100'
         : 'opacity-0 translate-y-4 scale-95 pointer-events-none';
@@ -28,9 +29,9 @@ const SubscriptionDetails = ({ isOpen, subscription, onClose }: { isOpen: boolea
                 className={`bg-white/5 rounded-xl shadow-2xl w-full max-w-3xl transition-all duration-300 ease-out ${modalClasses} p-6 space-y-6`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className=" dark:border-gray-700 flex justify-between items-center ">
+                <div className=" flex justify-between items-center ">
                     <h2 className="text-2xl font-bold text-white ">
-                        {subscription.name}
+                        Details
                     </h2>
                     <button
                         onClick={handleClose}
@@ -58,7 +59,7 @@ const SubscriptionDetails = ({ isOpen, subscription, onClose }: { isOpen: boolea
                     Delete
                 </button>
             </div>
-        </div>
+        </div >
     )
 }
 

@@ -5,10 +5,9 @@ import { FormElement, SubscriptionFormModalProps, SubscriptionFormState } from "
 import { useProgramActions } from "@/app/hooks/useProgramActions";
 import { useProgram } from "@/app/hooks/useProgram";
 import { PublicKey } from "@solana/web3.js";
-import { useMutations } from "@/app/hooks/useMutations";
 import InputGroup from "./Input";
 
-export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen, onClose, tokens }) => {
+export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen, onClose }) => {
 
     const initialFormState: SubscriptionFormState = {
         name: "",
@@ -17,7 +16,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
         mintKey: "",
         frequency: 0,
         durationValue: 0,
-        firstPaymentDate: "",
+        // firstPaymentDate: "",
         prefundAmount: 0
     };
 
@@ -30,7 +29,6 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
         setFormData(prev => ({ ...prev, [name]: value }));
     };
     const { initializeSubscription } = useProgramActions()
-    const { createSubscription, isMutating } = useMutations()
     const { publicKey } = useProgram()
 
     const handleClose = () => {
@@ -72,27 +70,19 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                 <hr className="border-t border-gray-600" />
                 <form onSubmit={(e) => {
                     e.preventDefault();
-                    initializeSubscription(formData.name, publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, Math.floor(new Date(formData.firstPaymentDate).getTime() / 1000), formData.prefundAmount, false)
-
+                    // initializeSubscription(formData.name, publicKey!, new PublicKey(formData.payeeKey), new PublicKey(formData.mintKey), formData.amount, formData.durationValue * formData.frequency, formData.prefundAmount, false)
                 }} className="space-y-6">
                     <InputGroup label="Name" name="name" value={(formData.name)!} onChange={handleChange} placeholder="e.g ChatGPT , Netflix " />
                     <InputGroup label="Reciever" name="payeeKey" value={(formData.payeeKey)!} onChange={handleChange} placeholder="Reciever" />
                     <InputGroup label="Amount" name="amount" value={(formData.amount)!} onChange={handleChange} placeholder="Amount" />
-                    <InputGroup label="First Payment Date" name="firstPaymentDate" type="date" value={(formData.firstPaymentDate)!} onChange={handleChange} placeholder="Date" />
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Token</label>
-                        <select
-                            name="mintKey"
-                            value={formData.mintKey}
-                            onChange={handleChange}
-                            className="w-full px-4 py-3 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none dark:bg-gray-700 dark:text-gray-200 transition appearance-none"
-                        >
-                            {
-                                tokens?.map(token => <option key={token.name} value={token.mint} >{token.name} ({token.symbol})</option>
-                                )
-                            }
-                        </select>
-                    </div>
+                    {/* <InputGroup label="First Payment Date" name="firstPaymentDate" type="date" value={(formData.firstPaymentDate)!} onChange={handleChange} placeholder="Date" /> */}
+                    <InputGroup
+                        type="text"
+                        name="mintKey"
+                        value={formData.mintKey}
+                        onChange={handleChange}
+                        placeholder="e.g., 7"
+                        label='Token MintKey' />
                     <div className="flex gap-3 items-end">
                         <InputGroup
                             type="number"
@@ -117,7 +107,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                             <option value={1}>Seconds</option>
                         </select>
                     </div>
-                    <InputGroup
+                    {/* <InputGroup
                         type="number"
                         name="prefundAmount"
                         value={formData.prefundAmount}
@@ -125,7 +115,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                         placeholder=""
                         label='Prefund Amount'
                     // disabled={isMutating}
-                    />
+                    /> */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -135,7 +125,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                             </svg>
-                            {isMutating ? (
+                            {/* {isMutating ? (
                                 <div className="flex items-center justify-center">
                                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -143,11 +133,11 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                                     </svg>
                                     Creating...
                                 </div>
-                            ) : (
-                                <>
-                                    Create
-                                </>
-                            )}
+                            ) : ( */}
+                            <>
+                                Create
+                            </>
+                            {/* )} */}
                         </>
                     </button>
                 </form>

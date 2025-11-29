@@ -657,16 +657,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "escrow"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "anchor-spl",
- "spl-token",
- "spl-token-2022 9.0.0",
-]
-
-[[package]]
 name = "feature-probe"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2309,6 +2299,16 @@ dependencies = [
  "thiserror 2.0.17",
  "wasm-bindgen",
  "zeroize",
+]
+
+[[package]]
+name = "solpay"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "spl-token",
+ "spl-token-2022 9.0.0",
 ]
 
 [[package]]
