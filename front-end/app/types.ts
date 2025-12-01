@@ -74,10 +74,29 @@ export interface TableHeaderProps {
     title: string
 }
 
+interface Tier {
+    name: string,
+    amount: number | undefined,
+    periodSeconds: number | undefined,
+    token: string
+}
+
+export interface Plan {
+    creator?: string,
+    name: string,
+    tiers: Tier[],
+    bump?: number;
+}
+
+export interface planQuery {
+    publicKey: PublicKey,
+    account: Plan
+}
+
 export type FormElement = HTMLInputElement | HTMLSelectElement;
 // This interface must match the Rust `SubscriptionTier` struct exactly.
 export interface SubscriptionTier {
-    tierName: string;      // Max 32 chars
+    name: string;      // Max 32 chars
     amount: anchor.BN;     // u64 -> BN
     periodSeconds: anchor.BN; // i64 -> BN
     token: PublicKey;      // Pubkey -> PublicKey

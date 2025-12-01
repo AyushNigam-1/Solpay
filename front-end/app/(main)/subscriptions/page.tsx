@@ -113,7 +113,7 @@ const page = () => {
 
 
     return (
-        <div className='flex flex-col gap-4 font-mono' >
+        <div className='space-y-4 font-mono' >
             <Header title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
             <div className=''>
                 {isLoading || isFetching ? (

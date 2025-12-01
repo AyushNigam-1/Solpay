@@ -1,24 +1,26 @@
 import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import Cookies from "js-cookie"
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Plans, Subscription, SubscriptionTier } from "../types";
+import { Plan, planQuery, Plans, Subscription, SubscriptionTier } from "../types";
 
 const ACTIVE_STATUS_OFFSET = 225;
 
 export const useProgramActions = () => {
     const { program, getGlobalStatsPDA, PROGRAM_ID } = useProgram()
 
-    async function fetchAllSubscriptionPlans(): Promise<Plans[]> {
+    async function fetchAllSubscriptionPlans(): Promise<planQuery[]> {
         try {
+            console.log(program!.account as any)
             // Fetch ALL plan accounts using .all() with no filter
-            const plans = await (program!.account as any).PlanAccount.all();
+            const plans = await (program!.account as any).planAccount.all();
             console.log(plans)
             return plans
+            // return []
             // Map to clean format
             // return plans.map((plan) => ({
             //     publicKey: plan.publicKey,
@@ -34,6 +36,53 @@ export const useProgramActions = () => {
         } catch (error) {
             console.error("Failed to fetch subscription plans:", error);
             return [];
+        }
+    }
+    async function cancelPlan(
+        creatorKey: PublicKey | string,
+    ): Promise<string | undefined> {
+
+        // 1. Ensure Creator Key is a valid PublicKey
+        const creator = new PublicKey(creatorKey.toString());
+
+        console.log(`Cancelling Plan: for creator: ${creator.toBase58()}`);
+
+        // 2. Derive the Plan PDA
+        // Seeds must match Rust: [b"plan", creator.key().as_ref(), plan.name.as_bytes()]
+        // Note: ensure the seed string "plan" or "subscription_plan" matches your Rust constant PLAN_SEED
+        const [planPDA] = PublicKey.findProgramAddressSync(
+            [
+                anchor.utils.bytes.utf8.encode("plan"), // Check if this is "plan" or "subscription_plan" in your lib.rs
+                creator.toBuffer(),
+            ],
+            PROGRAM_ID
+        );
+
+        console.log(`Derived Plan PDA to close: ${planPDA.toBase58()}`);
+
+        try {
+            // 3. Construct and Send Transaction
+            const tx = await program!.methods
+                .cancelPlan() // No arguments for the instruction itself
+                .accounts({
+                    creator: creator,          // Signer who receives the rent refund
+                    plan: planPDA,             // The Plan PDA being closed
+                    // systemProgram is often inferred by Anchor, but good to include if needed
+                })
+                .rpc();
+
+            console.log(`\n✅ Plan Cancelled Successfully!`);
+            console.log(`Transaction Signature: ${tx}`);
+            console.log(`Account ${planPDA.toBase58()} closed.`);
+
+            return tx;
+
+        } catch (error) {
+            console.error("❌ Error cancelling plan:", error);
+            if (error instanceof Error) {
+                console.error("Error Message:", error.message);
+            }
+            return undefined;
         }
     }
     async function fetchUserSubscriptions(): Promise<{ account: Subscription; publicKey: PublicKey; }[]> {
@@ -226,23 +275,17 @@ export const useProgramActions = () => {
 
 
     async function createPlan(
-        creatorKey: web3.PublicKey,
-        planName: string,
-        tiers: {
-            tierName: string,
-            amount: number | string,
-            periodSeconds: number | string,
-            token: PublicKey
-        }[]
+        creatorKey: PublicKey,
+        plan: Plan
     ): Promise<string | undefined> {
 
-        console.log(`Creating Plan: "${planName}" with ${tiers.length} tiers.`);
+        console.log("Creating Plan", plan, creatorKey);
 
-        const formattedTiers: SubscriptionTier[] = tiers.map(tier => ({
-            tierName: tier.tierName,
+        const formattedTiers = plan.tiers.map(tier => ({
+            tierName: tier.name,
             amount: new anchor.BN(tier.amount),
             periodSeconds: new anchor.BN(tier.periodSeconds),
-            token: tier.token,
+            token: new PublicKey(tier.token),
         }));
 
         const [planPDA] = PublicKey.findProgramAddressSync(
@@ -258,13 +301,13 @@ export const useProgramActions = () => {
         try {
             const tx = await program!.methods
                 .createPlan(
-                    planName,
+                    plan.name,
                     formattedTiers
                 )
                 .accounts({
                     creator: creatorKey,
                     plan: planPDA,
-                    systemProgram: web3.SystemProgram.programId,
+                    systemProgram: SystemProgram.programId,
                     rent: web3.SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
@@ -280,9 +323,10 @@ export const useProgramActions = () => {
             }
             return undefined;
         }
+        // return
     }
 
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan }
 }
 
 

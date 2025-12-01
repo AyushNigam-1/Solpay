@@ -4,6 +4,7 @@ use anchor_spl::token_interface::{
     Mint, TokenAccount, TokenInterface,
 };
 use crate::errors::ErrorCode;
+use anchor_spl::associated_token::AssociatedToken; 
 
 #[derive(Accounts)]
 pub struct InitializeGlobalStats<'info> {
@@ -220,10 +221,75 @@ pub struct CreatePlan<'info> {
         bump
     )]
     pub plan: Account<'info, PlanAccount>,
+    pub mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: This is safe — used only to derive receiver's ATA. No signing, no ownership checks needed.
+    pub receiver: AccountInfo<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    #[account(
+        init_if_needed,
+        payer = creator,
+        associated_token::mint = mint,
+        associated_token::authority = receiver,
+        associated_token::token_program = token_program,
+    )]
+    pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[derive(Accounts)]
+pub struct CancelPlan<'info> {
+    #[account(mut)]
+    /// The creator of the plan (must sign to cancel).
+    pub creator: Signer<'info>,
+
+    #[account(
+        mut,
+        close = creator,
+        seeds = [b"plan", creator.key().as_ref()],
+        bump = plan.bump,
+        has_one = creator @ ErrorCode::Unauthorized,
+    )]
+    pub plan: Account<'info, PlanAccount>,
+
+}
+
+// --- UPDATE PLAN CONTEXT ---
+
+#[derive(Accounts)]
+#[instruction(new_amount: Option<u64>, new_period: Option<i64>, new_active_status: Option<bool>)]
+pub struct UpdatePlan<'info> {
+    #[account(mut)]
+    pub creator: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [PLAN_SEED, creator.key().as_ref(), plan.name.as_bytes()],
+        bump = plan.bump,
+        has_one = creator @ ErrorCode::Unauthorized,
+    )]
+    pub plan: Account<'info, PlanAccount>,
+}
+
+
+// #[account]
+// #[derive(InitSpace)]
+// pub struct PlanAccount {
+//     pub creator: Pubkey,
+//     pub token:Pubkey,
+//     pub mint: Pubkey,
+//     #[max_len(64)]
+//     pub name: String,  // e.g., "Spotify Premium Pack"
+//     pub receiver :Pubkey,
+//     #[max_len(10)]
+//     pub token_symbol : String,
+//     #[max_len(100)]
+//     pub token_image : String,
+//     #[max_len(10)]
+//     pub tiers: Vec<SubscriptionTier>,  // Array of plans
+//     pub bump: u8,
+// }
 #[account]
 #[derive(InitSpace)]
 pub struct PlanAccount {
@@ -242,7 +308,8 @@ pub struct SubscriptionTier {
     pub tier_name: String,  // "Basic"
     pub amount: u64,        // $10 in USDC
     pub period_seconds: i64, // 2592000 (1 month)
-    pub token :Pubkey
+    #[max_len(300)]
+    pub description :String
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
@@ -279,4 +346,16 @@ pub struct GlobalStats {
     pub total_payments_executed: u64,
     pub total_value_released: u128,
     pub bump: u8,
+}
+
+#[derive(Accounts)]
+pub struct ResetProgram<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>, // You (or multisig)
+
+    /// CHECK: We close any account owned by the program — Anchor allows this with CHECK
+    #[account(mut)]
+    pub account_to_close: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
 }

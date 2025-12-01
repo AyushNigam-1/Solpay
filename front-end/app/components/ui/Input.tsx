@@ -2,8 +2,8 @@ import { SubscriptionFormState } from "@/app/types";
 
 const InputGroup: React.FC<{
     label: string;
-    name: keyof SubscriptionFormState;
-    value: string | number;
+    name: string;
+    value: string | number | undefined;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder: string;
     type?: string;
