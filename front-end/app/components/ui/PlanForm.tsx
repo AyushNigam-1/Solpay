@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition } from '@headlessui/react';
 import InputGroup from './Input';
@@ -8,8 +8,10 @@ import { useProgram } from '@/app/hooks/useProgram';
 
 const initialFormState: Plan = {
     name: "",
+    token: "",
+    reciever: "",
     tiers: [
-        { name: "", amount: undefined, periodSeconds: undefined, token: "" } // Default to 30 days
+        { name: "", amount: undefined, periodSeconds: undefined, description: "" } // Default to 30 days
     ]
 };
 
@@ -27,6 +29,14 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
         // reset(); // Optional: reset form on close
         setStatus({ type: null, message: null });
     };
+    const tiersContainerRef = useRef<HTMLDivElement>(null);
+    // Auto-scroll when tiers change
+    useEffect(() => {
+        tiersContainerRef.current?.scrollTo({
+            top: tiersContainerRef.current.scrollHeight,
+            behavior: "smooth"
+        });
+    }, [formData.tiers.length]); // ← triggers when a tier is added/removed
     const handleChange = (e: React.ChangeEvent<FormElement>, index: number) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -38,26 +48,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
             )
         }));
     };
-    const handleSubmit = async (e: any) => {
-        e.preventDefault()
-        console.log(formData)
-        // console.log(data)
-        // setStatus({ type: null, message: null });
-        // try {
-        //     // In a real app, you'd get the creator's key from useWallet()
-        //     const creatorKey = "MockCreatorKey...";
 
-        //     // Format data for the blockchain function
-        //     // Note: Token address validation would happen here or in the hook
-        //     await mockCreatePlan(data);
-
-        //     setStatus({ type: 'success', message: `Plan "${data.planName}" created successfully!` });
-        //     // Optional: Close modal after success or keep open to show message
-        //     // setTimeout(closeModal, 2000); 
-        // } catch (e) {
-        //     setStatus({ type: 'error', message: "Failed to create plan. Please try again." });
-        // }
-    };
 
     return (
         <Transition show={isOpen} as={React.Fragment}>
@@ -123,20 +114,33 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             name: target.value
                                         }))
                                     } placeholder='e.g. Spotify' value={formData.name} />
+                                    <InputGroup label='Reciever Address' name='reciever' onChange={({ target }) =>
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            reciever: target.value
+                                        }))
+                                    } placeholder='e.g. Spotify' value={formData.reciever} />
+                                    <InputGroup label='Token Address' name='token' onChange={({ target }) =>
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            token: target.value
+                                        }))
+                                    } placeholder='e.g. Spotify' value={formData.token} />
+
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center ">
                                             <label className="block font-bold tracking-wider text-xl">Tiers</label>
                                             <button
                                                 type="button"
-                                                onClick={() => setFormData((e) => ({ name: e.name, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
-                                                className=" flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                                                onClick={() => setFormData((e) => ({ name: e.name, reciever: e.reciever, token: e.token, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
+                                                className=" flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
                                             >
                                                 <Plus className="w-4 h-4" /> Add Tier
                                             </button>
                                         </div>
                                         <div className='h-0.5 bg-white/5 w-full' />
 
-                                        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                                        <div ref={tiersContainerRef} className="space-y-4 max-h-72 overflow-y-auto custom-scrollbar px-1">
                                             {formData.tiers.map((field, index) => (
                                                 <div key={index} className="rounded-2xl  hover:border-gray-600 transition-colors relative group space-y-4">
                                                     <div className='flex justify-between items-center'>
@@ -157,11 +161,11 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                                             </button>
                                                         )}
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5  rounded-xl">
-                                                        <InputGroup label='Tier Name' value={formData.tiers[index].name} name="name" onChange={(e) => handleChange(e, index)} placeholder='e.g. Basic / Pro' />
-                                                        <InputGroup label='Token Mint Address' value={formData.tiers[index].token} name='token' onChange={(e) => handleChange(e, index)} placeholder='Public Key (USDC, etc.)' />
-                                                        <InputGroup label='Price (Raw Amount)' type='number' value={formData.tiers[index].amount} name='amount' onChange={(e) => handleChange(e, index)} placeholder='0.00' />
-                                                        <InputGroup label='Duration (Seconds)' type='number' value={formData.tiers[index].periodSeconds} name='periodSeconds' onChange={(e) => handleChange(e, index)} placeholder='2592000 (30 Days)' />
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5  rounded-xl">
+                                                        <InputGroup label='Tier Name' value={field.name} name="name" onChange={(e) => handleChange(e, index)} placeholder='e.g. Basic / Pro' />
+                                                        <InputGroup label='Price (Raw Amount)' type='number' value={field.amount} name='amount' onChange={(e) => handleChange(e, index)} placeholder='0.00' />
+                                                        <InputGroup label='Duration (Seconds)' type='number' value={field.periodSeconds} name='periodSeconds' onChange={(e) => handleChange(e, index)} placeholder='2592000 (30 Days)' />
+                                                        <InputGroup label='Description' value={field.description} name='description' textarea={true} onChange={(e) => handleChange(e, index)} placeholder='Describe the pros and cons of this plan' classNames='col-span-3' />
                                                     </div>
                                                     <div className='h-0.5 bg-white/5 w-full' />
 

@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
 use anchor_spl::token_interface::{close_account, transfer_checked, CloseAccount, TransferChecked};
 // Program id - replace with your actual program id from Anchor.toml / `anchor build`
-declare_id!("3X4345dDnMwui3j9TXDTdQVfjsNGEJbXyvsfTAAZWzDp");
+declare_id!("8zSqDaupmjEdEr1rhox7Ri2poYZjT6ir4Vd6GL2TZ3XT");
 
 #[program]
 pub mod recurring_payments {
@@ -332,24 +332,24 @@ pub mod recurring_payments {
         Ok(())
     }
 
-    // pub fn create_plan(
-    //     ctx: Context<CreatePlan>,
-    //     name: String,
-    //     token_symbol: String,
-    //     token_image: String,
-    //     tiers: Vec<SubscriptionTier>,
-    // ) -> Result<()> {
-    //     let plan = &mut ctx.accounts.plan;
-    //     plan.creator = ctx.accounts.creator.key();
-    //     plan.mint = ctx.accounts.mint.key();
-    //     plan.receiver = ctx.accounts.receiver.key();
-    //     plan.token_symbol = token_symbol;
-    //     plan.token_image = token_image;
-    //     plan.name = name;
-    //     plan.tiers = tiers;
-    //     plan.bump = ctx.bumps.plan;
-    //     Ok(())
-    // }
+    pub fn create_plan(
+        ctx: Context<CreatePlan>,
+        name: String,
+        token_symbol: String,
+        token_image: String,
+        tiers: Vec<SubscriptionTier>,
+    ) -> Result<()> {
+        let plan = &mut ctx.accounts.plan;
+        plan.creator = ctx.accounts.creator.key();
+        plan.mint = ctx.accounts.mint.key();
+        plan.receiver = ctx.accounts.receiver.key();
+        plan.token_symbol = token_symbol;
+        plan.token_image = token_image;
+        plan.name = name;
+        plan.tiers = tiers;
+        plan.bump = ctx.bumps.plan;
+        Ok(())
+    }
 
     pub fn cancel_plan(_ctx: Context<CancelPlan>) -> Result<()> {
         // The `close = creator` constraint handles the logic automatically.

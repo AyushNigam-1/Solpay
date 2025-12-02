@@ -273,29 +273,19 @@ pub struct UpdatePlan<'info> {
 }
 
 
-// #[account]
-// #[derive(InitSpace)]
-// pub struct PlanAccount {
-//     pub creator: Pubkey,
-//     pub token:Pubkey,
-//     pub mint: Pubkey,
-//     #[max_len(64)]
-//     pub name: String,  // e.g., "Spotify Premium Pack"
-//     pub receiver :Pubkey,
-//     #[max_len(10)]
-//     pub token_symbol : String,
-//     #[max_len(100)]
-//     pub token_image : String,
-//     #[max_len(10)]
-//     pub tiers: Vec<SubscriptionTier>,  // Array of plans
-//     pub bump: u8,
-// }
 #[account]
 #[derive(InitSpace)]
 pub struct PlanAccount {
     pub creator: Pubkey,
+    pub token:Pubkey,
+    pub mint: Pubkey,
     #[max_len(64)]
     pub name: String,  // e.g., "Spotify Premium Pack"
+    pub receiver :Pubkey,
+    #[max_len(10)]
+    pub token_symbol : String,
+    #[max_len(100)]
+    pub token_image : String,
     #[max_len(10)]
     pub tiers: Vec<SubscriptionTier>,  // Array of plans
     pub bump: u8,
@@ -346,16 +336,4 @@ pub struct GlobalStats {
     pub total_payments_executed: u64,
     pub total_value_released: u128,
     pub bump: u8,
-}
-
-#[derive(Accounts)]
-pub struct ResetProgram<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>, // You (or multisig)
-
-    /// CHECK: We close any account owned by the program — Anchor allows this with CHECK
-    #[account(mut)]
-    pub account_to_close: UncheckedAccount<'info>,
-
-    pub system_program: Program<'info, System>,
 }

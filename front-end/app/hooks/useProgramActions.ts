@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import Cookies from "js-cookie"
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Plan, planQuery, Plans, Subscription, SubscriptionTier } from "../types";
@@ -278,52 +278,69 @@ export const useProgramActions = () => {
         creatorKey: PublicKey,
         plan: Plan
     ): Promise<string | undefined> {
+        if (!program) {
+            console.error("Program not initialized");
+            return undefined;
+        }
 
-        console.log("Creating Plan", plan, creatorKey);
+        console.log("Creating Plan:", plan);
 
+        // Format tiers correctly
         const formattedTiers = plan.tiers.map(tier => ({
-            tierName: tier.name,
+            tierName: tier.name, // support both
             amount: new anchor.BN(tier.amount),
             periodSeconds: new anchor.BN(tier.periodSeconds),
-            token: new PublicKey(tier.token),
+            description: tier.description || "",
         }));
 
+        // Derive Plan PDA
         const [planPDA] = PublicKey.findProgramAddressSync(
-            [
-                anchor.utils.bytes.utf8.encode("plan"),
-                creatorKey.toBuffer(),
-            ],
-            PROGRAM_ID
+            [Buffer.from("plan"), creatorKey.toBytes()],
+            program.programId
         );
 
-        console.log(`Derived Plan PDA: ${planPDA.toBase58()}`);
+        console.log(`Plan PDA: ${planPDA.toBase58()}`);
+        const tokenProgramId = await getMintProgramId(new PublicKey(plan.token));
+        const tokenMetadata = await fetchTokenMetadata(new PublicKey(plan.token))
+        // Derive receiver's ATA (for Token-2022 + SPL)
+        const receiverTokenAccount = getAssociatedTokenAddressSync(
+            new PublicKey(plan.token),           // mint
+            new PublicKey(plan.reciever),        // receiver wallet
+            false,
+            tokenProgramId                // or TOKEN_PROGRAM_ID — auto-detect if needed
+        );
 
         try {
-            const tx = await program!.methods
+            const txSig = await program.methods
                 .createPlan(
-                    plan.name,
-                    formattedTiers
+                    plan.name,                    // ← name: String
+                    tokenMetadata.symbol,                       // ← token_symbol (hardcoded or from plan)
+                    tokenMetadata.image,                           // ← token_image URL (optional)
+                    formattedTiers                // ← Vec<SubscriptionTier>
                 )
                 .accounts({
                     creator: creatorKey,
                     plan: planPDA,
+                    mint: new PublicKey(plan.token),
+                    receiver: new PublicKey(plan.reciever),
+                    receiverTokenAccount: receiverTokenAccount,
+                    tokenProgram: tokenProgramId, // or detect based on mint
+                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
                     systemProgram: SystemProgram.programId,
-                    rent: web3.SYSVAR_RENT_PUBKEY,
+                    rent: SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
-            console.log(`\n✅ Plan Created Successfully!`);
-            console.log(`Transaction Signature: ${tx}`);
-            console.log(`Plan Account Address: ${planPDA.toBase58()}`);
-            return tx;
 
-        } catch (error) {
-            console.error("❌ Error creating plan:", error);
-            if (error instanceof Error) {
-                console.error("Error Message:", error.message);
-            }
+            console.log("Plan Created Successfully!");
+            console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
+            console.log("Plan PDA:", planPDA.toBase58());
+
+            return txSig;
+        } catch (error: any) {
+            console.error("Failed to create plan:", error);
+            console.error("Logs:", error.logs?.join("\n"));
             return undefined;
         }
-        // return
     }
 
     return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan }

@@ -78,11 +78,13 @@ interface Tier {
     name: string,
     amount: number | undefined,
     periodSeconds: number | undefined,
-    token: string
+    description: string
 }
 
 export interface Plan {
     creator?: string,
+    reciever: string,
+    token: string
     name: string,
     tiers: Tier[],
     bump?: number;
