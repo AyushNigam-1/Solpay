@@ -120,19 +120,19 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             reciever: target.value
                                         }))
                                     } placeholder='e.g. Spotify' value={formData.reciever} />
-                                    <InputGroup label='Token Address' name='token' onChange={({ target }) =>
+                                    {/* <InputGroup label='Token Address' name='token' onChange={({ target }) =>
                                         setFormData(prev => ({
                                             ...prev,
                                             token: target.value
                                         }))
-                                    } placeholder='e.g. Spotify' value={formData.token} />
+                                    } placeholder='e.g. Spotify' value={formData.token} /> */}
 
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center ">
                                             <label className="block font-bold tracking-wider text-xl">Tiers</label>
                                             <button
                                                 type="button"
-                                                onClick={() => setFormData((e) => ({ name: e.name, reciever: e.reciever, token: e.token, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
+                                                // onClick={() => setFormData((e) => ({ name: e.name, reciever: e.reciever, token: e.token, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
                                                 className=" flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
                                             >
                                                 <Plus className="w-4 h-4" /> Add Tier

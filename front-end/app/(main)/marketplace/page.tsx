@@ -3,22 +3,23 @@
 import Error from '@/app/components/ui/Error';
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
+import PlanDetails from '@/app/components/ui/PlanDetails';
 import PlanForm from '@/app/components/ui/PlanForm';
 import TableHeaders from '@/app/components/ui/TableHeaders';
 import { useProgram } from '@/app/hooks/useProgram';
-// import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
-import { Plan, planQuery, Plans } from '@/app/types';
+import { Plan, planQuery } from '@/app/types';
 import { useQuery } from '@tanstack/react-query';
-import { data } from 'framer-motion/client';
-import { Banknote, CircleUserRound, Coins, Delete, Home, LogIn, Logs, MousePointerClick, Timer } from 'lucide-react';
+import { CircleUserRound, Coins, Delete, Home, LogIn, Logs, MousePointerClick, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const page = () => {
 
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const [isOpen, setOpen] = useState<boolean>(false)
+    const [openDetails, setOpenDetails] = useState<boolean>(false)
     const { publicKey } = useProgram()
+    const [plan, setPlan] = useState<Plan>()
 
     const { fetchAllSubscriptionPlans, cancelPlan } = useProgramActions();
 
@@ -108,7 +109,7 @@ const page = () => {
                                         <tbody>
                                             {filteredData!.map((plan) => {
                                                 return (
-                                                    <tr key={plan.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer"
+                                                    <tr key={plan.account.bump} className="border-t-0 border-2  border-white/5"
                                                     //  onClick={() => { setSubscription(subscription.account); setOpenDetails(true) }}
                                                     >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
@@ -119,14 +120,14 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
-                                                                {/* <img
-                                                                    src={plan.account.tokenMetadata.image}
+                                                                <img
+                                                                    src={plan.account.tokenImage}
                                                                     className='w-6 rounded-full object-cover'
-                                                                    alt={`${subscription.account.tokenMetadata.symbol} icon`}
+                                                                // alt={`${subscription.account.tokenMetadata.symbol} icon`}
                                                                 />
                                                                 <p className="text-xl text-gray-400">
-                                                                    {subscription.account.tokenMetadata.symbol}
-                                                                </p> */}
+                                                                    {plan.account.tokenSymbol}
+                                                                </p>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
@@ -137,8 +138,8 @@ const page = () => {
                                                                 plan.account.creator == publicKey ? <button className='flex gap-2 items-center text-red-400' onClick={() => cancelPlan(plan.account.creator!)}>
                                                                     <Delete />
                                                                     Delete
-                                                                </button> : <button className='flex gap-2 items-center text-blue-400'>
-                                                                    <LogIn />
+                                                                </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setOpenDetails(true) }}>
+                                                                    <Zap className="w-5 h-5 " />
                                                                     Subscribe
                                                                 </button>
                                                             }
@@ -163,7 +164,7 @@ const page = () => {
             </div>
             <PlanForm isOpen={isOpen} setIsOpen={setOpen} />
             {/* <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} /> */}
-
+            <PlanDetails plan={plan!} open={openDetails} setOpen={setOpenDetails} />
         </div>
     )
 }

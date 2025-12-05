@@ -74,7 +74,7 @@ export interface TableHeaderProps {
     title: string
 }
 
-interface Tier {
+export interface Tier {
     name: string,
     amount: number | undefined,
     periodSeconds: number | undefined,
@@ -84,7 +84,10 @@ interface Tier {
 export interface Plan {
     creator?: string,
     reciever: string,
-    token: string
+    mint: string,
+    token: PublicKey,
+    tokenImage: string,
+    tokenSymbol: string,
     name: string,
     tiers: Tier[],
     bump?: number;

@@ -1,5 +1,3 @@
-import { SubscriptionFormState } from "@/app/types";
-
 const InputGroup: React.FC<{
     label: string;
     name: string;
@@ -18,10 +16,10 @@ const InputGroup: React.FC<{
         {
             textarea ? <textarea id={name}
                 name={name}
-                type={type}
-                step={type === 'number' ? 'any' : undefined}
+                // type={type}
+                // step={type === 'number' ? 'any' : undefined}
                 value={value}
-                onChange={onChange}
+                // onChange={onChange}
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={4}
