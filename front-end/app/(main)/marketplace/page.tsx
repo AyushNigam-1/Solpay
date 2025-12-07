@@ -135,7 +135,7 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl ">
                                                             {
-                                                                plan.account.creator == publicKey ? <button className='flex gap-2 items-center text-red-400' onClick={() => cancelPlan(plan.account.creator!)}>
+                                                                plan.account.creator?.toString() == publicKey ? <button className='flex gap-2 items-center text-red-400' onClick={() => cancelPlan(plan.account.creator!)}>
                                                                     <Delete />
                                                                     Delete
                                                                 </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setOpenDetails(true) }}>

@@ -7,7 +7,6 @@ pub struct SubscriptionInitialized {
     pub payee: Pubkey,
     pub amount: u64,
     pub period_seconds: i64,
-    pub next_payment_ts: i64,
     pub prefunded_amount: u64,
 }
 

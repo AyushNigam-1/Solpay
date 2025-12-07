@@ -32,7 +32,6 @@ pub mod recurring_payments {
         name: String,
         amount: u64, // Amount per payment (e.g. 50 USDC)
         period_seconds: i64,
-        first_payment_ts: i64,
         auto_renew: bool,
         prefunding_amount: u64, // ← NEW: how much to deposit upfront (0 = none)
         unique_seed: [u8; 8],   // ← FIX: Added missing argument
@@ -64,7 +63,6 @@ pub mod recurring_payments {
         subscription.mint = ctx.accounts.mint.key();
         subscription.amount = amount;
         subscription.period_seconds = period_seconds;
-        subscription.next_payment_ts = first_payment_ts;
         subscription.auto_renew = auto_renew;
         subscription.active = true;
         subscription.payer_token_account = ctx.accounts.payer_token_account.key();
@@ -87,7 +85,6 @@ pub mod recurring_payments {
             payee: subscription.payee,
             amount,
             period_seconds,
-            next_payment_ts: first_payment_ts,
             prefunded_amount: prefunding_amount, // ← optional: add to event
         });
 

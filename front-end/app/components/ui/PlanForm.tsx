@@ -8,10 +8,13 @@ import { useProgram } from '@/app/hooks/useProgram';
 
 const initialFormState: Plan = {
     name: "",
+    mint: "",
+    tokenImage: "",
+    tokenSymbol: "",
     token: "",
-    reciever: "",
+    receiver: "",
     tiers: [
-        { name: "", amount: undefined, periodSeconds: undefined, description: "" } // Default to 30 days
+        { tierName: "", amount: undefined, periodSeconds: undefined, description: "" } // Default to 30 days
     ]
 };
 
@@ -37,7 +40,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
             behavior: "smooth"
         });
     }, [formData.tiers.length]); // ← triggers when a tier is added/removed
-    const handleChange = (e: React.ChangeEvent<FormElement>, index: number) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
@@ -114,25 +117,27 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             name: target.value
                                         }))
                                     } placeholder='e.g. Spotify' value={formData.name} />
+
                                     <InputGroup label='Reciever Address' name='reciever' onChange={({ target }) =>
                                         setFormData(prev => ({
                                             ...prev,
-                                            reciever: target.value
+                                            receiver: target.value
                                         }))
-                                    } placeholder='e.g. Spotify' value={formData.reciever} />
-                                    {/* <InputGroup label='Token Address' name='token' onChange={({ target }) =>
+                                    } placeholder='e.g. Spotify' value={formData.receiver} />
+
+                                    <InputGroup label='Token Address' name='token' onChange={({ target }) =>
                                         setFormData(prev => ({
                                             ...prev,
                                             token: target.value
                                         }))
-                                    } placeholder='e.g. Spotify' value={formData.token} /> */}
+                                    } placeholder='e.g. Spotify' value={formData.token as string} />
 
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center ">
                                             <label className="block font-bold tracking-wider text-xl">Tiers</label>
                                             <button
                                                 type="button"
-                                                // onClick={() => setFormData((e) => ({ name: e.name, reciever: e.reciever, token: e.token, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
+                                                onClick={() => setFormData((e) => ({ name: e.name, reciever: e.receiver, token: e.token, mint: e.mint, receiver: e.receiver, tokenImage: e.tokenImage, tokenSymbol: e.tokenSymbol, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
                                                 className=" flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
                                             >
                                                 <Plus className="w-4 h-4" /> Add Tier
@@ -162,7 +167,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                                         )}
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5  rounded-xl">
-                                                        <InputGroup label='Tier Name' value={field.name} name="name" onChange={(e) => handleChange(e, index)} placeholder='e.g. Basic / Pro' />
+                                                        <InputGroup label='Tier Name' value={field.tierName} name="tierName" onChange={(e) => handleChange(e, index)} placeholder='e.g. Basic / Pro' />
                                                         <InputGroup label='Price (Raw Amount)' type='number' value={field.amount} name='amount' onChange={(e) => handleChange(e, index)} placeholder='0.00' />
                                                         <InputGroup label='Duration (Seconds)' type='number' value={field.periodSeconds} name='periodSeconds' onChange={(e) => handleChange(e, index)} placeholder='2592000 (30 Days)' />
                                                         <InputGroup label='Description' value={field.description} name='description' textarea={true} onChange={(e) => handleChange(e, index)} placeholder='Describe the pros and cons of this plan' classNames='col-span-3' />

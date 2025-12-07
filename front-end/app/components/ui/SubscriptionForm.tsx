@@ -24,7 +24,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
 
     const [loading, setLoading] = useState(false);
 
-    const handleChange = (e: React.ChangeEvent<FormElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -96,7 +96,7 @@ export const SubscriptionForm: React.FC<SubscriptionFormModalProps> = ({ isOpen,
                         <select
                             name="frequency"
                             value={formData.frequency}
-                            onChange={handleChange}
+                            // onChange={handleChange}
                             className="max-w-max px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition appearance-none"
                             required
                         // disabled={isMutating}

@@ -1,8 +1,10 @@
+import { ChangeEvent } from "react";
+
 const InputGroup: React.FC<{
     label: string;
     name: string;
     value: string | number | undefined;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
     placeholder: string;
     type?: string;
     disabled?: boolean;
@@ -19,7 +21,7 @@ const InputGroup: React.FC<{
                 // type={type}
                 // step={type === 'number' ? 'any' : undefined}
                 value={value}
-                // onChange={onChange}
+                onChange={onChange}
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={4}

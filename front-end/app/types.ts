@@ -75,17 +75,17 @@ export interface TableHeaderProps {
 }
 
 export interface Tier {
-    name: string,
-    amount: number | undefined,
-    periodSeconds: number | undefined,
-    description: string
+    tierName: string;
+    amount: number | string | anchor.BN; // Flexible input
+    periodSeconds: number | string | anchor.BN; // Flexible input
+    description: string;
 }
 
 export interface Plan {
     creator?: string,
-    reciever: string,
+    receiver: string,
     mint: string,
-    token: PublicKey,
+    token: PublicKey | string,
     tokenImage: string,
     tokenSymbol: string,
     name: string,

@@ -141,16 +141,14 @@ export const useProgramActions = () => {
         mintKey: web3.PublicKey,
         amount: number | string,
         periodSeconds: number | string,
-        firstPaymentTs: number | string,
         prefundingAmount: number | string,
         autoRenew: boolean,
 
     ): Promise<web3.PublicKey | undefined> {
-        console.log(payeeKey, payerKey, mintKey, amount, periodSeconds, firstPaymentTs, autoRenew)
+        console.log(payeeKey, payerKey, mintKey, amount, periodSeconds, autoRenew)
         // Convert numerical inputs to Anchor's Big Number (BN)
         const amountBN = new anchor.BN(amount);
         const periodSecondsBN = new anchor.BN(periodSeconds);
-        const firstPaymentTsBN = new anchor.BN(firstPaymentTs);
         const prefundingAmountBN = new anchor.BN(prefundingAmount); // NEW BN conversion
         const depositTokenProgramId = await getMintProgramId(mintKey);
         const uniqueSeed = generateUniqueSeed();
@@ -184,31 +182,89 @@ export const useProgramActions = () => {
             false,
             depositTokenProgramId
         )
+        //         write a frontend function to call this function #[derive(Accounts)]
+        // #[instruction(name:String,amount: u64, period_seconds: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
+        // pub struct InitializeSubscription<'info> {
+        //     #[account(mut)]
+        //     pub payer: Signer<'info>,
+        //     /// Subscription PDA
+        //     #[account(
+        //         init,
+        //         payer = payer,
+        //         space = 8 + Subscription::INIT_SPACE,
+        //         seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , unique_seed.as_ref()],
+        //         bump
+        //     )]
+        //     pub subscription: Account<'info, Subscription>,
+        //     /// Vault token account (PDA owned token account)
+        //     #[account(
+        //         init,
+        //         payer = payer,
+        //         token::mint = mint,
+        //         token::authority = subscription,
+        //         token::token_program = token_program, // ← THIS LINE IS REQUIRED
+        //         seeds = [VAULT_SEED, subscription.key().as_ref()],
+        //         bump
+        //     )]
+        //     pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+        //     #[account(
+        //             mut,
+        //             token::mint = mint,
+        //             token::authority = payer,
+        //         )]
+        //     pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
+        //     /// Mint for this subscription
+        //     pub mint:InterfaceAccount<'info, Mint>,
+        //     /// CHECK: The payee key is only saved for later payment processing. It is not used for direct signing or transfer authority in this instruction.
+        //     pub payee: UncheckedAccount<'info>,
+        //     #[account(
+        //         mut,
+        //         constraint = payee_token_account.mint == mint.key(),
+        //         constraint = payee_token_account.owner == payee.key(),
+        //     )]
+        //     pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
+        //     /// Global stats (singleton)
+        //     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
+        //     pub global_stats: Account<'info, GlobalStats>,
+        //     pub system_program: Program<'info, System>,
+        //     pub token_program: Interface<'info, TokenInterface>,
+        //     pub rent: Sysvar<'info, Rent>,
+        // }
         try {
             const tx = await program!.methods
                 .initializeSubscription(
                     name,
                     amountBN,
                     periodSecondsBN,
-                    firstPaymentTsBN,
                     autoRenew,
                     prefundingAmountBN,
                     [...uniqueSeed],
                 )
                 .accounts({
-                    subscription: subscriptionKey,
+                    // payer: payerKey,
+                    // subscription: subscriptionKey,
+                    // vaultTokenAccount: vaultTokenAccount,
+                    // payerTokenAccount: payerTokenAccount,
+                    // mint: mintKey,
+                    // payee: payeeKey,
+                    // payeeTokenAccount: payeeTokenAccount,
+                    // globalStats: globalStatsPDA,
+                    // systemProgram: web3.SystemProgram.programId,
+                    // tokenProgram: depositTokenProgramId,
+                    // rent: web3.SYSVAR_RENT_PUBKEY,
                     payer: payerKey,
-                    payee: payeeKey,
-                    mint: mintKey,
-                    globalStats: globalStatsPDA,
-                    payerTokenAccount: payerTokenAccount,
-                    payeeTokenAccount: payeeTokenAccount,
+                    subscription: subscriptionKey,
                     vaultTokenAccount: vaultTokenAccount,
+                    payerTokenAccount: payerTokenAccount,
+                    mint: mintKey,
+                    payee: payeeKey,
+                    payeeTokenAccount: payeeTokenAccount,
+                    globalStats: globalStatsPDA,
                     systemProgram: web3.SystemProgram.programId,
                     tokenProgram: depositTokenProgramId,
+                    rent: web3.SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
-
             console.log(`\n🎉 Subscription Initialized Successfully!`);
             console.log(`Transaction Signature: ${tx}`);
             console.log(`New Subscription PDA: ${subscriptionKey.toBase58()}`);
@@ -287,7 +343,7 @@ export const useProgramActions = () => {
 
         // Format tiers correctly
         const formattedTiers = plan.tiers.map(tier => ({
-            tierName: tier.name, // support both
+            tierName: tier.tierName, // support both
             amount: new anchor.BN(tier.amount),
             periodSeconds: new anchor.BN(tier.periodSeconds),
             description: tier.description || "",
@@ -305,7 +361,7 @@ export const useProgramActions = () => {
         // Derive receiver's ATA (for Token-2022 + SPL)
         const receiverTokenAccount = getAssociatedTokenAddressSync(
             new PublicKey(plan.token),           // mint
-            new PublicKey(plan.reciever),        // receiver wallet
+            new PublicKey(plan.receiver),        // receiver wallet
             false,
             tokenProgramId                // or TOKEN_PROGRAM_ID — auto-detect if needed
         );
@@ -322,7 +378,7 @@ export const useProgramActions = () => {
                     creator: creatorKey,
                     plan: planPDA,
                     mint: new PublicKey(plan.token),
-                    receiver: new PublicKey(plan.reciever),
+                    receiver: new PublicKey(plan.receiver),
                     receiverTokenAccount: receiverTokenAccount,
                     tokenProgram: tokenProgramId, // or detect based on mint
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,

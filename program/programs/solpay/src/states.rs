@@ -24,7 +24,7 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(name:String,amount: u64, period_seconds: i64, first_payment_ts: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
+#[instruction(name:String,amount: u64, period_seconds: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -33,7 +33,6 @@ pub struct InitializeSubscription<'info> {
         init,
         payer = payer,
         space = 8 + Subscription::INIT_SPACE,
-        // Seeds corrected from previous interactions:
         seeds = [SUBSCRIPTION_SEED, payer.key().as_ref() , unique_seed.as_ref()], 
         bump
     )]

@@ -9,7 +9,7 @@ skip-lint = false
 solpay = "6ttTmuXJ1WTw6k8LQpJkQcAsnvofipeBCPGTFdgtNYiM"
 
 [programs.devnet]
-RecurringPayments = "3X4345dDnMwui3j9TXDTdQVfjsNGEJbXyvsfTAAZWzDp"
+RecurringPayments = "8zSqDaupmjEdEr1rhox7Ri2poYZjT6ir4Vd6GL2TZ3XT"
 
 [registry]
 url = "https://api.apr.dev"

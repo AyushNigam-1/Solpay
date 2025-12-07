@@ -1,17 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { CheckCircle2, Crown, Zap, ShieldCheck, X, Moon, Sun } from 'lucide-react';
+import { CheckCircle2, Crown, Zap, ShieldCheck, X, Moon, Sun, Ticket, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
-import * as anchor from "@coral-xyz/anchor";
+import { useProgramActions } from '@/app/hooks/useProgramActions';
+import { Plan, Tier } from '@/app/types';
+import { useProgram } from '@/app/hooks/useProgram';
 
 // --- Type Definitions ---
 // Updated to reflect that incoming data might be BN objects or strings
-export interface Tier {
-    tierName: string;
-    amount: number | string | anchor.BN; // Flexible input
-    periodSeconds: number | string | anchor.BN; // Flexible input
-    description: string;
-}
+
 const ONE_MONTH_SECONDS = 30 * 24 * 60 * 60; // ~2,592,000 seconds
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60; // ~31,536,000 seconds
 
@@ -24,28 +21,17 @@ export const DUMMY_TIERS: Tier[] = [
     },
     {
         tierName: "Standard",
-        amount: "15", // Using string: 15 tokens (useful for UI inputs)
-        periodSeconds: new anchor.BN(ONE_MONTH_SECONDS), // Using BN: 1 month
+        amount: 15, // Using string: 15 tokens (useful for UI inputs)
+        periodSeconds: ONE_MONTH_SECONDS, // Using BN: 1 month
         description: "Upgrade your experience with ad-free listening, high-definition audio quality, and offline downloads. Enjoy seamless playback on up to two devices simultaneously."
     },
     {
         tierName: "Premium",
         amount: 150, // Using BN: 150 tokens
-        periodSeconds: ONE_YEAR_SECONDS.toString(), // Using string: 1 year
+        periodSeconds: ONE_YEAR_SECONDS, // Using string: 1 year
         description: "The ultimate plan for power users. Includes all Standard features plus exclusive early access to new releases, 4K video streaming, and family sharing for up to six accounts. Save 17% with annual billing."
     }
 ];
-export interface Plan {
-    creator?: string | object; // Handle object if BN/PublicKey passed raw
-    receiver: string | object;
-    mint: string | object;
-    token: PublicKey | string | object;
-    tokenImage: string;
-    tokenSymbol: string;
-    name: string;
-    tiers: Tier[];
-    bump?: number;
-}
 
 // Helper to safely convert BN/string/number to a Javascript number
 // Note: For very large numbers (token amounts), keep as string for display if needed, 
@@ -107,31 +93,35 @@ interface PlanDetailsProps {
 }
 
 const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => {
-    console.log(plan)
+
     if (!plan) {
         return
     }
-    const [selectedTier, setSelectedTier] = useState<any | null>(null);
-    // Memoize the processed plan data to handle conversions efficiently
     const processedPlan = useMemo(() => {
         if (!plan) return null;
         return {
             ...plan,
             creator: safeToString(plan.creator),
             receiver: safeToString(plan.receiver),
-            // token: safeToString(plan.token), // If needed as string
             tiers: plan.tiers.map(tier => ({
                 ...tier,
-                // Convert BN/Objects to readable formats for the UI
-                displayAmount: safeToString(tier.amount),
-                amountVal: safeToNumber(tier.amount), // Useful for calculations if needed
-                periodSecondsVal: safeToNumber(tier.periodSeconds)
+                amount: safeToNumber(tier.amount),
+                periodSeconds: safeToNumber(tier.periodSeconds)
             }))
         };
     }, [plan]);
 
-    const handleTierSelect = (tier: any) => {
+    const { publicKey } = useProgram()
+    const { initializeSubscription } = useProgramActions()
+
+    const [duration, setDuration] = useState(safeToNumber(processedPlan?.tiers[0].periodSeconds))
+    const [amount, setAmount] = useState(safeToNumber(processedPlan?.tiers[0].amount))
+    const [selectedTier, setSelectedTier] = useState<Tier | null>(processedPlan?.tiers[0]!);
+
+    const handleTierSelect = (tier: Tier) => {
         setSelectedTier(tier);
+        setDuration(tier.periodSeconds)
+        setAmount(tier.amount)
     };
 
     const handleSubscribeClick = () => {
@@ -144,7 +134,7 @@ const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => 
             setOpen(false);
         }
     };
-    const [enabled, setEnabled] = useState(false);
+    const [autoRenew, setAutoRenew] = useState(false);
     const closeModal = () => {
         setOpen(false);
         setSelectedTier(null);
@@ -191,15 +181,14 @@ const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => 
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
                                     <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-2xl w-full'>
-                                        <span className="hidden sm:inline text-gray-400 ">Creator</span>
+                                        <span className="hidden sm:inline text-gray-400 text-sm">Creator</span>
                                         <span className='truncate font-bold'>
                                             {processedPlan.receiver}
-
                                             {/* {processedPlan.creator.slice(0, 15)}...{processedPlan.creator.slice(30)} */}
                                         </span>
                                     </div>
                                     <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-2xl w-full'>
-                                        <span className="hidden sm:inline text-gray-400 "> Reciever</span>
+                                        <span className="hidden sm:inline text-gray-400 text-sm"> Reciever</span>
                                         <span className="truncate font-bold" >
                                             {processedPlan.receiver}
                                         </span>
@@ -215,18 +204,18 @@ const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => 
                                     {/* Tiers Grid */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                                         {
-                                            processedPlan.tiers && DUMMY_TIERS.length > 0
+                                            processedPlan.tiers && processedPlan.tiers.length > 0
                                                 ? (
-                                                    DUMMY_TIERS.map((tier, index) => {
-                                                        const isSelected = selectedTier === tier;
+                                                    processedPlan.tiers.map((tier, index) => {
+                                                        const isSelected = selectedTier?.description === tier.description;
                                                         return (
                                                             <div
                                                                 key={index}
                                                                 onClick={() => handleTierSelect(tier)}
                                                                 className={`relative cursor-pointer rounded-2xl p-4 border-2 transition-all duration-200 group flex flex-col justify-between space-y-3
                                                             ${isSelected
-                                                                        ? 'border-blue-500 bg-blue-900/10 shadow-lg shadow-blue-900/20'
-                                                                        : 'border-gray-700 bg-white/5 hover:border-gray-600 hover:bg-gray-800'
+                                                                        ? 'border-blue-400/70 bg-blue-900/10 shadow-lg shadow-blue-900/20'
+                                                                        : 'border-white/6 bg-white/5  hover:bg-white/8'
                                                                     }
                                                         `}
                                                             >
@@ -252,7 +241,6 @@ const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => 
                                                                             <span className='text-3xl font-bold text-white'>
                                                                                 {tier.amount}
                                                                             </span>
-                                                                            {/* {tier.displayAmount} */}
                                                                             <span className=" font-medium text-gray-400">{processedPlan.tokenSymbol}</span>
                                                                         </div>
                                                                         <div className="text-sm font-medium text-gray-300 ">
@@ -274,38 +262,58 @@ const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => 
 
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
+                                <div className='flex items-center justify-between' >
+                                    <div className='flex flex-col gap-2'>
+                                        <span className="hidden sm:inline text-gray-400 text-sm "> Duration</span>
+                                        <span className='flex gap-2 items-center'>
+                                            <button disabled={duration - selectedTier?.periodSeconds == 0} className='p-0.5 rounded-full bg-white/5 flex justify-center items-center cursor-pointer' onClick={() => { setDuration(duration - selectedTier?.periodSeconds); setAmount(amount - selectedTier?.amount) }}>
+                                                <ChevronLeft />
+                                            </button>
+                                            <span className="truncate font-bold text-xl" >
+                                                {formatDuration(duration)}
+                                                {/* {processedPlan.receiver} */}
+                                            </span>
+                                            <button className='p-0.5 rounded-full bg-white/5 flex justify-center items-center cursor-pointer' onClick={() => { setDuration(duration + selectedTier?.periodSeconds); setAmount(amount + selectedTier?.amount) }}>
+                                                <ChevronRight />
+                                            </button>
+                                        </span>
+                                    </div>
+                                    <div className='flex flex-col gap-2'>
+                                        <span className="hidden sm:inline text-gray-400 text-sm"> Total</span>
+                                        <span className="truncate font-bold" >
+                                            <div className=" flex gap-1 items-end ">
+                                                {/* Displaying stringified amount */}
+                                                <span className='font-bold text-white text-xl'>
+                                                    {amount}
+                                                </span>
+                                                {/* {tier.displayAmount} */}
+                                                <span className=" font-medium text-gray-400">{processedPlan.tokenSymbol}</span>
+                                            </div>
+                                            {/* {processedPlan.receiver} */}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className='h-0.5 w-full bg-white/5' />
 
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                    {/* <label className="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" value="" className="sr-only peer" />
-                                        <div className="relative w-9 h-5 bg-white/5 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-soft dark:peer-focus:ring-brand-soft rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-buffer after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
-                                        <span className="select-none ms-3  font-medium text-heading">Auto-Renew</span>
-                                    </label> */}
-                                    <label className="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" className="sr-only peer" defaultChecked />
-                                        <div className="relative w-14 h-7 bg-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-0.5 after:bg-white after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-brand"></div>
-                                        <span className="select-none ms-4 text-lg font-medium text-heading">Auto-Renew</span>
-                                    </label>
+                                <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+                                    {/* <div className='relative' >
+                                        <label className="inline-flex items-center cursor-pointer ">
+                                           
+                                            <input type="checkbox" className="sr-only peer" defaultChecked onClick={() => setAutoRenew(!autoRenew)} />
+                                            <div className="relative w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-md peer-checked:bg-brand">
+                                            </div>
+                                            <span className="select-none ms-2 text-lg font-medium text-heading">Auto-Renew</span>
+                                        </label>
 
-                                    {/* <div className="text-center sm:text-left">
-                                            {selectedTier ? (
-                                                <>
-                                                    <p className="text-sm text-gray-400">Total Due Today</p>
-                                                    <p className="text-2xl font-bold text-white">
-                                                        {selectedTier.displayAmount} <span className="text-blue-400">{processedPlan.tokenSymbol}</span>
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <p className="text-sm text-gray-500 italic">Select a tier to proceed</p>
-                                            )}
-                                        </div> */}
+                                    </div> */}
                                     <button
-                                        onClick={handleSubscribeClick}
+                                        onClick={() => initializeSubscription(selectedTier!.tierName, publicKey!, new PublicKey(plan.receiver), new PublicKey(plan.mint), selectedTier?.amount, selectedTier?.periodSeconds, amount, false)
+                                        }
                                         disabled={!selectedTier}
                                         className={`
                                                 w-full sm:w-auto p-3 rounded-lg font-semibold text-lg shadow-lg transition-all flex items-center justify-center gap-2
                                                 ${selectedTier
-                                                ? 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25 cursor-pointer transform hover:-translate-y-0.5'
+                                                ? 'bg-blue-400/70  text-white hover:shadow-blue-500/25 cursor-pointer transform hover:-translate-y-0.5'
                                                 : 'bg-white/5 text-gray-600 cursor-not-allowed border border-gray-700'
                                             }
                                             `}
