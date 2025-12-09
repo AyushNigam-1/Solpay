@@ -1,34 +1,10 @@
 {
   "compilerOptions": {
-    "types": [
-      "mocha",
-      "chai"
-    ],
-    "typeRoots": [
-      "./node_modules/@types"
-    ],
-    "lib": [
-      "es2015"
-    ],
-    // ⬇️ **Crucial Change for Node/Mocha Stability**
-    // Using 'CommonJS' ensures Node's runtime can load modules reliably.
+    "types": ["mocha", "chai"],
+    "typeRoots": ["./node_modules/@types"],
+    "lib": ["es2015"],
     "module": "commonjs",
-    "moduleResolution": "node",
-    "target": "es2020", // Use a more modern target for better features
-    "esModuleInterop": true,
-    // Add this to help resolve imported .json files if you use them
-    "resolveJsonModule": true,
-    // Good practice for Anchor projects:
-    "rootDir": "./",
-    "outDir": "./dist",
-    "strict": true
-  },
-  "include": [
-    "tests/**/*",
-    "src/**/*",
-    "target/types/*.ts" // Explicitly include generated types
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+    "target": "es6",
+    "esModuleInterop": true
+  }
 }

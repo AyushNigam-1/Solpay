@@ -24,7 +24,7 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(name:String,amount: u64, period_seconds: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
+#[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -58,13 +58,13 @@ pub struct InitializeSubscription<'info> {
     /// Mint for this subscription
     pub mint:InterfaceAccount<'info, Mint>,
     /// CHECK: The payee key is only saved for later payment processing. It is not used for direct signing or transfer authority in this instruction.
-    pub payee: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        constraint = payee_token_account.mint == mint.key(),
-        constraint = payee_token_account.owner == payee.key(),
-    )]
-    pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
+    // pub payee: UncheckedAccount<'info>,
+    // #[account(
+    //     mut,
+    //     constraint = payee_token_account.mint == mint.key(),
+    //     constraint = payee_token_account.owner == payee.key(),
+    // )]
+    // pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
     /// Global stats (singleton)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
@@ -311,20 +311,20 @@ pub enum SubscriptionUpdateField {
 #[derive(InitSpace)]  
 pub struct Subscription {
     pub payer: Pubkey,
-    pub payee: Pubkey,
     #[max_len(32)]   
-    pub name :String,
+    pub tier_name :String,
+    #[max_len(32)]   
+    pub plan_pda:String,
+    #[max_len(300)]
     pub payer_token_account: Pubkey,
-    pub payee_token_account: Pubkey,
     pub mint: Pubkey,
-    pub amount: u64,
     pub vault_token_account: Pubkey,
-    pub period_seconds: i64,
     pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,
     pub bump: u8,
     pub unique_seed: [u8; 8],
+pub  nextPaymentTs:u64,
     pub prefunded_amount: u64,  // ← shows how much was deposited
 }
 

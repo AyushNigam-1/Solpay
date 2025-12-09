@@ -9,6 +9,7 @@ import TableHeaders from '@/app/components/ui/TableHeaders';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, planQuery } from '@/app/types';
+import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import { CircleUserRound, Coins, Delete, Home, LogIn, Logs, MousePointerClick, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ const page = () => {
     const [openDetails, setOpenDetails] = useState<boolean>(false)
     const { publicKey } = useProgram()
     const [plan, setPlan] = useState<Plan>()
+    const [planPDA, setPlanPDA] = useState<PublicKey | null>()
 
     const { fetchAllSubscriptionPlans, cancelPlan } = useProgramActions();
 
@@ -138,7 +140,7 @@ const page = () => {
                                                                 plan.account.creator?.toString() == publicKey ? <button className='flex gap-2 items-center text-red-400' onClick={() => cancelPlan(plan.account.creator!)}>
                                                                     <Delete />
                                                                     Delete
-                                                                </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setOpenDetails(true) }}>
+                                                                </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setPlanPDA(plan.publicKey); setOpenDetails(true) }}>
                                                                     <Zap className="w-5 h-5 " />
                                                                     Subscribe
                                                                 </button>
@@ -164,7 +166,7 @@ const page = () => {
             </div>
             <PlanForm isOpen={isOpen} setIsOpen={setOpen} />
             {/* <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} /> */}
-            <PlanDetails plan={plan!} open={openDetails} setOpen={setOpenDetails} />
+            <PlanDetails plan={plan!} planPDA={planPDA!} open={openDetails} setOpen={setOpenDetails} />
         </div>
     )
 }

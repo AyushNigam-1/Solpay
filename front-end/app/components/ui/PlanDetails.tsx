@@ -87,12 +87,13 @@ const TierIcon = ({ name }: { name: string }) => {
 
 interface PlanDetailsProps {
     plan: Plan | null;
+    planPDA: PublicKey;
     open: boolean;
     setOpen: (open: boolean) => void;
     onSubscribe?: (tier: any) => void; // Using any to pass back the processed tier
 }
 
-const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => {
+const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsProps) => {
 
     if (!plan) {
         return
@@ -307,7 +308,7 @@ const PlanDetails = ({ plan, open, setOpen, onSubscribe }: PlanDetailsProps) => 
 
                                     </div> */}
                                     <button
-                                        onClick={() => initializeSubscription(selectedTier!.tierName, publicKey!, new PublicKey(plan.receiver), new PublicKey(plan.mint), selectedTier?.amount, selectedTier?.periodSeconds, amount, false)
+                                        onClick={() => initializeSubscription(selectedTier!.tierName, planPDA, publicKey!, new PublicKey(plan.mint), selectedTier?.periodSeconds, amount, false)
                                         }
                                         disabled={!selectedTier}
                                         className={`

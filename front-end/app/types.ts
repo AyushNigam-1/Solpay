@@ -22,6 +22,7 @@ export interface Subscription {
     payer: web3.PublicKey;
     payee: web3.PublicKey;
     mint: web3.PublicKey;
+    planName: string
     amount: anchor.BN;
     periodSeconds: anchor.BN;
     nextPaymentTs: anchor.BN;

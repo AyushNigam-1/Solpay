@@ -74,6 +74,7 @@ export const useProgram = () => {
         escrowAccountKey,
         PDA_SEEDS,
         PROGRAM_ID,
-        anchorWallet
+        anchorWallet,
+        provider
     };
 };

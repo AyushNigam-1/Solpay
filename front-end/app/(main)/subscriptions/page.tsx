@@ -16,7 +16,7 @@ import { PublicKey } from '@solana/web3.js';
 import { fetchUserTokenAccounts } from '@/app/utils/token';
 import Cookies from "js-cookie"
 import { formatPeriod } from '@/app/utils/duration';
-import { Banknote, ChevronsUpDown, CircleDot, CircleMinus, CircleUserRound, Coins, Delete, MousePointerClick, Timer, Wallet } from 'lucide-react';
+import { Banknote, ChartNoAxesGantt, ChevronsUpDown, CircleDot, CircleMinus, CircleUserRound, Coins, Delete, MousePointerClick, Timer, Wallet } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
 
 const page = () => {
@@ -36,14 +36,12 @@ const page = () => {
         isFetching,
         isError: isQueryError,
         refetch,
-    } = useQuery<{
-        publicKey: PublicKey, account: Subscription
-    }[]>({
+    } = useQuery({
         queryKey: ["AllSubscriptions"],
         queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
     });
-    console.log("subscriptions", subscriptions)
+    // console.log("subscriptions", subscriptions)
     // const {
     //     data: tokens,
     //     // isLoading,
@@ -81,6 +79,12 @@ const page = () => {
         },
         {
             icon: (
+                <ChartNoAxesGantt />
+            ),
+            title: "Plan"
+        },
+        {
+            icon: (
                 <Coins />
             ),
             title: "Token"
@@ -91,12 +95,7 @@ const page = () => {
             ),
             title: "Amount"
         },
-        {
-            icon: (
-                <Wallet />
-            ),
-            title: "Balance"
-        },
+
         {
             icon: (
                 <Timer />
@@ -130,28 +129,28 @@ const page = () => {
                                                 return (
                                                     <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscription.account); setOpenDetails(true) }}>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {subscription.account.name}
+                                                            {subscription.account.planMetaData.name}
+                                                        </td>
+                                                        <td className="px-6 py-2 text-xl font-semibold text-white">
+                                                            {subscription.account.tierName}
                                                         </td>
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
                                                                 <img
-                                                                    src={subscription.account.tokenMetadata.image}
+                                                                    src={subscription.account.planMetaData.tokenImage}
                                                                     className='w-6 rounded-full object-cover'
-                                                                    alt={`${subscription.account.tokenMetadata.symbol} icon`}
+                                                                    alt={`${subscription.account.planMetaData.tokenImage} icon`}
                                                                 />
                                                                 <p className="text-xl text-gray-400">
-                                                                    {subscription.account.tokenMetadata.symbol}
+                                                                    {subscription.account.planMetaData.tokenSymbol}
                                                                 </p>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {subscription.account.amount.toString()}
+                                                            {subscription.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName).amount.toString()}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {subscription.account.prefundedAmount.toString()}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(subscription.account.periodSeconds)}
+                                                            {formatPeriod(subscription.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName).periodSeconds)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}

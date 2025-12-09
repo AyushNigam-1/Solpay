@@ -5,21 +5,18 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-solpay = "6ttTmuXJ1WTw6k8LQpJkQcAsnvofipeBCPGTFdgtNYiM"
-
 [programs.devnet]
-RecurringPayments = "8zSqDaupmjEdEr1rhox7Ri2poYZjT6ir4Vd6GL2TZ3XT"
-
-[registry]
-url = "https://api.apr.dev"
+RecurringPayments = "7rX2hvG7Eq2XFAv5WfviYgeyjd2tKoFd4b9i4Ty9ThdS"
 
 [provider]
 cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
+[idl]
+upload = true
+
+[registry]
+url = "https://api.apr.dev"
+
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
-
-[deploy]
-program_size_limit = 20000
