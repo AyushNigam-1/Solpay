@@ -33,7 +33,7 @@ pub mod recurring_payments {
         plan_pda: String,
         auto_renew: bool,
         prefunding_amount: u64,
-        nextPaymentTs: u64,
+        next_payment_ts: u64,
         unique_seed: [u8; 8],
     ) -> Result<()> {
         // 1. DEPOSIT TOKENS (only if prefunding_amount > 0)
@@ -67,7 +67,7 @@ pub mod recurring_payments {
         subscription.vault_token_account = ctx.accounts.vault_token_account.key();
         subscription.bump = ctx.bumps.subscription;
         subscription.prefunded_amount = prefunding_amount;
-        subscription.nextPaymentTs = nextPaymentTs;
+        subscription.nextPaymentTs = next_payment_ts;
         subscription.unique_seed = unique_seed; // ← FIXED: Save unique seed
 
         let stats = &mut ctx.accounts.global_stats;
@@ -84,35 +84,6 @@ pub mod recurring_payments {
         //     period_seconds,
         //     prefunded_amount: prefunding_amount, // ← optional: add to event
         // });
-
-        Ok(())
-    }
-
-    pub fn topup_subscription(ctx: Context<TopupSubscription>, topup_amount: u64) -> Result<()> {
-        // 1. PERFORM THE TOKEN TRANSFER
-
-        // CPI Context for the Token Transfer from Payer to Vault
-        let cpi_accounts = TransferChecked {
-            from: ctx.accounts.payer_token_account.to_account_info(), // SOURCE: Payer's ATA
-            mint: ctx.accounts.mint.to_account_info(),
-            to: ctx.accounts.vault_token_account.to_account_info(), // DESTINATION: Subscription Vault
-            authority: ctx.accounts.payer.to_account_info(),        // AUTHORITY: Payer (Signer)
-        };
-
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-
-        // Call the SPL Token Program to move the tokens.
-        // This will fail if the payer_token_account does not have sufficient funds.
-        transfer_checked(cpi_ctx, topup_amount, ctx.accounts.mint.decimals)?;
-
-        // 2. EMIT EVENT
-        // The event is only emitted if the transfer was successful, ensuring atomicity.
-        emit!(SubscriptionTopup {
-            subscription: ctx.accounts.subscription.key(),
-            topup_amount,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
 
         Ok(())
     }
@@ -188,7 +159,84 @@ pub mod recurring_payments {
 
     //     Ok(())
     // }
+    pub fn manage_vault(ctx: Context<ManageVault>, action: VaultAction, amount: u64) -> Result<()> {
+        let subscription = &mut ctx.accounts.subscription;
+        let vault = &ctx.accounts.vault_token_account;
 
+        let seeds = &[
+            SUBSCRIPTION_SEED,
+            subscription.payer.as_ref(),
+            subscription.unique_seed.as_ref(),
+            &[subscription.bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        match action {
+            VaultAction::Fund => {
+                // require!(amount > 0, ErrorCode::ZeroAmount);
+
+                let cpi_accounts = TransferChecked {
+                    from: ctx.accounts.payer_token_account.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: vault.to_account_info(),
+                    authority: ctx.accounts.payer.to_account_info(),
+                };
+
+                let cpi_ctx =
+                    CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+
+                transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
+
+                // UPDATE prefunded_amount
+                subscription.prefunded_amount = subscription
+                    .prefunded_amount
+                    .checked_add(amount)
+                    .ok_or(ErrorCode::NumericalOverflow)?;
+
+                // emit!(VaultFunded {
+                //     subscription: subscription.key(),
+                //     amount,
+                //     new_balance: subscription.prefunded_amount,
+                //     timestamp: Clock::get()?.unix_timestamp,
+                // });
+            }
+
+            VaultAction::Withdraw => {
+                // require!(amount > 0, ErrorCode::ZeroAmount);
+                // require!(vault.amount >= amount, ErrorCode::InsufficientVaultBalance);
+
+                let cpi_accounts = TransferChecked {
+                    from: vault.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.payer_token_account.to_account_info(),
+                    authority: subscription.to_account_info(),
+                };
+
+                let cpi_ctx = CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    cpi_accounts,
+                    signer_seeds,
+                );
+
+                transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
+
+                // UPDATE prefunded_amount
+                subscription.prefunded_amount = subscription
+                    .prefunded_amount
+                    .checked_sub(amount)
+                    .ok_or(ErrorCode::NumericalOverflow)?;
+
+                // emit!(VaultWithdrawn {
+                //     subscription: subscription.key(),
+                //     amount,
+                //     new_balance: subscription.prefunded_amount,
+                //     timestamp: Clock::get()?.unix_timestamp,
+                // });
+            }
+        }
+
+        Ok(())
+    }
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         let clock = Clock::get()?;
         let subscription = &mut ctx.accounts.subscription;
@@ -259,70 +307,6 @@ pub mod recurring_payments {
         });
 
         // PDA is auto-closed due to `close = payer` in account constraints
-        Ok(())
-    }
-
-    pub fn withdraw_remaining(ctx: Context<WithdrawRemaining>) -> Result<()> {
-        let subscription = &mut ctx.accounts.subscription; // MUTABLE BORROW starts
-
-        require!(!subscription.active, ErrorCode::SubscriptionActive);
-        require_keys_eq!(
-            subscription.payer,
-            *ctx.accounts.payer.key,
-            ErrorCode::Unauthorized
-        );
-
-        // --- Prepare Correct PDA Signer Seeds ---
-        // FIX 1: Correctly construct the signer seeds. The bump must be a single-byte slice.
-        let seeds = &[
-            SUBSCRIPTION_SEED,
-            subscription.payer.as_ref(),
-            &[subscription.bump], // Correctly pass the bump (u8 as &[u8])
-        ];
-        let signer_seeds = &[&seeds[..]];
-
-        // transfer remaining tokens back (if any)
-        let vault_amount = ctx.accounts.vault_token_account.amount;
-
-        if vault_amount > 0 {
-            // FIX 2: Pass .to_account_info() directly into the CPI struct.
-            // This resolves the conflict between the long-lived mutable borrow (`subscription`)
-            // and the temporary immutable borrow required for the CPI authority.
-            let cpi_accounts = TransferChecked {
-                from: ctx.accounts.vault_token_account.to_account_info(),
-                mint: ctx.accounts.mint.to_account_info(),
-                to: ctx.accounts.payer_token_account.to_account_info(),
-                authority: subscription.to_account_info(), // Use mutable reference temporarily for immutable AccountInfo
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-
-            transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
-        }
-
-        // close the vault to payer
-        // FIX 2 (Applied again): Pass .to_account_info() directly into the CPI struct.
-        let cpi_accounts_close = CloseAccount {
-            account: ctx.accounts.vault_token_account.to_account_info(),
-            destination: ctx.accounts.payer.to_account_info(),
-            authority: subscription.to_account_info(),
-        };
-        let cpi_ctx_close = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            cpi_accounts_close,
-            signer_seeds,
-        );
-        close_account(cpi_ctx_close)?;
-
-        // No further mutable access to `subscription` is needed, but the original mutable borrow ends here.
-
-        emit!(WithdrawnRemaining {
-            subscription: subscription.key(),
-            payer: subscription.payer,
-            withdrawn_amount: vault_amount,
-            timestamp: Clock::get()?.unix_timestamp,
-        });
-
         Ok(())
     }
 

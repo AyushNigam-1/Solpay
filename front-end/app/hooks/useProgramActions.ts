@@ -330,7 +330,74 @@ export const useProgramActions = () => {
         }
     }
 
+    async function manageVault(
+        subscriptionPDA: PublicKey,
+        action: "fund" | "withdraw",
+        amount: number | string, // raw amount (e.g. 50000000 for 50 USDC)
+        payerKey: PublicKey
+    ): Promise<string | undefined> {
+        if (!program || !payerKey) {
+            alert("Wallet or program not connected");
+            return undefined;
+        }
+        console.log(subscriptionPDA)
+        try {
+            // Fetch subscription to get mint
+            const subscription = await (program.account as any).subscription.fetch(subscriptionPDA);
+            console.log(subscription)
+            // // Derive vault PDA
+            const [vaultPDA] = PublicKey.findProgramAddressSync(
+                [
+                    Buffer.from("vault"),
+                    subscriptionPDA.toBuffer(),
+                ],
+                PROGRAM_ID
+            );
 
+            // Payer's ATA
+            const payerATA = getAssociatedTokenAddressSync(
+                subscription.mint,
+                payerKey,
+                false,
+                TOKEN_2022_PROGRAM_ID
+            );
+
+            // Convert amount to BN
+            const amountBN = new anchor.BN(amount);
+
+            // Build transaction
+            const txSig = await program.methods
+                .manageVault(
+                    action === "fund" ? { fund: {} } : { withdraw: {} },
+                    amountBN
+                )
+                .accounts({
+                    payer: payerKey,
+                    subscription: subscriptionPDA,
+                    vaultTokenAccount: vaultPDA,
+                    payerTokenAccount: payerATA,
+                    mint: subscription.mint,
+                    tokenProgram: TOKEN_2022_PROGRAM_ID,
+                })
+                .rpc();
+
+            console.log(`Vault ${action}ed successfully!`);
+            // console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
+
+            // return txSig;
+        } catch (error: any) {
+            console.error(`Failed to ${action} vault:`, error);
+
+            if (error.message.includes("InsufficientVaultBalance")) {
+                alert("Not enough tokens in vault to withdraw");
+            } else if (error.message.includes("ZeroAmount")) {
+                alert("Amount must be greater than 0");
+            } else {
+                alert(`Error: ${error.message || "Transaction failed"}`);
+            }
+            return undefined;
+        }
+    }
 
     async function createPlan(
         creatorKey: PublicKey,
@@ -384,7 +451,7 @@ export const useProgramActions = () => {
                     receiverTokenAccount: receiverTokenAccount,
                     tokenProgram: tokenProgramId, // or detect based on mint
                     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-                    systemProgram: SystemPROGRAM_ID,
+                    systemProgram: web3.SystemProgram.programId,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
@@ -430,7 +497,7 @@ export const useProgramActions = () => {
             return null;
         }
     }
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, manageVault }
 }
 
 

@@ -13,11 +13,11 @@ import Error from '@/app/components/ui/Error';
 import { Slide, ToastContainer, toast } from 'react-toastify';
 import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { PublicKey } from '@solana/web3.js';
-import { fetchUserTokenAccounts } from '@/app/utils/token';
 import Cookies from "js-cookie"
 import { formatPeriod } from '@/app/utils/duration';
 import { Banknote, ChartNoAxesGantt, ChevronsUpDown, CircleDot, CircleMinus, CircleUserRound, Coins, Delete, MousePointerClick, Timer, Wallet } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
+import VaultActions from '@/app/components/ui/VaultActions';
 
 const page = () => {
     const [isOpen, setOpen] = useState<boolean>(false)
@@ -25,7 +25,8 @@ const page = () => {
     const [openDetails, setOpenDetails] = useState<boolean>(false)
     const publicKey = new PublicKey(Cookies.get("user")!)
     const [searchQuery, setSearchQuery] = useState<string | null>("")
-
+    const [popupOpen, setPopupOpen] = useState(false);
+    const [popupAction, setPopupAction] = useState<"fund" | "withdraw">("fund");
     const { cancelSubscription, fetchUserSubscriptions } = useProgramActions();
     // interface query {
     //     publicKey: PublicKey, account: Subscription
@@ -127,7 +128,7 @@ const page = () => {
                                         <tbody>
                                             {filteredData!.map((subscription) => {
                                                 return (
-                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscription.account); setOpenDetails(true) }}>
+                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscription); setOpenDetails(true) }}>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {subscription.account.planMetaData.name}
                                                         </td>
@@ -172,7 +173,17 @@ const page = () => {
                 )}
             </div>
             <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} />
-            <SubscriptionDetails isOpen={openDetails!} subscription={subscription!} onClose={() => setOpenDetails(false)} />
+            <SubscriptionDetails isOpen={openDetails!} subscription={subscription!} onClose={() => setOpenDetails(false)} setPopupAction={setPopupAction} setPopupOpen={setPopupOpen} />
+            <VaultActions
+                isOpen={popupOpen}
+                onClose={() => setPopupOpen(false)}
+                action={popupAction}
+                subscriptionPDA={subscription?.publicKey}
+                currentBalance={subscription?.account.prefundedAmount.toString()}
+                tokenSymbol={subscription?.account.planMetaData.tokenSymbol}
+                tokenImage={subscription?.account.planMetaData.tokenImage}
+                onSuccess={() => ""}
+            />
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}
 
         </div>

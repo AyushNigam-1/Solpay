@@ -75,49 +75,37 @@ pub struct InitializeSubscription<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(topup_amount: u64,unique_seed: [u8; 8])]
-pub struct TopupSubscription<'info> {
+pub struct ManageVault<'info> {
     #[account(mut)]
-    /// CHECK: Must be the original payer of the subscription
     pub payer: Signer<'info>,
 
     #[account(
-        mut, 
-        seeds = [SUBSCRIPTION_SEED, payer.key().as_ref(), unique_seed.as_ref()], 
-        bump = subscription.bump,
-        has_one = payer, // Ensure only the original payer can top up
-        has_one = vault_token_account,
+        mut,
+        has_one = payer @ ErrorCode::Unauthorized,
+        // Only payer can manage
     )]
     pub subscription: Account<'info, Subscription>,
 
     #[account(
         mut,
-        // The vault must be owned by the subscription PDA
-        token::authority = subscription,
-        token::mint = mint,
-        token::token_program = token_program,
-        seeds = [VAULT_SEED, subscription.key().as_ref()],
-        bump
+        constraint = vault_token_account.owner == subscription.key(),
+        constraint = vault_token_account.mint == mint.key()
     )]
     pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
-    
-    /// The payer's token account from which funds are drawn
+
     #[account(
-        mut, 
+        mut,
         token::mint = mint,
         token::authority = payer,
-        token::token_program = token_program,
     )]
     pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    #[account(address = subscription.mint @ ErrorCode::IncorrectMint)]
     pub mint: InterfaceAccount<'info, Mint>,
 
     pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
-
 pub struct ExecutePayment<'info> {
     /// Subscription account (PDA)
     #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref() ,subscription.unique_seed.as_ref()], bump = subscription.bump)]
@@ -147,7 +135,7 @@ pub struct CancelSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref(), subscription.unique_seed.as_ref()], bump = subscription.bump)]
+    #[account(mut, close = payer, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref(), subscription.unique_seed.as_ref()], bump = subscription.bump)]
     pub subscription: Account<'info, Subscription>,
 
     /// Vault token account (owned by subscription PDA)
@@ -166,25 +154,6 @@ pub struct CancelSubscription<'info> {
     pub global_stats: Account<'info, GlobalStats>,
 
     pub token_program: Interface<'info, TokenInterface>
-}
-
-#[derive(Accounts)]
-pub struct WithdrawRemaining<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-
-    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref()], bump = subscription.bump)]
-    pub subscription: Account<'info, Subscription>,
-
-    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
-
-    pub mint: InterfaceAccount<'info, Mint>,
-
-    #[account(mut)]
-    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
-
-pub token_program: Interface<'info, TokenInterface>
 }
 
 
@@ -253,7 +222,11 @@ pub struct CancelPlan<'info> {
     pub plan: Account<'info, PlanAccount>,
 
 }
-
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
+pub enum VaultAction {
+    Fund,
+    Withdraw,
+}
 // --- UPDATE PLAN CONTEXT ---
 
 #[derive(Accounts)]
@@ -324,9 +297,12 @@ pub struct Subscription {
     pub active: bool,
     pub bump: u8,
     pub unique_seed: [u8; 8],
-pub  nextPaymentTs:u64,
+    pub nextPaymentTs: u64,
     pub prefunded_amount: u64,  // ← shows how much was deposited
 }
+
+
+
 
 #[account]
 #[derive(InitSpace)]  // ← THIS IS MAGIC
