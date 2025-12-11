@@ -24,7 +24,7 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool,prefunding_amount: u64, unique_seed: [u8; 8])]
+#[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool,prefunding_amount: u64, duration: u64, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -158,21 +158,13 @@ pub struct CancelSubscription<'info> {
 
 
 #[derive(Accounts)]
-#[instruction(field: SubscriptionUpdateField, new_value_u64: u64)] // Updated instruction attributes
-pub struct UpdateSchedule<'info> {
+pub struct UpdateSubscriptionStatus<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
     #[account(
-        mut, 
-        // Assuming 3-seed structure for fetching the existing subscription PDA
-        seeds = [
-            SUBSCRIPTION_SEED, 
-            payer.key().as_ref(), 
-            subscription.unique_seed.as_ref()
-        ], 
-        bump = subscription.bump,
-        has_one = payer, // Ensure only the original payer can update
+        mut,
+        has_one = payer @ ErrorCode::Unauthorized
     )]
     pub subscription: Account<'info, Subscription>,
 }
@@ -226,6 +218,17 @@ pub struct CancelPlan<'info> {
 pub enum VaultAction {
     Fund,
     Withdraw,
+}
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
+pub enum UpdateValue {
+    Bool(bool),
+    U64(u64),
+}
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
+pub enum SubscriptionField {
+    AutoRenew,
+    Active,
+    Duration,
 }
 // --- UPDATE PLAN CONTEXT ---
 
@@ -292,17 +295,14 @@ pub struct Subscription {
     pub payer_token_account: Pubkey,
     pub mint: Pubkey,
     pub vault_token_account: Pubkey,
-    pub next_payment_ts: i64,
+    pub next_payment_ts: u64,
     pub auto_renew: bool,
     pub active: bool,
+    pub duration :i64,
     pub bump: u8,
     pub unique_seed: [u8; 8],
-    pub nextPaymentTs: u64,
     pub prefunded_amount: u64,  // ← shows how much was deposited
 }
-
-
-
 
 #[account]
 #[derive(InitSpace)]  // ← THIS IS MAGIC

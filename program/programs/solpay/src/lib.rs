@@ -34,6 +34,7 @@ pub mod recurring_payments {
         auto_renew: bool,
         prefunding_amount: u64,
         next_payment_ts: u64,
+        duration: i64,
         unique_seed: [u8; 8],
     ) -> Result<()> {
         // 1. DEPOSIT TOKENS (only if prefunding_amount > 0)
@@ -63,11 +64,12 @@ pub mod recurring_payments {
         subscription.mint = ctx.accounts.mint.key();
         subscription.auto_renew = auto_renew;
         subscription.active = true;
+        subscription.duration = duration;
         subscription.payer_token_account = ctx.accounts.payer_token_account.key();
         subscription.vault_token_account = ctx.accounts.vault_token_account.key();
         subscription.bump = ctx.bumps.subscription;
         subscription.prefunded_amount = prefunding_amount;
-        subscription.nextPaymentTs = next_payment_ts;
+        subscription.next_payment_ts = next_payment_ts;
         subscription.unique_seed = unique_seed; // ← FIXED: Save unique seed
 
         let stats = &mut ctx.accounts.global_stats;
@@ -237,11 +239,11 @@ pub mod recurring_payments {
 
         Ok(())
     }
+
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         let clock = Clock::get()?;
         let subscription = &mut ctx.accounts.subscription;
 
-        // --- AUTH ---
         require_keys_eq!(
             subscription.payer,
             *ctx.accounts.payer.key,
@@ -330,54 +332,29 @@ pub mod recurring_payments {
     }
 
     pub fn cancel_plan(_ctx: Context<CancelPlan>) -> Result<()> {
-        // The `close = creator` constraint handles the logic automatically.
-        // We just need to emit an event if desired.
         msg!("Plan cancelled and account closed.");
         Ok(())
     }
 
-    // pub fn update_schedule(
-    //     ctx: Context<UpdateSchedule>,
-    //     field: SubscriptionUpdateField, // New enum specifying the field
-    //     new_value_u64: u64,             // New value (as u64, will need casting if i64 is target)
-    // ) -> Result<()> {
-    //     let subscription = &mut ctx.accounts.subscription;
+    pub fn update_subscription_status(
+        ctx: Context<UpdateSubscriptionStatus>,
+        field: SubscriptionField,
+        value: UpdateValue,
+    ) -> Result<()> {
+        let subscription = &mut ctx.accounts.subscription;
 
-    //     // --- 1. Authorization Check (Payer Only) ---
-    //     require_keys_eq!(
-    //         subscription.payer,
-    //         *ctx.accounts.payer.key,
-    //         ErrorCode::Unauthorized
-    //     );
-
-    //     // --- 2. Update Field based on Enum ---
-    //     match field {
-    //         SubscriptionUpdateField::Amount => {
-    //             // Amount is u64 in the struct, so direct assignment is fine
-    //             subscription.amount = new_value_u64;
-    //         }
-    //         SubscriptionUpdateField::PeriodSeconds => {
-    //             // PeriodSeconds is i64 in the struct, so safe conversion/casting is required
-    //             // NOTE: We must ensure the u64 value fits into i64.
-    //             if new_value_u64 > i64::MAX as u64 {
-    //                 return Err(ErrorCode::NumericalOverflow.into());
-    //             }
-    //             subscription.period_seconds = new_value_u64 as i64;
-
-    //             // OPTIONAL: Reset next payment time if period changes
-    //             // subscription.next_payment_ts = Clock::get()?.unix_timestamp
-    //             //     .checked_add(new_value_u64 as i64)
-    //             //     .ok_or(ErrorCode::NumericalOverflow)?;
-    //         }
-    //     }
-
-    //     emit!(ScheduleUpdated {
-    //         subscription: subscription.key(),
-    //         new_amount: subscription.amount,
-    //         new_period_seconds: subscription.period_seconds,
-    //         timestamp: Clock::get()?.unix_timestamp,
-    //     });
-
-    //     Ok(())
-    // }
+        match (field, value) {
+            (SubscriptionField::AutoRenew, UpdateValue::Bool(b)) => {
+                subscription.auto_renew = b;
+            }
+            (SubscriptionField::Active, UpdateValue::Bool(b)) => {
+                subscription.active = b;
+            }
+            (SubscriptionField::Duration, UpdateValue::U64(n)) => {
+                subscription.duration = n as i64;
+            }
+            _ => return Err(ErrorCode::InvalidFieldValue.into()),
+        }
+        Ok(())
+    }
 }

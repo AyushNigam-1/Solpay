@@ -308,7 +308,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
 
                                     </div> */}
                                     <button
-                                        onClick={() => initializeSubscription(selectedTier!.tierName, planPDA, publicKey!, new PublicKey(plan.mint), selectedTier?.periodSeconds, amount, false)
+                                        onClick={() => initializeSubscription(selectedTier!.tierName, planPDA, publicKey!, duration, new PublicKey(plan.mint), selectedTier?.periodSeconds, amount, false)
                                         }
                                         disabled={!selectedTier}
                                         className={`

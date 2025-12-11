@@ -130,7 +130,7 @@ export const useProgramActions = () => {
         tier: String,                    // ← Plan PDA (not name)
         plan: PublicKey,                      // ← "Premium", "Basic"
         payerKey: PublicKey,
-        // payeeKey: PublicKey,
+        duration: number,
         mintKey: PublicKey,
         periodSeconds: number | string,
         prefundingAmount: number | string = "0",
@@ -145,7 +145,7 @@ export const useProgramActions = () => {
             const depositTokenProgramId = await getMintProgramId(mintKey);
             const prefundBN = new anchor.BN(prefundingAmount);
             const uniqueSeed = crypto.getRandomValues(new Uint8Array(8));
-            // Derive Subscription PDA
+
             const [subscriptionPDA] = PublicKey.findProgramAddressSync(
                 [
                     Buffer.from("subscription"),
@@ -154,19 +154,12 @@ export const useProgramActions = () => {
                 ],
                 PROGRAM_ID
             );
-            // Derive Vault PDA
+
             const [vaultPDA] = PublicKey.findProgramAddressSync(
                 [Buffer.from("vault"), subscriptionPDA.toBytes()],
                 PROGRAM_ID
             );
 
-            // const payeeATA = getAssociatedTokenAddressSync(
-            //     mintKey,s
-            //     payeeKey,
-            //     false,
-            //     depositTokenProgramId
-            // )
-            // Payer's ATA
             const payerATA = getAssociatedTokenAddressSync(
                 mintKey,
                 payerKey,
@@ -185,6 +178,7 @@ export const useProgramActions = () => {
                     autoRenew,
                     prefundBN,
                     new anchor.BN(nextPaymentTs),
+                    new anchor.BN(duration),
                     Array.from(uniqueSeed)       // ← [u8; 8] as number[]
                 )
                 .accounts({
@@ -199,6 +193,7 @@ export const useProgramActions = () => {
                     rent: SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
+
             console.log("Subscription Created!");
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
             console.log("Subscription PDA:", subscriptionPDA.toBase58());
@@ -211,7 +206,49 @@ export const useProgramActions = () => {
         }
     }
 
+    /**
+     * Update either auto_renew or active status of a subscription
+     */
+    async function updateSubscriptionStatus(
+        subscriptionPDA: PublicKey,
+        field: "autoRenew" | "active",
+        value: boolean,
+        payerKey: PublicKey
+    ): Promise<string | undefined> {
+        if (!program || !payerKey) {
+            alert("Wallet or program not connected");
+            return undefined;
+        }
 
+        try {
+            // Map string to enum variant
+            const fieldEnum = field === "autoRenew"
+                ? { autoRenew: {} }
+                : { active: {} };
+
+            const txSig = await program.methods
+                .updateSubscriptionStatus(fieldEnum, value)
+                .accounts({
+                    payer: payerKey,
+                    subscription: subscriptionPDA,
+                })
+                .rpc();
+
+            console.log(`${field} updated to ${value}`);
+            console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
+
+            return txSig;
+        } catch (error: any) {
+            console.error("Failed to update status:", error);
+
+            if (error.message.includes("Unauthorized")) {
+                alert("Only the subscription owner can update this");
+            } else {
+                alert("Update failed: " + (error.message || "Unknown error"));
+            }
+            return undefined;
+        }
+    }
     async function cancelSubscription(
         payerKey: web3.PublicKey,
         uniqueSeed: Buffer,
@@ -497,7 +534,7 @@ export const useProgramActions = () => {
             return null;
         }
     }
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, manageVault }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, manageVault, updateSubscriptionStatus }
 }
 
 

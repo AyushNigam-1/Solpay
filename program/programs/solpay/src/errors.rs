@@ -16,4 +16,6 @@ pub enum ErrorCode {
     SubscriptionActive,
     #[msg("Subscription still active")]
     IncorrectMint,
+    #[msg("")]
+    InvalidFieldValue,
 }
