@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 // import numeral from 'numeral';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { useProgramActions } from '@/app/hooks/useProgramActions';
-import { Subscription } from '@/app/types';
+import { Plan, Subscription } from '@/app/types';
 import Header from '@/app/components/ui/Header';
 import TableHeaders from '@/app/components/ui/TableHeaders';
 import Loader from '@/app/components/ui/Loader';
@@ -18,11 +18,17 @@ import { formatPeriod } from '@/app/utils/duration';
 import { Banknote, ChartNoAxesGantt, ChevronsUpDown, CircleDot, CircleMinus, CircleUserRound, Coins, Delete, MousePointerClick, Timer, Wallet } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
 import VaultActions from '@/app/components/ui/VaultActions';
+import PlanDetails from '@/app/components/ui/PlanDetails';
 
 const page = () => {
     const [isOpen, setOpen] = useState<boolean>(false)
     const [subscription, setSubscription] = useState<Subscription | null>()
     const [openDetails, setOpenDetails] = useState<boolean>(false)
+    const [isPlanDetailsOpen, setPlanDetailsOpen] = useState<boolean>(false)
+    // const [openDetails, setOpenDetails] = useState<boolean>(false)
+    // const { publicKey } = useProgram()
+    const [plan, setPlan] = useState<Plan>()
+    const [planPDA, setPlanPDA] = useState<PublicKey | null>()
     const publicKey = new PublicKey(Cookies.get("user")!)
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const [popupOpen, setPopupOpen] = useState(false);
@@ -137,21 +143,21 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
-                                                                <img
+                                                                {/* <img
                                                                     src={subscription.account.planMetaData.tokenImage}
                                                                     className='w-6 rounded-full object-cover'
                                                                     alt={`${subscription.account.planMetaData.tokenImage} icon`}
                                                                 />
                                                                 <p className="text-xl text-gray-400">
                                                                     {subscription.account.planMetaData.tokenSymbol}
-                                                                </p>
+                                                                </p> */}
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {subscription.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName).amount.toString()}
+                                                            {/* {subscription.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName).amount.toString()} */}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(subscription.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName).periodSeconds)}
+                                                            {/* {formatPeriod(subscription.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName).periodSeconds)} */}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}
@@ -173,17 +179,19 @@ const page = () => {
                 )}
             </div>
             <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} />
-            <SubscriptionDetails isOpen={openDetails!} subscription={subscription!} onClose={() => setOpenDetails(false)} setPopupAction={setPopupAction} setPopupOpen={setPopupOpen} />
+            {/* <SubscriptionDetails isOpen={openDetails!} setPlanDetailsOpen={setPlanDetailsOpen}
+                setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} setPopupAction={setPopupAction} setPopupOpen={setPopupOpen} />
             <VaultActions
                 isOpen={popupOpen}
                 onClose={() => setPopupOpen(false)}
-                action={popupAction}
                 subscriptionPDA={subscription?.publicKey}
                 currentBalance={subscription?.account.prefundedAmount.toString()}
                 tokenSymbol={subscription?.account.planMetaData.tokenSymbol}
                 tokenImage={subscription?.account.planMetaData.tokenImage}
                 onSuccess={() => ""}
-            />
+            /> */}
+            <PlanDetails plan={plan!} planPDA={planPDA!} open={isPlanDetailsOpen} setOpen={setPlanDetailsOpen} />
+
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}
 
         </div>

@@ -261,8 +261,8 @@ pub struct PlanAccount {
     pub token_symbol : String,
     #[max_len(100)]
     pub token_image : String,
-    #[max_len(10)]
-    pub tiers: Vec<SubscriptionTier>,  // Array of plans
+    #[max_len(1000)] 
+    pub tiers: Vec<u8>,// Array of plans
     pub bump: u8,
 }
 

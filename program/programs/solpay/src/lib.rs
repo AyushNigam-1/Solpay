@@ -317,7 +317,7 @@ pub mod recurring_payments {
         name: String,
         token_symbol: String,
         token_image: String,
-        tiers: Vec<SubscriptionTier>,
+        tiers: Vec<u8>,
     ) -> Result<()> {
         let plan = &mut ctx.accounts.plan;
         plan.creator = ctx.accounts.creator.key();

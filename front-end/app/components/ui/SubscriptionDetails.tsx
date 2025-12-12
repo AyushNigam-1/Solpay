@@ -1,7 +1,7 @@
 import { useProgramActions } from '@/app/hooks/useProgramActions';
-import { StatCardProps, Subscription } from '@/app/types';
+import { Plan, StatCardProps, Subscription } from '@/app/types';
 import { formatPeriod } from '@/app/utils/duration';
-import { Ban, Calendar, CheckCircle2, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, Pause, Pen, Repeat2, Timer, Trash, Wallet } from 'lucide-react';
+import { Ban, Calendar, CheckCircle2, ChevronLeft, ChevronRight, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, Pause, Pen, Play, Repeat2, Timer, Trash, Wallet } from 'lucide-react';
 import { Dispatch, SetStateAction } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import TableHeaders from './TableHeaders';
@@ -10,22 +10,24 @@ interface SubscriptionDetailsProps {
     isOpen: boolean;
     subscription: { account: Subscription, publicKey: PublicKey }
     subscriptionPDA: PublicKey;
+    setPlanDetailsOpen: Dispatch<SetStateAction<boolean>>
+    setPlan: Dispatch<SetStateAction<Plan>>;
     setPopupAction: Dispatch<SetStateAction<"fund" | "withdraw">>;
     setPopupOpen: Dispatch<SetStateAction<boolean>>;
     onClose: () => void;
 }
 
-const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpen, onClose }: SubscriptionDetailsProps) => {
+const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPlan, setPlanDetailsOpen, setPopupOpen, onClose }: SubscriptionDetailsProps) => {
     console.log("subscription", subscription)
 
     const modalClasses = isOpen
         ? 'opacity-100 translate-y-0 scale-100'
         : 'opacity-0 translate-y-4 scale-95 pointer-events-none';
 
-    const { cancelSubscription, updateSubscriptionStatus } = useProgramActions();
+    const { cancelSubscription, updateSubscription } = useProgramActions();
 
     // console.log("subscription",)
-    const currentTier = subscription?.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName)
+    // const currentTier = subscription?.account.planMetaData.tiers.find((tier) => tier.tierName == subscription.account.tierName)
     const handleClose = () => {
         // if (!isMutating) {
         onClose();
@@ -93,6 +95,35 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
             status: "Pending"
         },
     ];
+    const safeToNumber = (val: any): number => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') return Number(val);
+        // Check if it's an Anchor BN (has .toNumber method)
+        if (val.toNumber) {
+            try {
+                return val.toNumber();
+            } catch (e) {
+                return 0; // Fallback if number is too large for JS Number
+            }
+        }
+        // Check if it has _bn property (internal BN representation)
+        if (val._bn) {
+            // We can't easily access internal _bn without re-wrapping, 
+            // better to assume the parent passes a valid BN or string.
+            // Attempting to stringify:
+            return Number(val.toString());
+        }
+        return 0;
+    };
+    const formatDuration = (val: any) => {
+        const seconds = safeToNumber(val);
+        if (!seconds) return "Unknown Duration";
+        const days = Math.floor(seconds / (3600 * 24));
+        if (days >= 30) return `${Math.floor(days / 30)} Month(s)`;
+        if (days >= 7) return `${Math.floor(days / 7)} Week(s)`;
+        return `${days} Day(s)`;
+    };
     if (!isOpen) return null;
     return (
         <div
@@ -100,14 +131,14 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
             onClick={handleClose}
         >
             <div
-                className={`bg-white/5 rounded-xl shadow-2xl w-full max-w-6xl transition-all duration-300 ease-out ${modalClasses} p-6 space-y-4 relative`}
+                className={`bg-white/5 rounded-3xl text-left align-middle shadow-2xl border border-gray-800 w-full max-w-6xl transition-all duration-300 ease-out ${modalClasses} p-6 space-y-4 relative`}
                 onClick={(e) => e.stopPropagation()}
             >
 
                 <div className=" flex justify-between items-center ">
                     <div className='flex gap-2' >
                         <h2 className="text-2xl font-bold text-white ">
-                            {subscription.account.planMetaData.name}
+                            {/* {subscription.account.planMetaData.name} */}
                         </h2>
                         <div className={`flex p-1 bg-white/5 rounded-lg pr-2 ${subscription.account.active ? 'text-green-400' : 'text-red-400'}`} >
                             <Dot />
@@ -159,6 +190,12 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
                     <div className='space-y-4 col-span-3 rounded-2xl'>
                         <div className='flex justify-between'>
                             <h6 className='text-xl font-bold'>Tier</h6>
+                            <button className='flex justify-center text-blue-400 items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold mb-0'
+                            // onClick={() => { setPlan(subscription.account.planMetaData); setPlanDetailsOpen(true); onClose() }}
+                            >
+                                <Repeat2 />
+                                Change Tier
+                            </button>
                         </div>
                         <div className='h-0.5 w-full bg-white/5' />
 
@@ -172,8 +209,8 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
                                                                                     <TierIcon name={tier.tierName} />
                                                                                 </div> */}
                             <div className='space-y-3'>
-                                <h4 className="text-2xl font-bold text-white">{currentTier?.tierName}</h4>
-                                <p className="text-gray-400">{currentTier?.description || "Standard subscription tier."} Lorem ipsum dolor sit amet consectetur adipisicing elit. Enim libero provident assumenda? Eius sunt molestiae laboriosam illum quae dolor dolores qui rem maiores, nisi doloremque!s </p>
+                                {/* <h4 className="text-2xl font-bold text-white">{currentTier?.tierName}</h4>
+                                <p className="text-gray-400">{currentTier?.description || "Standard subscription tier."} Lorem ipsum dolor sit amet consectetur adipisicing elit. Enim libero provident assumenda? Eius sunt molestiae laboriosam illum quae dolor dolores qui rem maiores, nisi doloremque!s </p> */}
                             </div>
                             <div className='flex flex-col gap-3'>
                                 <div className='h-0.5 w-full bg-white/5 flex' />
@@ -181,23 +218,43 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
                                     <div className=" flex gap-1 items-end ">
                                         {/* Displaying stringified amount */}
                                         <span className='text-3xl font-bold text-white'>
-                                            {currentTier?.amount.toString()}
+                                            {/* {currentTier?.amount.toString()} */}
                                         </span>
-                                        <span className=" font-medium text-gray-400">{subscription.account.planMetaData.tokenSymbol}</span>
+                                        {/* <span className=" font-medium text-gray-400">{subscription.account.planMetaData.tokenSymbol}</span> */}
                                     </div>
                                     <div className="text-sm font-medium text-gray-300 ">
-                                        Every 2 Months
-                                        {/* {formatPeriod(currentTier?.periodSeconds)} */}
+                                        {/* Every 2 Months */}
+                                        {/* {formatDuration(currentTier?.periodSeconds)} */}
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div className='h-0.5 w-full bg-white/5' />
 
-                        <button className='flex justify-center text-blue-400 p-4 bg-white/5 w-full items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold mb-0' >
-                            <Repeat2 />
-                            Change Tier
-                        </button>
+
+                        <div className='flex flex-col gap-2 m-0'>
+                            <span className="hidden sm:inline text-gray-400 text-sm text-center"> Duration</span>
+                            <span className='flex gap-4 items-center justify-center'>
+                                <button
+                                    //  disabled={duration - selectedTier?.periodSeconds == 0}
+                                    className='p-0.5 rounded-full bg-white/5 flex justify-center items-center cursor-pointer'
+                                // onClick={() => { setDuration(duration - selectedTier?.periodSeconds); setAmount(amount - selectedTier?.amount) }}
+                                // onClick={() => updateSubscription(subscription.publicKey, "duration", subscription.account.duration.sub(currentTier?.periodSeconds), subscription.account.payer)}
+                                >
+                                    <ChevronLeft />
+                                </button>
+                                <span className="truncate font-bold text-xl" >
+                                    {/* {formatPeriod(subscription.account.duration)} */}
+                                    {/* {processedPlan.receiver} */}
+                                </span>
+                                <button className='p-0.5 rounded-full bg-white/5 flex justify-center items-center cursor-pointer'
+                                // onClick={() => { setDuration(duration + selectedTier?.periodSeconds); setAmount(amount + selectedTier?.amount) }}
+                                // onClick={() => updateSubscription(subscription.publicKey, "duration", subscription.account.duration.add(currentTier?.periodSeconds), subscription.account.payer)}
+                                >
+                                    <ChevronRight />
+                                </button>
+                            </span>
+                        </div>
                         <div>
                         </div>
 
@@ -207,12 +264,12 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
                     <div className='col-span-9 flex flex-col gap-4 border-l-2 border-white/5 pl-3 h-full'>
                         <div className='flex justify-between '>
                             <h6 className='text-xl font-bold'>Transactions</h6>
-                            <span className='flex justify-center items-end gap-2 ' >
+                            <span className='flex justify-center items-end gap-1 text-lg ' >
                                 <h6 className='text-gray-400'>
                                     Bal:
                                 </h6>
-                                <h4 className='text-xl font-semibold'>
-                                    {subscription.account.prefundedAmount.toString()} {subscription.account.planMetaData.tokenSymbol}
+                                <h4 className='font-semibold text-blue-400'>
+                                    {/* {subscription.account.prefundedAmount.toString()} {subscription.account.planMetaData.tokenSymbol} */}
                                 </h4>
                                 {/* <h6 className='font-semibold'>
                                                               </h6> */}
@@ -257,21 +314,27 @@ const SubscriptionDetails = ({ isOpen, subscription, setPopupAction, setPopupOpe
 
                         <div className='flex gap-2' >
                             <button
-                                onClick={() => updateSubscriptionStatus(subscription.publicKey, "active", !subscription.account.active, subscription.account.payer)}
-                                className="flex justify-center text-blue-400 p-4 bg-white/5 w-full items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold">
+                                onClick={() => updateSubscription(subscription.publicKey, "autoRenew", !subscription.account.autoRenew, subscription.account.payer)}
+                                className={`flex justify-center ${!subscription.account.autoRenew ? "text-blue-400" : "text-red-400"} p-4 bg-white/5 w-full items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold`}>
                                 {/* <Ban className="w-5 h-5" /> */}
-                                <CircleCheck className="w-5 h-5" />
-                                Auto-Renew Enabled
+                                {!subscription.account.autoRenew ? <span className='flex justify-center items-center gap-2' >
+                                    <CircleCheck className="w-5 h-5" /> Enable   </span> : <span className='flex justify-center items-center gap-2'>
+                                    <Ban className="w-5 h-5" /> Disable   </span>}
+                                Auto-Renew
+                                {/* {subscription.account.autoRenew ? "Enabled" : "Disabled"} */}
                             </button>
 
                             <button
-                                onClick={() => updateSubscriptionStatus(subscription.publicKey, "active", !subscription.account.active, subscription.account.payer)}
-                                className="flex justify-center text-blue-400 p-4 bg-white/5 w-full items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold">
-                                <Pause className="w-5 h-5" />
-                                Pause Subscription
+                                onClick={() => updateSubscription(subscription.publicKey, "active", !subscription.account.active, subscription.account.payer)}
+                                className={` ${!subscription.account.active ? "text-blue-400" : "text-red-400"}  p-4 bg-white/5 w-full flex justify-center items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold`}>
+                                {subscription.account.active ? <span className='flex justify-center items-center gap-2' >
+                                    <Pause className="w-5 h-5" /> Pause   </span>
+                                    : <span className='flex justify-center items-center gap-2'>
+                                        <Play className="w-5 h-5" /> Activate   </span>}
+                                Subscription
                             </button>
 
-                            <button className='flex justify-center text-blue-400 p-4 bg-white/5 w-full items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold' >
+                            <button className='flex justify-center text-blue-400 p-4 bg-white/5 w-full items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold' onClick={() => { setPopupOpen(true); onClose() }} >
                                 <Wallet size={20} />
                                 Manage Balance
                             </button>

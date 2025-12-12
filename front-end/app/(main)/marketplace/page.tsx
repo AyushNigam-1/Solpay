@@ -11,7 +11,7 @@ import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, planQuery } from '@/app/types';
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
-import { CircleUserRound, Coins, Delete, Home, LogIn, Logs, MousePointerClick, Zap } from 'lucide-react';
+import { CircleUserRound, Coins, Delete, Home, LogIn, Logs, MousePointerClick, Trash, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const page = () => {
@@ -138,7 +138,7 @@ const page = () => {
                                                         <td className="px-6 py-2 text-xl ">
                                                             {
                                                                 plan.account.creator?.toString() == publicKey ? <button className='flex gap-2 items-center text-red-400' onClick={() => cancelPlan(plan.account.creator!)}>
-                                                                    <Delete />
+                                                                    <Trash className='size-5' />
                                                                     Delete
                                                                 </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setPlanPDA(plan.publicKey); setOpenDetails(true) }}>
                                                                     <Zap className="w-5 h-5 " />

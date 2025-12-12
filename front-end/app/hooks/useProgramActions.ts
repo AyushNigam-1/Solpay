@@ -7,6 +7,8 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_
 import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Plan, planQuery, Plans, Subscription, SubscriptionTier } from "../types";
+import { formatPeriod } from "../utils/duration";
+import { compressData, decompressData } from "../utils/compression";
 // import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 
 const ACTIVE_STATUS_OFFSET = 225;
@@ -18,8 +20,11 @@ export const useProgramActions = () => {
         try {
             console.log(program!.account as any)
             // Fetch ALL plan accounts using .all() with no filter
-            const plans = await (program!.account as any).planAccount.all();
+            let plans = await (program!.account as any).planAccount.all();
+            plans = plans.map(plan => ({ publicKey: plan.publicKey, account: { ...plan.account, tiers: decompressData(plan.account.tiers) } }))
             console.log(plans)
+            // console.log(plans.account)
+            // plans.tiers = decompressData(plans.account.tiers)
             // const plan = await getPlan(plans[0].publicKey)
             // console.log("plan", plan)
             return plans
@@ -209,46 +214,103 @@ export const useProgramActions = () => {
     /**
      * Update either auto_renew or active status of a subscription
      */
-    async function updateSubscriptionStatus(
+    // import * as anchor from "@coral-xyz/anchor";
+    // import { PublicKey } from "@solana/web3.js";
+
+    // // Assuming these are globally defined or imported
+    // declare const program: anchor.Program;
+    // declare const connection: any;
+
+    // Define the input type for the field
+    type UpdateField = "autoRenew" | "active" | "duration";
+
+    // /**
+    //  * Updates a specific field of the subscription.
+    //  * @param subscriptionPDA The public key of the subscription account.
+    //  * @param field The field to update: "autoRenew", "active", or "duration".
+    //  * @param value The new value. Boolean for autoRenew/active, number (seconds) for duration.
+    //  * @param payerKey The public key of the payer (must be the subscription owner).
+    //  */
+    async function updateSubscription(
         subscriptionPDA: PublicKey,
-        field: "autoRenew" | "active",
-        value: boolean,
+        field: UpdateField,
+        value: boolean | number,
         payerKey: PublicKey
     ): Promise<string | undefined> {
         if (!program || !payerKey) {
-            alert("Wallet or program not connected");
+            console.error("Wallet or program not connected");
             return undefined;
         }
 
         try {
-            // Map string to enum variant
-            const fieldEnum = field === "autoRenew"
-                ? { autoRenew: {} }
-                : { active: {} };
+            let fieldEnum: any;
+            let valueEnum: any; // Correct type for UpdateValue enum
+            console.log(formatPeriod(value))
+            // 1. Map string field to IDL Enum variants
+            switch (field) {
+                case "autoRenew":
+                    // Rust: SubscriptionField::AutoRenew
+                    fieldEnum = { autoRenew: {} };
+                    // Rust: UpdateValue::Bool(bool)
+                    // Anchor TS for tuple enum: { bool: [booleanValue] } or sometimes just { bool: booleanValue } depending on version
+                    // Standard for tuple variants is an array or named fields if struct-like.
+                    // For simple tuple variants: { variantName: [ value ] }
+                    valueEnum = { bool: [value as boolean] };
+                    break;
 
+                case "active":
+                    // Rust: SubscriptionField::Active
+                    fieldEnum = { active: {} };
+                    // Rust: UpdateValue::Bool(bool)
+                    valueEnum = { bool: [value as boolean] };
+                    break;
+
+                case "duration":
+                    // Rust: SubscriptionField::Duration
+                    fieldEnum = { duration: {} }; // "duration" matches Rust variant "Duration" (camelCase in IDL)
+                    // Rust: UpdateValue::U64(u64)
+                    // Use BN for u64
+                    valueEnum = { u64: [new anchor.BN(value as number)] };
+                    break;
+                default:
+                    throw new Error(`Invalid field: ${field}`);
+            }
+
+            console.log(`Updating ${field} to ${value}`);
+            console.log("Field Enum:", JSON.stringify(fieldEnum));
+            console.log("Value Enum:", JSON.stringify(valueEnum));
+
+            // 2. Call the instruction
+            // Rust signature: update_subscription_status(ctx, field: SubscriptionField, value: UpdateValue)
+            // Ensure method name matches IDL (usually camelCase: updateSubscriptionStatus)
             const txSig = await program.methods
-                .updateSubscriptionStatus(fieldEnum, value)
+                .updateSubscriptionStatus(fieldEnum, valueEnum)
                 .accounts({
                     payer: payerKey,
                     subscription: subscriptionPDA,
+                    // System program might be inferred
                 })
                 .rpc();
 
-            console.log(`${field} updated to ${value}`);
+            console.log(`${field} updated successfully!`);
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-
             return txSig;
+
         } catch (error: any) {
             console.error("Failed to update status:", error);
 
-            if (error.message.includes("Unauthorized")) {
-                alert("Only the subscription owner can update this");
+            // Enhance error reporting
+            if (error.message && error.message.includes("Unauthorized")) {
+                alert("Only the subscription owner can update this.");
+            } else if (error.message && error.message.includes("unable to infer src variant")) {
+                alert("Serialization Error: Enum variant mismatch. Check console logs for payload.");
             } else {
-                alert("Update failed: " + (error.message || "Unknown error"));
+                alert(`Update failed: ${error.message || "Unknown error"}`);
             }
             return undefined;
         }
     }
+
     async function cancelSubscription(
         payerKey: web3.PublicKey,
         uniqueSeed: Buffer,
@@ -447,13 +509,7 @@ export const useProgramActions = () => {
 
         console.log("Creating Plan:", plan);
 
-        // Format tiers correctly
-        const formattedTiers = plan.tiers.map(tier => ({
-            tierName: tier.tierName, // support both
-            amount: new anchor.BN(tier.amount),
-            periodSeconds: new anchor.BN(tier.periodSeconds),
-            description: tier.description || "",
-        }));
+        const compressedTiers = compressData(plan.tiers)
 
         // Derive Plan PDA
         const [planPDA] = PublicKey.findProgramAddressSync(
@@ -478,7 +534,7 @@ export const useProgramActions = () => {
                     plan.name,                    // ← name: String
                     tokenMetadata.symbol,                       // ← token_symbol (hardcoded or from plan)
                     tokenMetadata.image,                           // ← token_image URL (optional)
-                    formattedTiers                // ← Vec<SubscriptionTier>
+                    Buffer.from(compressedTiers)                // ← Vec<SubscriptionTier>
                 )
                 .accounts({
                     creator: creatorKey,
@@ -513,13 +569,12 @@ export const useProgramActions = () => {
         }
 
         try {
-            const planAccount = await (program.account as any).planAccount.fetch(planPDA);
-
+            let planAccount = await (program.account as any).planAccount.fetch(planPDA);
+            // planAccount = { publicKey: planAccount.publicKey, account: { ...planAccount.account, tiers: decompressData(planAccount.account.tiers) } }
             console.log("Plan fetched successfully!");
             console.log("Name:", planAccount.name);
             console.log("Creator:", planAccount.creator.toBase58());
             console.log("Tiers:", planAccount.tiers.length);
-
             return {
                 pda: planPDA,
                 data: planAccount,
@@ -534,7 +589,7 @@ export const useProgramActions = () => {
             return null;
         }
     }
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, manageVault, updateSubscriptionStatus }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, manageVault, updateSubscription }
 }
 
 

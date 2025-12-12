@@ -25,7 +25,7 @@ const InputGroup: React.FC<{
                 placeholder={placeholder}
                 disabled={disabled}
                 rows={4}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition" /> :
+                className="w-full px-4 py-3 border-none rounded-lg  dark:bg-white/5 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition " /> :
                 <input
                     id={name}
                     name={name}
@@ -35,7 +35,7 @@ const InputGroup: React.FC<{
                     onChange={onChange}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm  dark:bg-gray-700 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition"
+                    className="w-full px-4 py-3 border-none rounded-lg  dark:bg-white/5 dark:text-gray-200 disabled:bg-gray-100 disabled:dark:bg-gray-600 transition "
                 />
         }
 

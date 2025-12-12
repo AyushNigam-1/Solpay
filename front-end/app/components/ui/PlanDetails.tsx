@@ -171,7 +171,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
                         >
                             <Dialog.Panel className="w-full max-w-5xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-5">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-3xl font-extrabold text-white tracking-tight truncate">{processedPlan.name}</h2>
+                                    <h2 className="text-2xl font-extrabold text-white tracking-tight truncate">{processedPlan.name}</h2>
                                     <button
                                         onClick={closeModal}
                                         className=" text-gray-400 hover:text-white transition-colors z-10 bg-white/5 rounded-full p-2 hover:bg-gray-700"
@@ -180,17 +180,17 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
                                     </button>
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-                                <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
-                                    <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-2xl w-full'>
-                                        <span className="hidden sm:inline text-gray-400 text-sm">Creator</span>
-                                        <span className='truncate font-bold'>
+                                <div className="flex items-center gap-1 flex-wrap md:flex-nowrap">
+                                    <div className='flex flex-col gap-2  rounded-2xl w-full'>
+                                        <span className="hidden sm:inline text-gray-400 ">Creator</span>
+                                        <span className='truncate font-bold text-lg'>
                                             {processedPlan.receiver}
-                                            {/* {processedPlan.creator.slice(0, 15)}...{processedPlan.creator.slice(30)} */}
+                                            {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
                                         </span>
                                     </div>
-                                    <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-2xl w-full'>
-                                        <span className="hidden sm:inline text-gray-400 text-sm"> Reciever</span>
-                                        <span className="truncate font-bold" >
+                                    <div className='flex flex-col gap-2 w-full border-l-2 border-white/5 pl-2'>
+                                        <span className="hidden sm:inline text-gray-400 "> Reciever</span>
+                                        <span className="truncate font-bold text-lg" >
                                             {processedPlan.receiver}
                                         </span>
                                     </div>

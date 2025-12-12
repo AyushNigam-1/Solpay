@@ -2,35 +2,34 @@ import { useState } from "react";
 import { X, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useProgramActions } from "@/app/hooks/useProgramActions";
 import { PublicKey } from "@solana/web3.js";
-import Cookies from "js-cookie"
+import Cookies from "js-cookie";
 import InputGroup from "./Input";
 
-interface VaultActionProps {
+interface VaultActionsProps {
     isOpen: boolean;
     onClose: () => void;
-    action: "fund" | "withdraw";
     subscriptionPDA: string;
-    currentBalance?: number; // optional: show current vault balance
-    tokenSymbol?: string;    // e.g. "USDC"
-    tokenImage?: string
+    currentBalance?: number;
+    tokenSymbol?: string;
+    tokenImage?: string;
     onSuccess?: () => void;
 }
 
 export default function VaultActions({
     isOpen,
     onClose,
-    action,
     subscriptionPDA,
-    currentBalance,
-    tokenSymbol,
-    tokenImage,
+    currentBalance = 0,
+    tokenSymbol = "USDC",
+    tokenImage = "/usdc.png",
     onSuccess,
-}: VaultActionProps) {
+}: VaultActionsProps) {
+    const [activeTab, setActiveTab] = useState<"fund" | "withdraw">("fund");
     const [amount, setAmount] = useState("");
     const [loading, setLoading] = useState(false);
-    const { manageVault } = useProgramActions()
-    const publicKey = new PublicKey(Cookies.get("user")!)
 
+    const { manageVault } = useProgramActions();
+    const publicKey = new PublicKey(Cookies.get("user")!);
 
     const handleSubmit = async () => {
         if (!amount || Number(amount) <= 0) {
@@ -42,18 +41,20 @@ export default function VaultActions({
         try {
             const txSig = await manageVault(
                 new PublicKey(subscriptionPDA),
-                action,
-                Number(amount) * 1_000_000,
-                publicKey!
+                activeTab,
+                Number(amount) * 1_000_000, // 6 decimals for USDC
+                publicKey
             );
 
             if (txSig) {
-                alert(`${action === "fund" ? "Funded" : "Withdrawn"} successfully!`);
+                alert(`${activeTab === "fund" ? "Funded" : "Withdrawn"} successfully!`);
+                setAmount("");
                 onSuccess?.();
                 onClose();
             }
-        } catch (error) {
-            console.error(error);
+        } catch (error: any) {
+            console.error("Vault action failed:", error);
+            alert(error.message || "Transaction failed");
         } finally {
             setLoading(false);
         }
@@ -61,89 +62,115 @@ export default function VaultActions({
 
     if (!isOpen) return null;
 
-    const isFund = action === "fund";
-    const title = isFund ? "Fund" : "Withdraw";
-    const Icon = isFund ? ArrowUpRight : ArrowDownRight;
-    const color = isFund ? "emerald" : "orange";
+    const isFund = activeTab === "fund";
 
     return (
-        <div className="fixed inset-0 backdrop-blur-sm  z-50 flex items-center justify-center p-4">
-            <div className="bg-white/5  rounded-2xl shadow-2xl max-w-md w-full overflow-hidden p-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={onClose}>
+            <div
+                className="bg-gray-900/95 border p-4 space-y-4 border-white/10 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div className={`bg-linear-to-r from-${color}-600 to-${color}-500  text-white`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-
-                            <div>
-                                <h2 className="text-2xl font-bold">{title}</h2>
-                                <p className="text-sm opacity-90">
-                                    {/* {isFund ? "Add funds to subscription vault" : "Withdraw funds from vault"} */}
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="p-1 hover:bg-white/20 rounded-full transition"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
+                {/* <div className=""> */}
+                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold">Manage Vault</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-white/20 rounded-full transition"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
+                {/* </div> */}
+
+                {/* Tabs */}
                 <div className='h-0.5 w-full bg-white/5' />
+
+                <div className="flex border rounded-2xl border-white/10">
+                    <button
+                        onClick={() => setActiveTab("fund")}
+                        className={`flex-1 py-4 font-medium transition ${isFund
+                            ? "bg-white/10 rounded-xl text-white"
+                            : "text-gray-400 hover:text-white"
+                            }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            <ArrowUpRight className="w-5 h-5" />
+                            Fund
+                        </div>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("withdraw")}
+                        className={`flex-1 py-4 font-medium transition ${!isFund
+                            ? "bg-white/10 text-white rounded-xl"
+                            : "text-gray-400 hover:text-white"
+                            }`}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            <ArrowDownRight className="w-5 h-5" />
+                            Withdraw
+                        </div>
+                    </button>
+                </div>
+
                 {/* Body */}
-                {/* Current Balance */}
-                {currentBalance !== undefined && (
-                    <div className="bg-white/5 rounded-xl p-3  space-y-2 ">
+                {/* <div className="space-y-6"> */}
+                {/* Balance */}
+                {/* <div className="bg-white/5 rounded-xl p-4 text-center">
+                    <p className="text-gray-400 text-sm"> Balance</p>
+                    <p className="text-3xl font-bold text-white flex items-center justify-center gap-2 mt-2">
+                        {(currentBalance / 1_000_000).toFixed(6)}
+                        <img src={tokenImage} alt={tokenSymbol} className="w-6 h-6 rounded-full" />
+                        <span>{tokenSymbol}</span>
+                    </p>
+                </div> */}
+                <div className="bg-white/5 rounded-xl p-3  space-y-2 text-center">
 
-                        <p className="text-gray-400 text-sm">Balance</p>
+                    <p className="text-gray-400 text-sm">Balance</p>
 
-                        <p className="text-3xl font-semibold text-white flex gap-2 items-end">
-                            {currentBalance} <span className="text-lg flex gap-1 items-center text-gray-300" > <img
+                    <p className="text-3xl font-semibold text-white flex gap-2 items-end justify-center">
+                        {currentBalance} <span className="text-xl flex gap-1 items-center text-gray-300" >
+                            {/* <img
                                 src={tokenImage}
                                 className='w-5 rounded-full object-cover'
-                            // alt={`${subscription.account.tokenMetadata.symbol} icon`}
-                            /> {tokenSymbol}
-                            </span>
-                        </p>
-                    </div>
-                )}
-
+                                alt={`${tokenSymbol} icon`}
+                            /> */}
+                            {tokenSymbol}
+                        </span>
+                    </p>
+                </div>
                 {/* Amount Input */}
-                <InputGroup label={`Amount (${tokenSymbol})`} value={amount} type="number"
-                    name="tierName" onChange={(e) => setAmount(e.target.value)} placeholder='0.00' />
-                {/* <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Amount ({tokenSymbol})
-                    </label>
-                    <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0.00"
-                        className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                        disabled={loading}
-                    />
-                </div> */}
+                <InputGroup
+                    name="amount"
+                    label={`Amount to ${isFund ? "Fund" : "Withdraw"} (${tokenSymbol})`}
+                    value={amount}
+                    type="number"
+                    placeholder="0.00"
+                    onChange={(e) => setAmount(e.target.value)}
+                />
 
-                {/* Submit Button */}
-                <div className='h-0.5 w-full bg-white/5' />
-
+                {/* Submit */}
                 <button
                     onClick={handleSubmit}
                     disabled={loading || !amount}
-                    className="w-full bg-blue-400 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold p-3 rounded-lg transition flex items-center justify-center gap-2 "
+                    className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${loading || !amount
+                        ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-blue-400"
+                        }`}
                 >
                     {loading ? (
-                        <span className="flex items-center justify-center gap-3">
+                        <>
                             <div className="w-5 h-5 border-2 border-t-transparent border-white rounded-full animate-spin" />
                             Processing...
-                        </span>
+                        </>
                     ) : (
-                        <span className="flex gap-2">
-                            <Icon className="w-6" /> {isFund ? "Fund Vault" : "Withdraw Funds"}
-                        </span>
+                        <>
+                            {isFund ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownRight className="w-6 h-6" />}
+                            {isFund ? "Fund Vault" : "Withdraw Funds"}
+                        </>
                     )}
                 </button>
+                {/* </div> */}
             </div>
         </div>
     );
