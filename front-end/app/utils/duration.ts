@@ -1,6 +1,4 @@
-import { BN } from "@coral-xyz/anchor";
-
-export function formatPeriod(periodBN: BN): string {
+export function formatPeriod(periodBN: string): string {
     // Constants in seconds
     const SECOND = 1;
     const MINUTE = 60 * SECOND;
@@ -12,7 +10,7 @@ export function formatPeriod(periodBN: BN): string {
     const YEAR = 365 * DAY;
 
     // Convert BN to a standard JavaScript number (safe since subscription periods are usually within i53 limits)
-    const totalSeconds = periodBN.toNumber();
+    const totalSeconds = Number(periodBN);
 
     // FIX: Check for 0 or negative values immediately
     if (totalSeconds <= 0) {

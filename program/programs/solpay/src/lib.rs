@@ -342,7 +342,6 @@ pub mod recurring_payments {
         value: UpdateValue,
     ) -> Result<()> {
         let subscription = &mut ctx.accounts.subscription;
-
         match (field, value) {
             (SubscriptionField::AutoRenew, UpdateValue::Bool(b)) => {
                 subscription.auto_renew = b;
@@ -352,6 +351,9 @@ pub mod recurring_payments {
             }
             (SubscriptionField::Duration, UpdateValue::U64(n)) => {
                 subscription.duration = n as i64;
+            }
+            (SubscriptionField::Tier, UpdateValue::String(s)) => {
+                subscription.tier_name = s;
             }
             _ => return Err(ErrorCode::InvalidFieldValue.into()),
         }

@@ -1,37 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { CheckCircle2, Crown, Zap, ShieldCheck, X, Moon, Sun, Ticket, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Dialog, Transition } from '@headlessui/react';
+import { CheckCircle2, Crown, Zap, ShieldCheck, X } from 'lucide-react';
+import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, Tier } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
-
-// --- Type Definitions ---
-// Updated to reflect that incoming data might be BN objects or strings
-
-const ONE_MONTH_SECONDS = 30 * 24 * 60 * 60; // ~2,592,000 seconds
-const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60; // ~31,536,000 seconds
-
-export const DUMMY_TIERS: Tier[] = [
-    {
-        tierName: "Basic",
-        amount: 5, // Using simple number: 5 tokens
-        periodSeconds: ONE_MONTH_SECONDS, // Using number: 1 month
-        description: "Perfect for casual users. Get unlimited access to our standard library with ad-supported streaming on one device at a time. Billed monthly."
-    },
-    {
-        tierName: "Standard",
-        amount: 15, // Using string: 15 tokens (useful for UI inputs)
-        periodSeconds: ONE_MONTH_SECONDS, // Using BN: 1 month
-        description: "Upgrade your experience with ad-free listening, high-definition audio quality, and offline downloads. Enjoy seamless playback on up to two devices simultaneously."
-    },
-    {
-        tierName: "Premium",
-        amount: 150, // Using BN: 150 tokens
-        periodSeconds: ONE_YEAR_SECONDS, // Using string: 1 year
-        description: "The ultimate plan for power users. Includes all Standard features plus exclusive early access to new releases, 4K video streaming, and family sharing for up to six accounts. Save 17% with annual billing."
-    }
-];
 
 // Helper to safely convert BN/string/number to a Javascript number
 // Note: For very large numbers (token amounts), keep as string for display if needed, 
@@ -91,9 +64,12 @@ interface PlanDetailsProps {
     open: boolean;
     setOpen: (open: boolean) => void;
     onSubscribe?: (tier: any) => void; // Using any to pass back the processed tier
+    type: string
+    subscriptionPDA?: PublicKey
+    subscriptionPayer?: PublicKey
 }
 
-const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsProps) => {
+const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscriptionPDA, subscriptionPayer }: PlanDetailsProps) => {
 
     if (!plan) {
         return
@@ -113,8 +89,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
     }, [plan]);
 
     const { publicKey } = useProgram()
-    const { initializeSubscription } = useProgramActions()
-
+    const { initializeSubscription, updateSubscription } = useProgramActions()
     const [duration, setDuration] = useState(safeToNumber(processedPlan?.tiers[0].periodSeconds))
     const [amount, setAmount] = useState(safeToNumber(processedPlan?.tiers[0].amount))
     const [selectedTier, setSelectedTier] = useState<Tier | null>(processedPlan?.tiers[0]!);
@@ -125,17 +100,6 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
         setAmount(tier.amount)
     };
 
-    const handleSubscribeClick = () => {
-        if (selectedTier && onSubscribe) {
-            // Pass the original or processed tier back? Usually original + processed values.
-            onSubscribe(selectedTier);
-            setOpen(false);
-        } else if (selectedTier) {
-            console.log("Subscribing to:", selectedTier);
-            setOpen(false);
-        }
-    };
-    const [autoRenew, setAutoRenew] = useState(false);
     const closeModal = () => {
         setOpen(false);
         setSelectedTier(null);
@@ -146,7 +110,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
     return (
         <Transition show={open} as={React.Fragment}>
             <Dialog as="div" className="relative z-50 font-mono" onClose={closeModal}>
-                <Transition.Child
+                <TransitionChild
                     as={React.Fragment}
                     enter="ease-out duration-300"
                     enterFrom="opacity-0"
@@ -156,20 +120,20 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
                     leaveTo="opacity-0"
                 >
                     <div className="fixed inset-0 backdrop-blur-sm" />
-                </Transition.Child>
+                </TransitionChild>
 
                 <div className="fixed inset-0 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4 text-center">
-                        <Transition.Child
+                        <TransitionChild
                             as={React.Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
-                            enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
-                            leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
+                            enter="ease-out duration-500"
+                            enterFrom="opacity-0 scale-90 -translate-y-12"
+                            enterTo="opacity-100 scale-100 translate-y-0"
+                            leave="ease-in duration-300"
+                            leaveFrom="opacity-100 scale-100 translate-y-0"
+                            leaveTo="opacity-0 scale-90 translate-y-12"
                         >
-                            <Dialog.Panel className="w-full max-w-5xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-5">
+                            <DialogPanel className="w-full max-w-6xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-2xl font-extrabold text-white tracking-tight truncate">{processedPlan.name}</h2>
                                     <button
@@ -180,15 +144,15 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
                                     </button>
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-                                <div className="flex items-center gap-1 flex-wrap md:flex-nowrap">
-                                    <div className='flex flex-col gap-2  rounded-2xl w-full'>
+                                <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
+                                    <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-2'>
                                         <span className="hidden sm:inline text-gray-400 ">Creator</span>
                                         <span className='truncate font-bold text-lg'>
-                                            {processedPlan.receiver}
+                                            {processedPlan.creator}
                                             {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
                                         </span>
                                     </div>
-                                    <div className='flex flex-col gap-2 w-full border-l-2 border-white/5 pl-2'>
+                                    <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-2'>
                                         <span className="hidden sm:inline text-gray-400 "> Reciever</span>
                                         <span className="truncate font-bold text-lg" >
                                             {processedPlan.receiver}
@@ -196,19 +160,33 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
                                     </div>
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-                                <h2 className="text-xl font-extrabold text-gray-200 tracking-tight truncate">Choose Tier</h2>
+                                <div className="flex justify-between">
+                                    <h2 className="text-xl font-extrabold text-gray-200 tracking-tight truncate">Choose Tier</h2>
+                                    <div className='relative' >
+                                        <label className="inline-flex items-center cursor-pointer ">
+
+                                            <input type="checkbox" className="sr-only peer" defaultChecked
+                                            // onClick={() => setAutoRenew(!autoRenew)} 
+                                            />
+                                            <div className="relative w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-md peer-checked:bg-brand">
+                                            </div>
+                                            <span className="select-none ms-2 font-medium text-heading">Auto-Renew</span>
+                                        </label>
+
+                                    </div>
+                                </div>
 
                                 {/* Content Section */}
                                 <div className="max-h-[70vh]">
                                     {/* <h3 className="text-lg font-semibold text-gray-300 mb-6">Select a Subscription Tier</h3> */}
 
                                     {/* Tiers Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                         {
                                             processedPlan.tiers && processedPlan.tiers.length > 0
                                                 ? (
                                                     processedPlan.tiers.map((tier, index) => {
-                                                        const isSelected = selectedTier?.description === tier.description;
+                                                        const isSelected = JSON.stringify(selectedTier) === JSON.stringify(tier);
                                                         return (
                                                             <div
                                                                 key={index}
@@ -263,52 +241,13 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
 
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-                                <div className='flex items-center justify-between' >
-                                    <div className='flex flex-col gap-2'>
-                                        <span className="hidden sm:inline text-gray-400 text-sm "> Duration</span>
-                                        <span className='flex gap-2 items-center'>
-                                            <button disabled={duration - selectedTier?.periodSeconds == 0} className='p-0.5 rounded-full bg-white/5 flex justify-center items-center cursor-pointer' onClick={() => { setDuration(duration - selectedTier?.periodSeconds); setAmount(amount - selectedTier?.amount) }}>
-                                                <ChevronLeft />
-                                            </button>
-                                            <span className="truncate font-bold text-xl" >
-                                                {formatDuration(duration)}
-                                                {/* {processedPlan.receiver} */}
-                                            </span>
-                                            <button className='p-0.5 rounded-full bg-white/5 flex justify-center items-center cursor-pointer' onClick={() => { setDuration(duration + selectedTier?.periodSeconds); setAmount(amount + selectedTier?.amount) }}>
-                                                <ChevronRight />
-                                            </button>
-                                        </span>
-                                    </div>
-                                    <div className='flex flex-col gap-2'>
-                                        <span className="hidden sm:inline text-gray-400 text-sm"> Total</span>
-                                        <span className="truncate font-bold" >
-                                            <div className=" flex gap-1 items-end ">
-                                                {/* Displaying stringified amount */}
-                                                <span className='font-bold text-white text-xl'>
-                                                    {amount}
-                                                </span>
-                                                {/* {tier.displayAmount} */}
-                                                <span className=" font-medium text-gray-400">{processedPlan.tokenSymbol}</span>
-                                            </div>
-                                            {/* {processedPlan.receiver} */}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className='h-0.5 w-full bg-white/5' />
+
+                                {/* <div className='h-0.5 w-full bg-white/5' /> */}
 
                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
-                                    {/* <div className='relative' >
-                                        <label className="inline-flex items-center cursor-pointer ">
-                                           
-                                            <input type="checkbox" className="sr-only peer" defaultChecked onClick={() => setAutoRenew(!autoRenew)} />
-                                            <div className="relative w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-md peer-checked:bg-brand">
-                                            </div>
-                                            <span className="select-none ms-2 text-lg font-medium text-heading">Auto-Renew</span>
-                                        </label>
 
-                                    </div> */}
                                     <button
-                                        onClick={() => initializeSubscription(selectedTier!.tierName, planPDA, publicKey!, duration, new PublicKey(plan.mint), selectedTier?.periodSeconds, amount, false)
+                                        onClick={() => type == "new" ? initializeSubscription(selectedTier!.tierName, planPDA, publicKey!, duration, new PublicKey(plan.mint), selectedTier?.periodSeconds, amount, false) : updateSubscription(subscriptionPDA!, "tier", selectedTier?.tierName!, subscriptionPayer!)
                                         }
                                         disabled={!selectedTier}
                                         className={`
@@ -326,10 +265,9 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe }: PlanDetailsP
                                         {/* </>
                                         ) : 'Select a Tier'} */}
                                     </button>
-
                                 </div>
-                            </Dialog.Panel>
-                        </Transition.Child>
+                            </DialogPanel>
+                        </TransitionChild>
                     </div>
                 </div>
             </Dialog>

@@ -223,15 +223,16 @@ pub enum VaultAction {
 pub enum UpdateValue {
     Bool(bool),
     U64(u64),
+    String(String)
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
 pub enum SubscriptionField {
     AutoRenew,
     Active,
     Duration,
+    Tier
 }
 // --- UPDATE PLAN CONTEXT ---
-
 #[derive(Accounts)]
 #[instruction(new_amount: Option<u64>, new_period: Option<i64>, new_active_status: Option<bool>)]
 pub struct UpdatePlan<'info> {

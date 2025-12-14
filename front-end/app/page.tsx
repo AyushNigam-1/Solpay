@@ -5,8 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"
 import { motion } from 'framer-motion';
-import axios from "axios";
-import { useMutation } from "@tanstack/react-query";
+
 
 function App() {
   // const network = WalletAdapterNetwork.Devnet;
@@ -32,7 +31,7 @@ function App() {
   useEffect(() => {
     if (connected && publicKey) {
       Cookies.set("user", publicKey.toString())
-      router.push("/subscriptions");
+      router.push("/plans");
       // submit(publicKey.toBase58());
     }
   }, [connected, publicKey]);

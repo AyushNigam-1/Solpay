@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition } from '@headlessui/react';
 import InputGroup from './Input';
-import { FormElement, Plan } from '@/app/types';
+import { Plan } from '@/app/types';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { useProgram } from '@/app/hooks/useProgram';
 
@@ -74,14 +74,14 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                     <div className="flex min-h-full items-center justify-center p-4 ">
                         <Transition.Child
                             as={React.Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
-                            enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
-                            leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
+                            enter="ease-out duration-500"
+                            enterFrom="opacity-0 scale-90 -translate-y-12"
+                            enterTo="opacity-100 scale-100 translate-y-0"
+                            leave="ease-in duration-300"
+                            leaveFrom="opacity-100 scale-100 translate-y-0"
+                            leaveTo="opacity-0 scale-90 translate-y-12"
                         >
-                            <DialogPanel className="w-full max-w-3xl transform rounded-xl bg-white/5 p-6 transition-all font-inter text-white relative space-y-4">
+                            <DialogPanel className="w-full max-w-3xl transform rounded-xl bg-white/5 p-6 transition-all font-inter text-white relative space-y-4 border border-gray-800 shadow-2xl">
                                 <DialogTitle as="div" className="">
                                     <div className=" dark:border-gray-700 flex justify-between items-center ">
                                         <h2 className="text-2xl font-bold text-white ">
@@ -89,23 +89,14 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                         </h2>
                                         <button
                                             onClick={closeModal}
-                                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
+                                            className=" text-gray-400 hover:text-white transition-colors z-10 bg-white/5 rounded-full p-2 hover:bg-gray-700"
                                         // disabled={isMutating}
                                         >
-                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            <X className="w-5 h-5" />
                                         </button>
                                     </div>
                                 </DialogTitle>
                                 <div className='h-0.5 w-full bg-white/5' />
-
-                                {/* Status Messages */}
-                                {/* {status.message && (
-                                        <div className={`p-4 rounded-xl mb-6 flex items-center gap-3 ${status.type === 'success' ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800'}`}>
-                                            {status.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-                                            <span>{status.message}</span>
-                                        </div>
-                                    )} */}
-
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
                                     createPlan(publicKey!, formData)
@@ -144,7 +135,6 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             </button>
                                         </div>
                                         <div className='h-0.5 bg-white/5 w-full' />
-
                                         <div ref={tiersContainerRef} className="space-y-4 max-h-72 overflow-y-auto custom-scrollbar px-1">
                                             {formData.tiers.map((field, index) => (
                                                 <div key={index} className="rounded-2xl  hover:border-gray-600 transition-colors relative group space-y-4">
@@ -173,26 +163,10 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                                         <InputGroup label='Description' value={field.description} name='description' textarea={true} onChange={(e) => handleChange(e, index)} placeholder='Describe the pros and cons of this plan' classNames='col-span-3' />
                                                     </div>
                                                     <div className='h-0.5 bg-white/5 w-full' />
-
-                                                    {/* Remove Button */}
-                                                    {/* {fields.length > 1 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => remove(index)}
-                                                                className="absolute -top-3 -right-3 bg-gray-700 hover:bg-red-500 text-gray-300 hover:text-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100"
-                                                                title="Remove Tier"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        )} */}
-
                                                 </div>
-
                                             ))}
                                         </div>
                                     </div>
-
-                                    {/* Submit Action */}
                                     <div className="">
                                         <button
                                             type="submit"

@@ -11,7 +11,7 @@ import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, planQuery } from '@/app/types';
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
-import { CircleUserRound, Coins, Delete, Home, LogIn, Logs, MousePointerClick, Trash, Zap } from 'lucide-react';
+import { Building, Coins, Logs, MousePointerClick, Trash, UserPlus, UserStar, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const page = () => {
@@ -40,15 +40,19 @@ const page = () => {
     const headers: any = [
         {
             icon: (
-                <CircleUserRound />
+                <Building />
             ),
+            title: "Company"
+        },
+        {
+            icon: (
+                <UserPlus />),
             title: "Creator"
         },
         {
             icon: (
-                <Home />
-            ),
-            title: "Address"
+                <UserStar />),
+            title: "Reciever"
         },
         {
             icon: (
@@ -62,18 +66,6 @@ const page = () => {
             ),
             title: "Tiers"
         },
-        // {
-        //     icon: (
-        //         // <Wallet />
-        //     ),
-        //     title: "Balance"
-        // },
-        // {
-        //     icon: (
-        //         <Timer />
-        //     ),
-        //     title: "Duration"
-        // },
         {
             icon: (
                 <MousePointerClick />
@@ -119,6 +111,9 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
                                                             {plan.account.creator?.toString().slice(0, 10)}...
+                                                        </td>
+                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
+                                                            {plan.account.receiver?.toString().slice(0, 10)}...
                                                         </td>
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
@@ -166,7 +161,7 @@ const page = () => {
             </div>
             <PlanForm isOpen={isOpen} setIsOpen={setOpen} />
             {/* <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} /> */}
-            <PlanDetails plan={plan!} planPDA={planPDA!} open={openDetails} setOpen={setOpenDetails} />
+            <PlanDetails plan={plan!} planPDA={planPDA!} open={openDetails} setOpen={setOpenDetails} type="new" />
         </div>
     )
 }

@@ -4,27 +4,27 @@ import { PublicKey } from "@solana/web3.js";
 import { LucideIcon } from "lucide-react";
 import { Dispatch, SetStateAction } from "react";
 
-
-export interface Plans {
-    publicKey: web3.PublicKey;
-    account: {
-        provider: web3.PublicKey;
-        mint: web3.PublicKey;
-        amount: bigint;
-        periodSeconds: bigint;
-        name: string;
-        bump: number;
-    };
-}
+// export interface Plans {
+//     publicKey: web3.PublicKey;
+//     account: {
+//         provider: web3.PublicKey;
+//         mint: web3.PublicKey;
+//         amount: bigint;
+//         periodSeconds: bigint;
+//         name: string;
+//         bump: number;
+//     };
+// }
 
 export interface Subscription {
     name: string;
     payer: web3.PublicKey;
     payee: web3.PublicKey;
     mint: web3.PublicKey;
-    planName: string
-    amount: anchor.BN;
-    periodSeconds: anchor.BN;
+    tierName: string,
+    planPda: string
+    // amount: anchor.BN;
+    // periodSeconds: anchor.BN;
     nextPaymentTs: anchor.BN;
     active: boolean;
     autoRenew: boolean;
@@ -33,6 +33,9 @@ export interface Subscription {
     prefundedAmount: anchor.BN;
     uniqueSeed: anchor.BN
     bump: number;
+    duration: anchor.BN;
+    planMetadata: Plan
+    //   "payerTokenAccount": "EkgWNo6PSAURUyweSshWxarX78hTRe7Ru8RKGNAkwgnU",
 }
 
 export interface UserTokenAccount {
@@ -129,3 +132,14 @@ export interface StatCardProps {
     value: string;
     icon: LucideIcon;
 }
+
+// export interface PlanMetaData {
+//     creator: PublicKey,
+//     token: PublicKey,
+//     mint: PublicKey,
+//     name: string,
+//     reciever: PublicKey,
+//     tokenSymbol: string,
+//     tiers: Tier[],
+//     bump: PublicKey
+// }

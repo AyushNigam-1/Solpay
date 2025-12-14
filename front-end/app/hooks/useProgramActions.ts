@@ -6,7 +6,7 @@ import Cookies from "js-cookie"
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { fetchTokenMetadata, generateUniqueSeed, getMintProgramId } from "../utils/token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Plan, planQuery, Plans, Subscription, SubscriptionTier } from "../types";
+import { Plan, planQuery } from "../types";
 import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
 // import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
@@ -21,7 +21,7 @@ export const useProgramActions = () => {
             console.log(program!.account as any)
             // Fetch ALL plan accounts using .all() with no filter
             let plans = await (program!.account as any).planAccount.all();
-            plans = plans.map(plan => ({ publicKey: plan.publicKey, account: { ...plan.account, tiers: decompressData(plan.account.tiers) } }))
+            plans = plans.map((plan: any) => ({ publicKey: plan.publicKey, account: { ...plan.account, tiers: decompressData(plan.account.tiers) } }))
             console.log(plans)
             // console.log(plans.account)
             // plans.tiers = decompressData(plans.account.tiers)
@@ -119,8 +119,8 @@ export const useProgramActions = () => {
                 return;
             }
             for (const { account } of subscriptions) {
-                const planMetaData = await getPlan(new PublicKey(account.planPda))
-                account.planMetaData = planMetaData?.data
+                const planMetadata = await getPlan(new PublicKey(account.planPda))
+                account.planMetadata = planMetadata?.data
             }
             console.log(subscriptions, "subs")
             return subscriptions
@@ -222,7 +222,7 @@ export const useProgramActions = () => {
     // declare const connection: any;
 
     // Define the input type for the field
-    type UpdateField = "autoRenew" | "active" | "duration";
+    type UpdateField = "autoRenew" | "active" | "duration" | "tier";
 
     // /**
     //  * Updates a specific field of the subscription.
@@ -234,7 +234,7 @@ export const useProgramActions = () => {
     async function updateSubscription(
         subscriptionPDA: PublicKey,
         field: UpdateField,
-        value: boolean | number,
+        value: boolean | number | string,
         payerKey: PublicKey
     ): Promise<string | undefined> {
         if (!program || !payerKey) {
@@ -245,33 +245,29 @@ export const useProgramActions = () => {
         try {
             let fieldEnum: any;
             let valueEnum: any; // Correct type for UpdateValue enum
-            console.log(formatPeriod(value))
+            console.log(formatPeriod(value.toString()))
             // 1. Map string field to IDL Enum variants
             switch (field) {
                 case "autoRenew":
-                    // Rust: SubscriptionField::AutoRenew
-                    fieldEnum = { autoRenew: {} };
-                    // Rust: UpdateValue::Bool(bool)
-                    // Anchor TS for tuple enum: { bool: [booleanValue] } or sometimes just { bool: booleanValue } depending on version
-                    // Standard for tuple variants is an array or named fields if struct-like.
-                    // For simple tuple variants: { variantName: [ value ] }
-                    valueEnum = { bool: [value as boolean] };
+                    fieldEnum = { autoRenew: {} } as const;
+                    valueEnum = { bool: value as boolean } as const;
                     break;
 
                 case "active":
-                    // Rust: SubscriptionField::Active
-                    fieldEnum = { active: {} };
-                    // Rust: UpdateValue::Bool(bool)
-                    valueEnum = { bool: [value as boolean] };
+                    fieldEnum = { active: {} } as const;
+                    valueEnum = { bool: value as boolean } as const;
                     break;
 
                 case "duration":
-                    // Rust: SubscriptionField::Duration
-                    fieldEnum = { duration: {} }; // "duration" matches Rust variant "Duration" (camelCase in IDL)
-                    // Rust: UpdateValue::U64(u64)
-                    // Use BN for u64
-                    valueEnum = { u64: [new anchor.BN(value as number)] };
+                    fieldEnum = { duration: {} } as const;
+                    valueEnum = { u64: new anchor.BN(value as number) } as const;
                     break;
+
+                case "tier":
+                    fieldEnum = { tier: {} } as const;
+                    valueEnum = { string: [value as string] };
+                    break;
+
                 default:
                     throw new Error(`Invalid field: ${field}`);
             }
@@ -560,6 +556,7 @@ export const useProgramActions = () => {
             return undefined;
         }
     }
+
     async function getPlan(planPDA: PublicKey) {
         console.log(planPDA)
         // return null
@@ -570,11 +567,7 @@ export const useProgramActions = () => {
 
         try {
             let planAccount = await (program.account as any).planAccount.fetch(planPDA);
-            // planAccount = { publicKey: planAccount.publicKey, account: { ...planAccount.account, tiers: decompressData(planAccount.account.tiers) } }
-            console.log("Plan fetched successfully!");
-            console.log("Name:", planAccount.name);
-            console.log("Creator:", planAccount.creator.toBase58());
-            console.log("Tiers:", planAccount.tiers.length);
+            planAccount = { ...planAccount, tiers: decompressData(planAccount.tiers) }
             return {
                 pda: planPDA,
                 data: planAccount,

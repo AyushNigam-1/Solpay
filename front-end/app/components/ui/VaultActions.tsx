@@ -8,7 +8,7 @@ import InputGroup from "./Input";
 interface VaultActionsProps {
     isOpen: boolean;
     onClose: () => void;
-    subscriptionPDA: string;
+    subscriptionPDA: PublicKey;
     currentBalance?: number;
     tokenSymbol?: string;
     tokenImage?: string;
