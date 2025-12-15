@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { CheckCircle2, Crown, Zap, ShieldCheck, X } from 'lucide-react';
+import { CheckCircle2, Crown, Zap, ShieldCheck, X, Check } from 'lucide-react';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, Tier } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
+import { useMutations } from '@/app/hooks/useMutations';
+import Loader from './Loader';
 
 // Helper to safely convert BN/string/number to a Javascript number
 // Note: For very large numbers (token amounts), keep as string for display if needed, 
@@ -89,15 +91,15 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
     }, [plan]);
 
     const { publicKey } = useProgram()
-    const { initializeSubscription, updateSubscription } = useProgramActions()
-    const [duration, setDuration] = useState(safeToNumber(processedPlan?.tiers[0].periodSeconds))
-    const [amount, setAmount] = useState(safeToNumber(processedPlan?.tiers[0].amount))
+    const { createSubscription, managePlan } = useMutations()
+    // const [duration, setDuration] = useState(safeToNumber(processedPlan?.tiers[0].periodSeconds))
+    // const [amount, setAmount] = useState(safeToNumber(processedPlan?.tiers[0].amount))
     const [selectedTier, setSelectedTier] = useState<Tier | null>(processedPlan?.tiers[0]!);
-
+    const [autoRenew, setAutoRenew] = useState<boolean>(false)
     const handleTierSelect = (tier: Tier) => {
         setSelectedTier(tier);
-        setDuration(tier.periodSeconds)
-        setAmount(tier.amount)
+        // setDuration(tier.periodSeconds)
+        // setAmount(tier.amount)
     };
 
     const closeModal = () => {
@@ -163,14 +165,36 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                 <div className="flex justify-between">
                                     <h2 className="text-xl font-extrabold text-gray-200 tracking-tight truncate">Choose Tier</h2>
                                     <div className='relative' >
-                                        <label className="inline-flex items-center cursor-pointer ">
-
-                                            <input type="checkbox" className="sr-only peer" defaultChecked
-                                            // onClick={() => setAutoRenew(!autoRenew)} 
+                                        <label className="inline-flex items-center cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only"
+                                                checked={autoRenew}
+                                                onChange={() =>
+                                                    setAutoRenew(!autoRenew)
+                                                }
                                             />
-                                            <div className="relative w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-md peer-checked:bg-brand">
+
+                                            {/* Track */}
+                                            <div className="relative w-11 h-6 rounded-full bg-white/10 group-has-checked:bg-brand transition-colors">
+                                                {/* Thumb */}
+                                                <div
+                                                    className="
+                                                        absolute top-0.5 left-0.5 h-5 w-5 rounded-full
+                                                        flex items-center justify-center
+                                                        bg-red-400 text-white
+                                                        transition-all duration-300
+                                                        group-has-checked:translate-x-5
+                                                        group-has-checked:bg-blue-400"
+                                                >
+                                                    <span className="group-has-checked:hidden text-xs p-0.5">  <X size={10} /></span>
+                                                    <span className="hidden group-has-checked:inline text-xs p-0.5"><Check size={10} /></span>
+                                                </div>
                                             </div>
-                                            <span className="select-none ms-2 font-medium text-heading">Auto-Renew</span>
+
+                                            <span className="ms-2 font-medium text-heading select-none">
+                                                Auto-Renew
+                                            </span>
                                         </label>
 
                                     </div>
@@ -195,8 +219,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                                             ${isSelected
                                                                         ? 'border-blue-400/70 bg-blue-900/10 shadow-lg shadow-blue-900/20'
                                                                         : 'border-white/6 bg-white/5  hover:bg-white/8'
-                                                                    }
-                                                        `}
+                                                                    }`}
                                                             >
                                                                 {/* Selection Checkmark */}
                                                                 {isSelected && (
@@ -247,23 +270,15 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
 
                                     <button
-                                        onClick={() => type == "new" ? initializeSubscription(selectedTier!.tierName, planPDA, publicKey!, duration, new PublicKey(plan.mint), selectedTier?.periodSeconds, amount, false) : updateSubscription(subscriptionPDA!, "tier", selectedTier?.tierName!, subscriptionPayer!)
-                                        }
-                                        disabled={!selectedTier}
-                                        className={`
-                                                w-full sm:w-auto p-3 rounded-lg font-semibold text-lg shadow-lg transition-all flex items-center justify-center gap-2
-                                                ${selectedTier
-                                                ? 'bg-blue-400/70  text-white hover:shadow-blue-500/25 cursor-pointer transform hover:-translate-y-0.5'
-                                                : 'bg-white/5 text-gray-600 cursor-not-allowed border border-gray-700'
-                                            }
-                                            `}
+                                        onClick={() => type == "new" ? createSubscription.mutate({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, mintKey: new PublicKey(plan.mint), periodSeconds: selectedTier?.periodSeconds, autoRenew }) : managePlan.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer! })}
+                                        disabled={!selectedTier || createSubscription.isPending || managePlan.isPending}
+                                        className="w-full sm:w-auto flex items-center justify-center gap-2 p-3 rounded-lg font-semibold text-lg transition-all bg-blue-400/70  text-white cursor-pointer disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed disabled:border disabled:border-gray-700"
                                     >
-                                        {/* {selectedTier ? (
-                                            <> */}
-                                        <Zap className="w-5 h-5 " />
+                                        {
+                                            (createSubscription.isPending || managePlan.isPending) ? <Loader /> :
+                                                <Zap className="size-6" />
+                                        }
                                         <span>Subscribe</span>
-                                        {/* </>
-                                        ) : 'Select a Tier'} */}
                                     </button>
                                 </div>
                             </DialogPanel>

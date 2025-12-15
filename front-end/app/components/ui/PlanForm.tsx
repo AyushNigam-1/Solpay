@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { CirclePlus, Plus, Trash2, X } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition } from '@headlessui/react';
 import InputGroup from './Input';
 import { Plan } from '@/app/types';
-import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { useProgram } from '@/app/hooks/useProgram';
+import { useMutations } from '@/app/hooks/useMutations';
+import Loader from './Loader';
 
 const initialFormState: Plan = {
     name: "",
@@ -22,10 +23,10 @@ const initialFormState: Plan = {
 const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) => {
     // const [isOpen, setIsOpen] = useState(false); // Controls modal visibility
     const [formData, setFormData] = useState<Plan>(initialFormState);
-    const [isLoading, setLoading] = useState<boolean>()
     const [status, setStatus] = useState({ type: null, message: null });
     const { publicKey } = useProgram()
-    const { createPlan } = useProgramActions()
+    // const { createPlan } = useProgramActions()
+    const { createPlan } = useMutations()
 
     const closeModal = () => {
         setIsOpen(false);
@@ -40,6 +41,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
             behavior: "smooth"
         });
     }, [formData.tiers.length]); // ← triggers when a tier is added/removed
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, index: number) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -99,7 +101,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
-                                    createPlan(publicKey!, formData)
+                                    createPlan.mutate({ creatorKey: publicKey!, plan: formData })
                                 }} className="space-y-8">
                                     {/* Plan Name Section */}
                                     <InputGroup label='Name' name='name' onChange={({ target }) =>
@@ -170,20 +172,13 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                     <div className="">
                                         <button
                                             type="submit"
-                                            // disabled={isSubmitting}
-                                            className="w-full bg-blue-400 hover:bg-blue-400 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                                            disabled={createPlan.isPending}
+                                            className={` disabled:bg-white/5 bg-blue-400 text-white hover:bg-blue-400 w-full font-bold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2`}
                                         >
-                                            {isLoading ? (
-                                                <>
-                                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                    Creating Plan...
-                                                </>
-                                            ) : (
-                                                "Launch Plan"
-                                            )}
+                                            {createPlan.isPending ?
+                                                <Loader /> : <CirclePlus />
+                                            }
+                                            Create
                                         </button>
                                     </div>
                                 </form>

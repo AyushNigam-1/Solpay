@@ -14,7 +14,6 @@ import Cookies from "js-cookie"
 import { formatPeriod } from '@/app/utils/duration';
 import { Banknote, Building, ChartNoAxesGantt, CircleDot, Coins, Timer } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
-import VaultActions from '@/app/components/ui/VaultActions';
 import PlanDetails from '@/app/components/ui/PlanDetails';
 
 const page = () => {
@@ -98,7 +97,6 @@ const page = () => {
             ),
             title: "Amount"
         },
-
         {
             icon: (
                 <Timer />
@@ -177,17 +175,7 @@ const page = () => {
             <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} />
 
             <SubscriptionDetails isOpen={openDetails!} setPlanDetailsOpen={setPlanDetailsOpen}
-                setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} setPopupAction={setPopupAction} setPopupOpen={setPopupOpen} />
-
-            <VaultActions
-                isOpen={popupOpen}
-                onClose={() => setPopupOpen(false)}
-                subscriptionPDA={subscription?.publicKey!}
-                currentBalance={subscription?.account.prefundedAmount.toString()}
-                tokenSymbol={subscription?.account.planMetadata.tokenSymbol}
-                tokenImage={subscription?.account.planMetadata.tokenImage}
-                onSuccess={() => ""}
-            />
+                setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} />
 
             <PlanDetails plan={plan!} planPDA={planPDA!} open={isPlanDetailsOpen} setOpen={setPlanDetailsOpen} type="update" subscriptionPDA={subscription?.publicKey!} subscriptionPayer={subscription?.account.payer} />
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}

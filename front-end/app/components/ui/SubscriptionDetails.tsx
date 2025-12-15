@@ -1,27 +1,31 @@
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, StatCardProps, Subscription } from '@/app/types';
 import { formatPeriod } from '@/app/utils/duration';
-import { Ban, Calendar, CheckCircle2, ChevronLeft, ChevronRight, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, Pause, Pen, Play, Repeat2, Timer, Trash, Wallet } from 'lucide-react';
-import React, { Dispatch, SetStateAction } from 'react';
+import { Ban, Calendar, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, Pause, Pen, Play, Repeat2, Timer, Trash, Wallet, X } from 'lucide-react';
+import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import TableHeaders from './TableHeaders';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
+import { useMutations } from '@/app/hooks/useMutations';
+import Loader from './Loader';
 
 interface subscriptionDetailsProps {
     isOpen: boolean;
     subscription: { account: Subscription, publicKey: PublicKey }
     setPlanDetailsOpen: Dispatch<SetStateAction<boolean>>
     setPlan: Dispatch<SetStateAction<Plan | undefined>>;
-    setPopupAction: Dispatch<SetStateAction<"fund" | "withdraw">>;
-    setPopupOpen: Dispatch<SetStateAction<boolean>>;
     onClose: () => void;
 }
 
-const subscriptionDetails = ({ isOpen, subscription, setPopupAction, setPlan, setPlanDetailsOpen, setPopupOpen, onClose }: subscriptionDetailsProps) => {
-    console.log("subscription?", subscription)
+const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen, onClose }: subscriptionDetailsProps) => {
+    const { deleteSubscription, manageAutoRenew, manageStatus } = useMutations()
+    const [autoRenew, setAutoRenew] = useState(subscription?.account.autoRenew)
 
-    const { cancelSubscription, updateSubscription } = useProgramActions();
-
+    useEffect(() => {
+        if (subscription?.account?.autoRenew !== undefined) {
+            setAutoRenew(subscription.account.autoRenew);
+        }
+    }, [subscription?.account?.autoRenew]);
     // console.log("subscription?",)
     const currentTier = subscription?.account.planMetadata.tiers.find((tier) => tier.tierName == subscription?.account.tierName)
     const handleClose = () => {
@@ -268,22 +272,57 @@ const subscriptionDetails = ({ isOpen, subscription, setPopupAction, setPlan, se
 
                                         <div>
                                         </div>
-
                                     </div>
-
                                     <div className='col-span-9 flex flex-col gap-4 border-l-2 border-white/5 pl-3 h-full'>
                                         <div className='flex justify-between '>
                                             <h6 className='text-xl font-bold'>Transactions</h6>
                                             <div className='relative' >
-                                                <label className="inline-flex items-center cursor-pointer ">
-
-                                                    <input type="checkbox" className="sr-only peer" defaultChecked
-                                                    // onClick={() => setAutoRenew(!autoRenew)} 
+                                                {/* <label className="inline-flex items-center cursor-pointer ">
+                                                    <input type="checkbox" className="sr-only peer" defaultChecked={subscription?.account.autoRenew}
+                                                        onClick={() => manageAutoRenew.mutate({ subscriptionPDA: subscription?.publicKey, field: "autoRenew", value: !subscription?.account.autoRenew, payerKey: subscription?.account.payer })}
                                                     />
                                                     <div className="relative w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-5 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:shadow-md peer-checked:bg-brand">
                                                     </div>
                                                     <span className="select-none ms-2 font-medium text-heading">Auto-Renew</span>
+                                                </label> */}
+                                                <label className="inline-flex items-center cursor-pointer group">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only"
+                                                        checked={autoRenew}
+                                                        onChange={() =>
+                                                            // setAutoRenew()
+                                                            manageAutoRenew.mutateAsync({
+                                                                subscriptionPDA: subscription?.publicKey,
+                                                                field: "autoRenew",
+                                                                value: !autoRenew,
+                                                                payerKey: subscription?.account.payer,
+                                                            }).then(() => setAutoRenew(!autoRenew))
+                                                        }
+                                                    />
+
+                                                    {/* Track */}
+                                                    <div className="relative w-11 h-6 rounded-full bg-white/10 group-has-checked:bg-brand transition-colors">
+                                                        {/* Thumb */}
+                                                        <div
+                                                            className="
+                                                                absolute top-0.5 left-0.5 h-5 w-5 rounded-full
+                                                                flex items-center justify-center
+                                                                bg-red-400 text-white
+                                                                transition-all duration-300
+                                                                group-has-checked:translate-x-5
+                                                                group-has-checked:bg-blue-400"
+                                                        >
+                                                            <span className="group-has-checked:hidden text-xs p-0.5"> {manageAutoRenew.isPending ? <Loader /> : <X size={10} />}</span>
+                                                            <span className="hidden group-has-checked:inline text-xs p-0.5">{manageAutoRenew.isPending ? <Loader /> : <Check size={10} />}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <span className="ms-2 font-medium text-heading select-none">
+                                                        Auto-Renew
+                                                    </span>
                                                 </label>
+
 
                                             </div>
                                             {/* <span className='flex justify-center items-end gap-1 text-lg ' >
@@ -330,9 +369,6 @@ const subscriptionDetails = ({ isOpen, subscription, setPopupAction, setPlan, se
                                                 </tbody>
                                             </table>
                                         </div>
-
-
-
                                         {/* </div> */}
                                     </div>
                                 </div>
@@ -345,18 +381,21 @@ const subscriptionDetails = ({ isOpen, subscription, setPopupAction, setPlan, se
                                         Change Tier
                                     </button>
                                     <button
-                                        onClick={() => updateSubscription(subscription?.publicKey, "active", !subscription?.account.active, subscription?.account.payer)}
-                                        className={` ${!subscription?.account.active ? "text-blue-400" : "text-red-400"}  p-4 bg-white/5 w-full flex justify-center items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold`}>
+                                        onClick={() => manageStatus.mutate({ subscriptionPDA: subscription?.publicKey, field: "active", value: !subscription?.account.active, payerKey: subscription?.account.payer })}
+                                        className={` ${manageStatus.isPending ? "text-gray-700" : !subscription?.account.active ? "text-blue-400" : "text-red-400"}  p-4 bg-white/5 w-full flex justify-center items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold`}>
                                         {subscription?.account.active ? <span className='flex justify-center items-center gap-2' >
-                                            <Pause className="w-5 h-5" /> Pause   </span>
+                                            {manageStatus.isPending ? <Loader /> : <Pause className="w-5 h-5" />} Pause   </span>
                                             : <span className='flex justify-center items-center gap-2'>
-                                                <Play className="w-5 h-5" /> Activate   </span>}
+                                                {manageStatus.isPending ? <Loader /> : <Play className="w-5 h-5" />} Activate   </span>}
                                         Subscription
                                     </button>
                                     <button
-                                        onClick={() => cancelSubscription(subscription?.account.payer, subscription?.account.uniqueSeed, subscription?.account.mint, subscription?.account.vaultTokenAccount)}
-                                        className={` text-center group flex w-full justify-center m-auto items-center gap-3 p-4 rounded-xl bg-white/5 text-red-400 transition cursor-pointer font-semibold`}>
-                                        <Trash className="w-5 h-5" />
+                                        onClick={() => deleteSubscription.mutate({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed, mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount })}
+                                        className={`${deleteSubscription.isPending ? "text-gray-700" : "  text-red-400"} text-center group flex w-full justify-center m-auto items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
+                                        {
+                                            deleteSubscription.isPending ? <Loader /> :
+                                                <Trash className="size-5" />
+                                        }
                                         Delete Subscription
                                     </button>
 

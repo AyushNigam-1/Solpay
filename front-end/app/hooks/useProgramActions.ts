@@ -18,29 +18,10 @@ export const useProgramActions = () => {
 
     async function fetchAllSubscriptionPlans(): Promise<planQuery[]> {
         try {
-            console.log(program!.account as any)
-            // Fetch ALL plan accounts using .all() with no filter
             let plans = await (program!.account as any).planAccount.all();
             plans = plans.map((plan: any) => ({ publicKey: plan.publicKey, account: { ...plan.account, tiers: decompressData(plan.account.tiers) } }))
             console.log(plans)
-            // console.log(plans.account)
-            // plans.tiers = decompressData(plans.account.tiers)
-            // const plan = await getPlan(plans[0].publicKey)
-            // console.log("plan", plan)
             return plans
-            // return []
-            // Map to clean format
-            // return plans.map((plan) => ({
-            //     publicKey: plan.publicKey,
-            //     account: {
-            //         provider: plan.account.provider,
-            //         mint: plan.account.mint,
-            //         amount: plan.account.amount.toBigInt(),
-            //         periodSeconds: plan.account.periodSeconds.toBigInt(),
-            //         name: plan.account.name,
-            //         bump: plan.account.bump,
-            //     },
-            // }));
         } catch (error) {
             console.error("Failed to fetch subscription plans:", error);
             return [];
@@ -135,20 +116,16 @@ export const useProgramActions = () => {
         tier: String,                    // ← Plan PDA (not name)
         plan: PublicKey,                      // ← "Premium", "Basic"
         payerKey: PublicKey,
-        duration: number,
         mintKey: PublicKey,
         periodSeconds: number | string,
-        prefundingAmount: number | string = "0",
         autoRenew: boolean = true,
     ): Promise<PublicKey | undefined> {
         if (!program || !payerKey) {
             alert("Wallet or program not connected");
             return undefined;
         }
-
         try {
             const depositTokenProgramId = await getMintProgramId(mintKey);
-            const prefundBN = new anchor.BN(prefundingAmount);
             const uniqueSeed = crypto.getRandomValues(new Uint8Array(8));
 
             const [subscriptionPDA] = PublicKey.findProgramAddressSync(
@@ -181,9 +158,7 @@ export const useProgramActions = () => {
                     tier,                    // ← tier string
                     plan.toBase58(),                     // ← plan PDA
                     autoRenew,
-                    prefundBN,
                     new anchor.BN(nextPaymentTs),
-                    new anchor.BN(duration),
                     Array.from(uniqueSeed)       // ← [u8; 8] as number[]
                 )
                 .accounts({
@@ -250,17 +225,12 @@ export const useProgramActions = () => {
             switch (field) {
                 case "autoRenew":
                     fieldEnum = { autoRenew: {} } as const;
-                    valueEnum = { bool: value as boolean } as const;
+                    valueEnum = { bool: [value as boolean] };
                     break;
 
                 case "active":
                     fieldEnum = { active: {} } as const;
-                    valueEnum = { bool: value as boolean } as const;
-                    break;
-
-                case "duration":
-                    fieldEnum = { duration: {} } as const;
-                    valueEnum = { u64: new anchor.BN(value as number) } as const;
+                    valueEnum = { bool: [value as boolean] };
                     break;
 
                 case "tier":
@@ -306,6 +276,7 @@ export const useProgramActions = () => {
             return undefined;
         }
     }
+
 
     async function cancelSubscription(
         payerKey: web3.PublicKey,

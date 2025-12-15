@@ -37,6 +37,7 @@ export interface Subscription {
     planMetadata: Plan
     //   "payerTokenAccount": "EkgWNo6PSAURUyweSshWxarX78hTRe7Ru8RKGNAkwgnU",
 }
+export type UpdateField = "autoRenew" | "active" | "duration" | "tier";
 
 export interface UserTokenAccount {
     tokenAddress: string; // The address of the Token Account (not the mint)
