@@ -178,7 +178,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             {createPlan.isPending ?
                                                 <Loader /> : <CirclePlus />
                                             }
-                                            Create
+                                            Create  
                                         </button>
                                     </div>
                                 </form>

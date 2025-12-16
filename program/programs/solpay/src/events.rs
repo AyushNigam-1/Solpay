@@ -4,10 +4,16 @@ use anchor_lang::prelude::*;
 pub struct SubscriptionInitialized {
     pub subscription: Pubkey,
     pub payer: Pubkey,
-    pub payee: Pubkey,
-    pub amount: u64,
-    pub period_seconds: i64,
-    pub prefunded_amount: u64,
+    pub tier_name: String,
+    pub plan_pda: String,
+    pub payer_token_account: Pubkey,
+    pub mint: Pubkey,
+    pub vault_token_account: Pubkey,
+    pub next_payment_ts: u64,
+    pub auto_renew: bool,
+    pub active: bool,
+    pub bump: u8,
+    pub unique_seed: [u8; 8],
 }
 
 #[event]

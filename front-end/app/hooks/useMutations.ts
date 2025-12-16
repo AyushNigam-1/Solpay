@@ -1,12 +1,76 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProgramActions } from "./useProgramActions";
 import { PublicKey } from "@solana/web3.js";
-import { Plan, UpdateField } from "../types";
+import { Plan, UpdateField, UpdateParams } from "../types";
+import axios from "axios";
+import Cookies from "js-cookie"
 
 export const useMutations = () => {
     const programActions = useProgramActions();
     const queryClient = useQueryClient();
+    const userAddress = Cookies.get("user")!
+    const API_BASE = "http://127.0.0.1:3000"
 
+    const updateSubscriptionDb = useMutation({
+        mutationFn: async ({
+            address,
+            account,
+            action
+        }: UpdateParams) => {
+            console.log(action)
+            const response = action == "update" ? await axios.put(
+                `${API_BASE}/api/escrows/${address}`,
+                account,
+                {
+                    headers: { "Content-Type": "application/json" },
+                }
+            ) : await axios.post(`${API_BASE}/api/subscriptions/${address}`, account, {
+                headers: { "Content-Type": "application/json" },
+            });
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log("✅ Escrow updated successfully:", data);
+        },
+        onError: (error) => {
+            console.error("❌ Failed to update escrow:", error);
+        },
+    });
+    interface DeleteParams {
+        address: string;                    // user wallet address
+        subscriptionPDA: string;            // subscription PDA as string
+    }
+
+    const deleteSubscriptionDb = useMutation({
+        mutationFn: async ({ address, subscriptionPDA }: DeleteParams) => {
+            console.log("Deleting subscription from DB:", subscriptionPDA);
+            const response = await axios.delete(
+                `${API_BASE}/api/subscriptions/${address}`,
+                {
+                    data: {
+                        subscription_pda: subscriptionPDA,
+                    },
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log("✅ Subscription deleted from DB successfully:", data);
+
+            // Optional: invalidate/refetch user's subscriptions list
+            queryClient.invalidateQueries({
+                queryKey: ['subscriptions', data.address || 'all']
+            });
+        },
+
+        onError: (error: any) => {
+            console.error("❌ Failed to delete subscription from DB:", error);
+            alert("Failed to remove from database. Check console.");
+        },
+    });
     const createPlan = useMutation({
         mutationFn: async ({ creatorKey, plan }: {
             creatorKey: PublicKey;
@@ -68,9 +132,10 @@ export const useMutations = () => {
             return subscriptionPDA;
         },
 
-        onSuccess: (subscriptionPDA) => {
+        onSuccess: ({ subscriptionPDA, account }) => {
             // toast.success("Subscription created successfully!");
-            console.log("New Subscription PDA:", subscriptionPDA.toBase58());
+            console.log("New Subscription PDA:", subscriptionPDA, account);
+            updateSubscriptionDb.mutate({ address: userAddress, account, action: 'create' })
             // Refetch your subscriptions list
             // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
             // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", payerKey.toBase58()] });
@@ -109,10 +174,10 @@ export const useMutations = () => {
             return txSig;
         },
 
-        onSuccess: (txSig) => {
+        onSuccess: ({ subscriptionPDA }) => {
             //   toast.success("Subscription cancelled successfully!");
-            console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-
+            // console.log("Tx:", `https://solana.fm/tx/${txsSig}?cluster=devnet-solana`);
+            deleteSubscriptionDb.mutate({ address: userAddress, subscriptionPDA })
             // Refetch your subscriptions
             queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
             queryClient.invalidateQueries({ queryKey: ["userSubscriptions"] });
@@ -164,6 +229,7 @@ export const useMutations = () => {
             // toast.error(`Failed to update ${variables.field}: ${error.message || "Unknown error"}`);
         },
     });
+
     const manageAutoRenew = useMutation({
         mutationFn: editSubscription,
         onSuccess: (txSig, variables) => {

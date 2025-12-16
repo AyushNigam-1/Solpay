@@ -14,8 +14,32 @@ import { compressData, decompressData } from "../utils/compression";
 const ACTIVE_STATUS_OFFSET = 225;
 
 export const useProgramActions = () => {
-    const { program, getGlobalStatsPDA, PROGRAM_ID } = useProgram()
+    const { program, getGlobalStatsPDA, PROGRAM_ID, connection } = useProgram()
 
+    async function getEventsFromSignature(
+        txSignature: string,
+        eventName: string
+    ): Promise<any | null> {
+        // 1. Fetch the confirmed transaction details
+        const txResponse = await connection.getTransaction(txSignature, {
+            maxSupportedTransactionVersion: 0,
+            commitment: "confirmed",
+        });
+        if (!txResponse || !txResponse.meta?.logMessages) {
+            console.error("Failed to fetch transaction or logs.");
+            return null;
+        }
+
+        const eventParser = new anchor.EventParser(program!.programId, new anchor.BorshCoder(program!.idl));
+        const decodedEvents = eventParser.parseLogs(txResponse.meta.logMessages);
+
+        const initializeEvent = decodedEvents.find((e: any) => e.name === eventName);
+        if (initializeEvent) {
+            return initializeEvent.data;
+        }
+        console.warn("InitializeEvent not found in transaction logs.");
+        return null;
+    }
     async function fetchAllSubscriptionPlans(): Promise<planQuery[]> {
         try {
             let plans = await (program!.account as any).planAccount.all();
@@ -119,7 +143,7 @@ export const useProgramActions = () => {
         mintKey: PublicKey,
         periodSeconds: number | string,
         autoRenew: boolean = true,
-    ): Promise<PublicKey | undefined> {
+    ) {
         if (!program || !payerKey) {
             alert("Wallet or program not connected");
             return undefined;
@@ -173,12 +197,12 @@ export const useProgramActions = () => {
                     rent: SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
+            const account = await getEventsFromSignature(txSig, "subscriptionInitialized");
+            if (!account) {
+                console.warn("Event data not found in confirmed transaction. Check program logs.");
+            }
+            return { subscriptionPDA: subscriptionPDA.toBase58(), account };
 
-            console.log("Subscription Created!");
-            console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-            console.log("Subscription PDA:", subscriptionPDA.toBase58());
-
-            return subscriptionPDA;
         } catch (error: any) {
             console.error("Failed to create subscription:", error);
             alert("Error: " + (error.message || "Unknown error"));
@@ -211,7 +235,7 @@ export const useProgramActions = () => {
         field: UpdateField,
         value: boolean | number | string,
         payerKey: PublicKey
-    ): Promise<string | undefined> {
+    ) {
         if (!program || !payerKey) {
             console.error("Wallet or program not connected");
             return undefined;
@@ -283,7 +307,7 @@ export const useProgramActions = () => {
         uniqueSeed: Buffer,
         mintAddress: PublicKey,
         vaultTokenAccount: PublicKey
-    ): Promise<string | undefined> {
+    ) {
 
         const tokenProgramId = await getMintProgramId(mintAddress);
 
@@ -306,7 +330,7 @@ export const useProgramActions = () => {
         const globalStatsPDA = getGlobalStatsPDA(PROGRAM_ID);
 
         try {
-            await program!.methods
+            const txSig = await program!.methods
                 .cancelSubscription()
                 .accounts({
                     payer: payerKey,
@@ -318,8 +342,12 @@ export const useProgramActions = () => {
                     tokenProgram: tokenProgramId,
                 })
                 .rpc();
-
+            const account = await getEventsFromSignature(txSig, "subscriptionCancelled");
+            if (!account) {
+                console.warn("Event data not found in confirmed transaction. Check program logs.");
+            }
             console.log(`\n✅ Subscription Cancelled!`);
+            return { subscriptionPDA: account.subscription };
         } catch (error) {
             console.error("❌ Error cancelling subscription:", error);
             // Log the full error message for debugging

@@ -5,7 +5,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie"
 import { motion } from 'framer-motion';
-
+import axios from "axios";
+import { useMutation } from "@tanstack/react-query";
 
 function App() {
   // const network = WalletAdapterNetwork.Devnet;
@@ -14,25 +15,25 @@ function App() {
   const router = useRouter()
   const API_BASE = "http://localhost:3000"
 
-  // const { mutate: submit, isPending, isError, error } = useMutation({
-  //   mutationFn: async (address: string) => {
-  //     const { data } = await axios.get(`${API_BASE}/api/user/${address}`);
-  //     return data;
-  //   },
-  //   onSuccess: (data) => {
-  //     console.log("User fetched or created:", data);
-  //     router.push("/dashboard");
-  //   },
-  //   onError: (error) => {
-  //     console.error("Error fetching/creating user:", error);
-  //   },
-  // });
+  const { mutate: submit, isPending, isError, error } = useMutation({
+    mutationFn: async (address: string) => {
+      const { data } = await axios.get(`${API_BASE}/api/user/${address}`);
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log("User fetched or created:", data);
+      Cookies.set("user", data);
+      console.log(data)
+      // router.push("/dashboard");
+    },
+    onError: (error) => {
+      console.error("Error fetching/creating user:", error);
+    },
+  });
 
   useEffect(() => {
     if (connected && publicKey) {
-      Cookies.set("user", publicKey.toString())
-      router.push("/plans");
-      // submit(publicKey.toBase58());
+      submit(publicKey.toBase58());
     }
   }, [connected, publicKey]);
 
@@ -67,7 +68,7 @@ function App() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          Solpay Portal
+          Escrow Portal
         </motion.h1>
 
         <motion.p
@@ -87,7 +88,7 @@ function App() {
           transition={{ delay: 0.6, duration: 0.6 }}
         >
           <WalletMultiButton
-          // className="!bg-indigo-600 hover:!bg-indigo-500 !rounded-xl !px-8 !py-3 !text-lg !font-semibold !transition-all !duration-300"
+            className="bg-indigo-600! hover:bg-indigo-500! rounded-xl! px-8! py-3! text-lg! font-semibold! transition-all! duration-300!"
           />
         </motion.div>
 

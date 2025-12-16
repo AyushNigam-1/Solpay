@@ -24,7 +24,7 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool,prefunding_amount: u64, duration: u64, unique_seed: [u8; 8])]
+#[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -72,37 +72,6 @@ pub struct InitializeSubscription<'info> {
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
-}
-
-#[derive(Accounts)]
-pub struct ManageVault<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-
-    #[account(
-        mut,
-        has_one = payer @ ErrorCode::Unauthorized,
-        // Only payer can manage
-    )]
-    pub subscription: Account<'info, Subscription>,
-
-    #[account(
-        mut,
-        constraint = vault_token_account.owner == subscription.key(),
-        constraint = vault_token_account.mint == mint.key()
-    )]
-    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        token::mint = mint,
-        token::authority = payer,
-    )]
-    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
-
-    pub mint: InterfaceAccount<'info, Mint>,
-
-    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]
@@ -214,11 +183,7 @@ pub struct CancelPlan<'info> {
     pub plan: Account<'info, PlanAccount>,
 
 }
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
-pub enum VaultAction {
-    Fund,
-    Withdraw,
-}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq)]
 pub enum UpdateValue {
     Bool(bool),
@@ -299,10 +264,8 @@ pub struct Subscription {
     pub next_payment_ts: u64,
     pub auto_renew: bool,
     pub active: bool,
-    pub duration :i64,
     pub bump: u8,
     pub unique_seed: [u8; 8],
-    pub prefunded_amount: u64,  // ← shows how much was deposited
 }
 
 #[account]

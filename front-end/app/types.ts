@@ -28,15 +28,20 @@ export interface Subscription {
     nextPaymentTs: anchor.BN;
     active: boolean;
     autoRenew: boolean;
-    tokenMetadata: FullTokenMetadata,
     vaultTokenAccount: web3.PublicKey;
     prefundedAmount: anchor.BN;
     uniqueSeed: anchor.BN
     bump: number;
     duration: anchor.BN;
-    planMetadata: Plan
-    //   "payerTokenAccount": "EkgWNo6PSAURUyweSshWxarX78hTRe7Ru8RKGNAkwgnU",
+    planMetadata?: Plan
 }
+
+export interface UpdateParams {
+    address: string;
+    account?: Subscription,
+    action: string
+}
+
 export type UpdateField = "autoRenew" | "active" | "duration" | "tier";
 
 export interface UserTokenAccount {

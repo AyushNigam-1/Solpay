@@ -32,43 +32,20 @@ pub mod recurring_payments {
         tier_name: String,
         plan_pda: String,
         auto_renew: bool,
-        prefunding_amount: u64,
         next_payment_ts: u64,
-        duration: i64,
         unique_seed: [u8; 8],
     ) -> Result<()> {
-        // 1. DEPOSIT TOKENS (only if prefunding_amount > 0)
-        if prefunding_amount > 0 {
-            require!(
-                ctx.accounts.payer_token_account.amount >= prefunding_amount,
-                ErrorCode::InsufficientFunds
-            );
-
-            let cpi_accounts = TransferChecked {
-                from: ctx.accounts.payer_token_account.to_account_info(),
-                mint: ctx.accounts.mint.to_account_info(),
-                to: ctx.accounts.vault_token_account.to_account_info(),
-                authority: ctx.accounts.payer.to_account_info(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-
-            transfer_checked(cpi_ctx, prefunding_amount, ctx.accounts.mint.decimals)?;
-        }
-
         // 2. INITIALIZE SUBSCRIPTION STATE
         let subscription = &mut ctx.accounts.subscription;
-        subscription.tier_name = tier_name;
-        subscription.plan_pda = plan_pda;
+        subscription.tier_name = tier_name.clone();
+        subscription.plan_pda = plan_pda.clone();
         subscription.payer = ctx.accounts.payer.key();
         subscription.mint = ctx.accounts.mint.key();
         subscription.auto_renew = auto_renew;
         subscription.active = true;
-        subscription.duration = duration;
         subscription.payer_token_account = ctx.accounts.payer_token_account.key();
         subscription.vault_token_account = ctx.accounts.vault_token_account.key();
         subscription.bump = ctx.bumps.subscription;
-        subscription.prefunded_amount = prefunding_amount;
         subscription.next_payment_ts = next_payment_ts;
         subscription.unique_seed = unique_seed; // ← FIXED: Save unique seed
 
@@ -78,14 +55,20 @@ pub mod recurring_payments {
             .checked_add(1)
             .ok_or(ErrorCode::NumericalOverflow)?;
 
-        // 4. EMIT EVENT
-        // emit!(SubscriptionInitialized {
-        //     subscription: subscription.key(),
-        //     payer: subscription.payer,
-        //     amount,
-        //     period_seconds,
-        //     prefunded_amount: prefunding_amount, // ← optional: add to event
-        // });
+        emit!(SubscriptionInitialized {
+            subscription: ctx.accounts.subscription.key(),
+            tier_name: tier_name.to_string(),
+            plan_pda: plan_pda.to_string(),
+            payer: ctx.accounts.payer.key(),
+            mint: ctx.accounts.mint.key(),
+            auto_renew: auto_renew,
+            active: true,
+            payer_token_account: ctx.accounts.payer_token_account.key(),
+            vault_token_account: ctx.accounts.vault_token_account.key(),
+            bump: ctx.bumps.subscription,
+            next_payment_ts: next_payment_ts,
+            unique_seed: unique_seed,
+        });
 
         Ok(())
     }
@@ -161,84 +144,6 @@ pub mod recurring_payments {
 
     //     Ok(())
     // }
-    pub fn manage_vault(ctx: Context<ManageVault>, action: VaultAction, amount: u64) -> Result<()> {
-        let subscription = &mut ctx.accounts.subscription;
-        let vault = &ctx.accounts.vault_token_account;
-
-        let seeds = &[
-            SUBSCRIPTION_SEED,
-            subscription.payer.as_ref(),
-            subscription.unique_seed.as_ref(),
-            &[subscription.bump],
-        ];
-        let signer_seeds = &[&seeds[..]];
-
-        match action {
-            VaultAction::Fund => {
-                // require!(amount > 0, ErrorCode::ZeroAmount);
-
-                let cpi_accounts = TransferChecked {
-                    from: ctx.accounts.payer_token_account.to_account_info(),
-                    mint: ctx.accounts.mint.to_account_info(),
-                    to: vault.to_account_info(),
-                    authority: ctx.accounts.payer.to_account_info(),
-                };
-
-                let cpi_ctx =
-                    CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
-
-                transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
-
-                // UPDATE prefunded_amount
-                subscription.prefunded_amount = subscription
-                    .prefunded_amount
-                    .checked_add(amount)
-                    .ok_or(ErrorCode::NumericalOverflow)?;
-
-                // emit!(VaultFunded {
-                //     subscription: subscription.key(),
-                //     amount,
-                //     new_balance: subscription.prefunded_amount,
-                //     timestamp: Clock::get()?.unix_timestamp,
-                // });
-            }
-
-            VaultAction::Withdraw => {
-                // require!(amount > 0, ErrorCode::ZeroAmount);
-                // require!(vault.amount >= amount, ErrorCode::InsufficientVaultBalance);
-
-                let cpi_accounts = TransferChecked {
-                    from: vault.to_account_info(),
-                    mint: ctx.accounts.mint.to_account_info(),
-                    to: ctx.accounts.payer_token_account.to_account_info(),
-                    authority: subscription.to_account_info(),
-                };
-
-                let cpi_ctx = CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    cpi_accounts,
-                    signer_seeds,
-                );
-
-                transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
-
-                // UPDATE prefunded_amount
-                subscription.prefunded_amount = subscription
-                    .prefunded_amount
-                    .checked_sub(amount)
-                    .ok_or(ErrorCode::NumericalOverflow)?;
-
-                // emit!(VaultWithdrawn {
-                //     subscription: subscription.key(),
-                //     amount,
-                //     new_balance: subscription.prefunded_amount,
-                //     timestamp: Clock::get()?.unix_timestamp,
-                // });
-            }
-        }
-
-        Ok(())
-    }
 
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         let clock = Clock::get()?;
@@ -348,9 +253,6 @@ pub mod recurring_payments {
             }
             (SubscriptionField::Active, UpdateValue::Bool(b)) => {
                 subscription.active = b;
-            }
-            (SubscriptionField::Duration, UpdateValue::U64(n)) => {
-                subscription.duration = n as i64;
             }
             (SubscriptionField::Tier, UpdateValue::String(s)) => {
                 subscription.tier_name = s;
