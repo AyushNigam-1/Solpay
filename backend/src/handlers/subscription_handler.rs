@@ -4,119 +4,172 @@ use anyhow::Result;
 use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
+    response::IntoResponse,
 };
-use serde::Deserialize;
 use serde_json::json;
 
 pub async fn create_subscription(
     Extension(state): Extension<AppState>,
-    Path(address): Path<String>,
-    Json(new_escrow): Json<Subscription>,
-) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
-    println!(
-        "📩 Incoming request to create escrow for address: {}",
-        address
-    );
-    println!("🧾 New escrow data received: {:?}", new_escrow);
-    println!("🔍 Fetching existing escrows for user: {}", address);
-    let existing: Result<(sqlx::types::Json<Vec<Subscription>>,), sqlx::Error> =
-        sqlx::query_as(r#"SELECT subscriptions FROM users2 WHERE address = $1"#)
-            .bind(&address)
-            .fetch_one(&state.db)
-            .await;
+    // Path(address): Path<String>,
+    Json(payload): Json<Subscription>,
+) -> impl IntoResponse {
+    // println!("📩 Creating subscription for user: {}", address);
+    println!("🧾 Subscription data: {:?}", payload);
 
-    let mut escrows = match existing {
-        Ok((sqlx::types::Json(current),)) => {
-            println!("✅ Found existing escrows: {:?}", current);
-            current
-        }
-        Err(sqlx::Error::RowNotFound) => {
-            eprintln!("⚠️ User not found for address: {}", address);
-            return Err(StatusCode::NOT_FOUND);
-        }
-        Err(e) => {
-            eprintln!(
-                "❌ Failed to fetch existing escrows for {}: {:?}",
-                address, e
-            );
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    // Optional: Verify user exists (thanks to FK, it will fail anyway if not)
+    // let user_exists: Result<(i32,), sqlx::Error> =
+    //     sqlx::query_as("SELECT 1 FROM users2 WHERE address = $1")
+    //         .bind(&address)
+    //         .fetch_optional(&state.db)
+    //         .await;
 
-    // Step 2: Push new escrow into the array
-    println!("➕ Adding new escrow to user {}’s escrow list", address);
-    escrows.push(new_escrow);
+    // match user_exists {
+    //     Ok(Some(_)) => {} // user exists
+    //     Ok(None) => {
+    //         eprintln!("⚠️ User not found: {}", address);
+    //         return (StatusCode::NOT_FOUND, "User not found").into_response();
+    //     }
+    //     Err(e) => {
+    //         eprintln!("Database error checking user: {:?}", e);
+    //         return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
+    //     }
+    // }
 
-    // Step 3: Update the record
-    println!("💾 Updating user {}’s escrows in the database…", address);
-    let res = sqlx::query!(
-        r#"UPDATE users2 SET subscriptions = $1 WHERE address = $2"#,
-        sqlx::types::Json(&escrows) as _,
-        address
+    // Insert new subscription
+    let result = sqlx::query!(
+        r#"
+        INSERT INTO subscriptions (
+            payer,
+            tier_name,
+            plan_pda,
+            next_payment_ts,
+            auto_renew,
+            active,
+            unique_seed,
+            bump,
+            subscription_pda
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        "#,
+        payload.payer,
+        payload.tier_name,
+        payload.plan_pda,
+        payload.next_payment_ts,
+        payload.auto_renew,
+        payload.active,
+        &payload.unique_seed,
+        payload.bump as i16,
+        payload.subscription
     )
     .execute(&state.db)
     .await;
 
-    match res {
+    match result {
         Ok(_) => {
-            println!("✅ Escrow successfully added for user {}", address);
-            Ok((
-                StatusCode::OK,
-                Json(json!({"message": "Escrow added successfully"})),
-            ))
+            // println!("✅ Subscription created successfully for {}", address);
+            (
+                StatusCode::CREATED,
+                Json(serde_json::json!({
+                    "message": "Subscription created successfully",
+                    "subscription_pda": payload.subscription
+                })),
+            )
+                .into_response()
+        }
+        Err(sqlx::Error::Database(db_err))
+            if db_err.constraint() == Some("subscriptions_pkey")
+                || db_err.constraint() == Some("subscriptions_subscription_pda_key") =>
+        {
+            eprintln!("Duplicate subscription PDA: {}", payload.subscription);
+            (
+                StatusCode::CONFLICT,
+                Json(serde_json::json!({ "error": "Subscription already exists" })),
+            )
+                .into_response()
         }
         Err(e) => {
-            eprintln!("❌ Failed to update escrows for {}: {:?}", address, e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            eprintln!("Failed to create subscription: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": "Failed to create subscription" })),
+            )
+                .into_response()
         }
     }
 }
+use serde::Deserialize;
 
-// pub async fn update_escrow(
-//     Extension(state): Extension<AppState>,
-//     Path(address): Path<String>,
-//     Json(updated_escrow): Json<UpdatedEscrow>,
-// ) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
-//     println!("Updating escrow");
-//     let existing: Result<(sqlx::types::Json<Vec<Subscription>>,), sqlx::Error> =
-//         sqlx::query_as(r#"SELECT escrows FROM users WHERE address = $1"#)
-//             .bind(&address)
-//             .fetch_one(&state.db)
-//             .await;
-//     println!("found escrows");
-//     let mut escrows = match existing {
-//         Ok((sqlx::types::Json(current),)) => current,
-//         Err(sqlx::Error::RowNotFound) => return Err(StatusCode::NOT_FOUND),
-//         Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-//     };
-//     if let Some(escrow) = escrows
-//         .iter_mut()
-//         .find(|e| e.public_key == updated_escrow.escrow_pda)
-//     {
-//         escrow.status = updated_escrow.status.clone();
-//     } else {
-//         eprintln!("❌ Escrow not found for PDA: {}", updated_escrow.escrow_pda);
-//         return Err(StatusCode::NOT_FOUND);
-//     }
-//     let res = sqlx::query!(
-//         r#"UPDATE users SET escrows = $1 WHERE address = $2"#,
-//         sqlx::types::Json(&escrows) as _,
-//         address
-//     )
-//     .execute(&state.db)
-//     .await;
+#[derive(Deserialize)]
+pub struct UpdateSubscriptionField {
+    pub field: String,
+    pub value: bool,
+}
+pub async fn update_subscription(
+    Extension(state): Extension<AppState>,
+    Path(subscription_pda): Path<String>,
+    Json(payload): Json<UpdateSubscriptionField>,
+) -> impl IntoResponse {
+    println!(
+        "✏️ Updating subscription {}: {} = {}",
+        subscription_pda, payload.field, payload.value
+    );
 
-//     match res {
-//         Ok(_) => Ok((
-//             StatusCode::OK,
-//             Json(json!({"message": "Escrow status updated successfully"})),
-//         )),
-//         Err(e) => {
-//             eprintln!("❌ Failed to update escrow: {:?}", e);
-//             Err(StatusCode::INTERNAL_SERVER_ERROR)
-//         }
-//     }
-// }
+    let result = match payload.field.as_str() {
+        "active" => {
+            sqlx::query!(
+                r#"
+                UPDATE subscriptions
+                SET active = $1
+                WHERE subscription_pda = $2
+                "#,
+                payload.value,
+                subscription_pda
+            )
+            .execute(&state.db)
+            .await
+        }
+        "auto_renew" => {
+            sqlx::query!(
+                r#"
+                UPDATE subscriptions
+                SET auto_renew = $1
+                WHERE subscription_pda = $2
+                "#,
+                payload.value,
+                subscription_pda
+            )
+            .execute(&state.db)
+            .await
+        }
+        _ => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": "Invalid field name" })),
+            )
+                .into_response();
+        }
+    };
+
+    match result {
+        Ok(res) if res.rows_affected() == 0 => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Subscription not found" })),
+        )
+            .into_response(),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(json!({ "message": "Subscription updated successfully" })),
+        )
+            .into_response(),
+        Err(e) => {
+            eprintln!("Failed to update subscription: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to update subscription" })),
+            )
+                .into_response()
+        }
+    }
+}
 
 pub async fn get_subscriptions(
     Extension(state): Extension<AppState>,
@@ -152,88 +205,41 @@ pub async fn get_subscriptions(
         }
     }
 }
-#[derive(Deserialize)]
-pub struct DeleteSubscriptionRequest {
-    pub subscription_pda: String,
-}
+
 pub async fn delete_subscription(
     Extension(state): Extension<AppState>,
-    Path(address): Path<String>, // Only address in path
-    Json(payload): Json<DeleteSubscriptionRequest>,
-) -> Result<(StatusCode, Json<serde_json::Value>), StatusCode> {
-    println!(
-        "🗑️ Incoming request to delete escrow for address: {}",
-        address
-    );
-    println!(
-        "🗝️ Deleting escrow with unique_seed: {}",
-        payload.subscription_pda
-    );
+    Path(subscription_pda): Path<String>,
+) -> impl IntoResponse {
+    println!("🗑️ Deleting subscription: {}", subscription_pda);
 
-    // Step 1: Fetch existing escrows
-    let existing: Result<(sqlx::types::Json<Vec<Subscription>>,), sqlx::Error> =
-        sqlx::query_as(r#"SELECT subscriptions FROM users2 WHERE address = $1"#)
-            .bind(&address)
-            .fetch_one(&state.db)
-            .await;
-
-    let mut escrows = match existing {
-        Ok((sqlx::types::Json(current),)) => {
-            println!("✅ Found {} existing escrows.", current.len());
-            current
-        }
-        Err(sqlx::Error::RowNotFound) => {
-            eprintln!("⚠️ User not found for address: {}", address);
-            return Err(StatusCode::NOT_FOUND);
-        }
-        Err(e) => {
-            eprintln!(
-                "❌ Failed to fetch existing escrows for {}: {:?}",
-                address, e
-            );
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-
-    // Step 2: Find and filter out the escrow to delete
-    let initial_count = escrows.len();
-
-    escrows.retain(|e| e.subscription != payload.subscription_pda);
-
-    if escrows.len() == initial_count {
-        // If the length didn't change, the escrow wasn't found.
-        println!(
-            "⚠️ Escrow with unique_seed {} not found in list.",
-            payload.subscription_pda
-        );
-        return Err(StatusCode::NOT_FOUND);
-    }
-    println!("➖ Removed 1 escrow. New count: {}", escrows.len());
-
-    // Step 3: Update the record with the filtered array
-    println!("💾 Updating user {}’s escrows in the database…", address);
-    let res = sqlx::query!(
-        r#"UPDATE users2 SET subscriptions = $1 WHERE address = $2"#,
-        sqlx::types::Json(&escrows) as _,
-        address
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM subscriptions
+        WHERE subscription_pda = $1
+        "#,
+        subscription_pda
     )
     .execute(&state.db)
     .await;
 
-    match res {
-        Ok(_) => {
-            println!("✅ Escrow successfully deleted for user {}", address);
-            Ok((
-                StatusCode::OK,
-                Json(json!({"message": "Escrow deleted successfully"})),
-            ))
-        }
+    match result {
+        Ok(res) if res.rows_affected() == 0 => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Subscription not found" })),
+        )
+            .into_response(),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(json!({ "message": "Subscription deleted successfully" })),
+        )
+            .into_response(),
         Err(e) => {
-            eprintln!(
-                "❌ Failed to update escrows after deletion for {}: {:?}",
-                address, e
-            );
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            eprintln!("Failed to delete subscription: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to delete subscription" })),
+            )
+                .into_response()
         }
     }
 }

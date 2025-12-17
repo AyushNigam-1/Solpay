@@ -37,12 +37,17 @@ export interface Subscription {
 }
 
 export interface UpdateParams {
-    address: string;
     account?: Subscription,
-    action: string
 }
 
-export type UpdateField = "autoRenew" | "active" | "duration" | "tier";
+export type UpdateField = "auto_renew" | "active" | "tier";
+
+export type UpdateSubscriptionParams = {
+    subscriptionPDA: string;
+    field: UpdateField;
+    value: boolean | string;
+};
+
 
 export interface UserTokenAccount {
     tokenAddress: string; // The address of the Token Account (not the mint)

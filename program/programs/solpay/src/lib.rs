@@ -3,11 +3,10 @@ pub mod errors;
 pub mod events;
 pub mod states;
 use crate::errors::ErrorCode;
-use crate::{constants::*, events::*, states::*};
+use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
-use anchor_spl::token_interface::{close_account, transfer_checked, CloseAccount, TransferChecked};
-// Program id - replace with your actual program id from Anchor.toml / `anchor build`
+
 declare_id!("7rX2hvG7Eq2XFAv5WfviYgeyjd2tKoFd4b9i4Ty9ThdS");
 
 #[program]
@@ -40,11 +39,8 @@ pub mod recurring_payments {
         subscription.tier_name = tier_name.clone();
         subscription.plan_pda = plan_pda.clone();
         subscription.payer = ctx.accounts.payer.key();
-        subscription.mint = ctx.accounts.mint.key();
         subscription.auto_renew = auto_renew;
         subscription.active = true;
-        subscription.payer_token_account = ctx.accounts.payer_token_account.key();
-        subscription.vault_token_account = ctx.accounts.vault_token_account.key();
         subscription.bump = ctx.bumps.subscription;
         subscription.next_payment_ts = next_payment_ts;
         subscription.unique_seed = unique_seed; // ← FIXED: Save unique seed
@@ -60,11 +56,8 @@ pub mod recurring_payments {
             tier_name: tier_name.to_string(),
             plan_pda: plan_pda.to_string(),
             payer: ctx.accounts.payer.key(),
-            mint: ctx.accounts.mint.key(),
             auto_renew: auto_renew,
             active: true,
-            payer_token_account: ctx.accounts.payer_token_account.key(),
-            vault_token_account: ctx.accounts.vault_token_account.key(),
             bump: ctx.bumps.subscription,
             next_payment_ts: next_payment_ts,
             unique_seed: unique_seed,
@@ -148,57 +141,6 @@ pub mod recurring_payments {
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         let clock = Clock::get()?;
         let subscription = &mut ctx.accounts.subscription;
-
-        require_keys_eq!(
-            subscription.payer,
-            *ctx.accounts.payer.key,
-            ErrorCode::Unauthorized
-        );
-
-        // --- PDA Signer Seeds ---
-        let seeds = &[
-            SUBSCRIPTION_SEED,
-            subscription.payer.as_ref(),
-            subscription.unique_seed.as_ref(),
-            &[subscription.bump],
-        ];
-        let signer_seeds = &[&seeds[..]];
-
-        let vault_amount = ctx.accounts.vault_token_account.amount;
-
-        // --- Refund remaining funds ---
-        if vault_amount > 0 {
-            let cpi_accounts = TransferChecked {
-                from: ctx.accounts.vault_token_account.to_account_info(),
-                mint: ctx.accounts.mint.to_account_info(),
-                to: ctx.accounts.payer_token_account.to_account_info(),
-                authority: subscription.to_account_info(),
-            };
-
-            let cpi_ctx = CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                cpi_accounts,
-                signer_seeds,
-            );
-
-            transfer_checked(cpi_ctx, vault_amount, ctx.accounts.mint.decimals)?;
-        }
-
-        // --- Close Vault ---
-        let cpi_close = CloseAccount {
-            account: ctx.accounts.vault_token_account.to_account_info(),
-            destination: ctx.accounts.payer.to_account_info(),
-            authority: subscription.to_account_info(),
-        };
-
-        let cpi_ctx_close = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            cpi_close,
-            signer_seeds,
-        );
-
-        close_account(cpi_ctx_close)?;
-
         // --- Update stats ---
         let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = stats
@@ -213,7 +155,6 @@ pub mod recurring_payments {
             timestamp: clock.unix_timestamp,
         });
 
-        // PDA is auto-closed due to `close = payer` in account constraints
         Ok(())
     }
 

@@ -100,6 +100,7 @@ export const useProgramActions = () => {
     }
 
     async function fetchUserSubscriptions() {
+        console.log("fetching")
         // console.log(`\nAttempting to fetch subscriptions for Payer: ${payerKey.toBase58()}`);
         const payerKey = new PublicKey(Cookies.get("user")!)
         const filters = [
@@ -116,9 +117,10 @@ export const useProgramActions = () => {
                 },
             }
         ];
-
+        console.log("sub fetch")
         try {
             const subscriptions = await (program!.account as any).subscription.all();
+            console.log(subscriptions)
             if (subscriptions.length === 0) {
                 console.log("✅ No active or inactive subscriptions found for this user.");
                 return;
@@ -140,7 +142,6 @@ export const useProgramActions = () => {
         tier: String,                    // ← Plan PDA (not name)
         plan: PublicKey,                      // ← "Premium", "Basic"
         payerKey: PublicKey,
-        mintKey: PublicKey,
         periodSeconds: number | string,
         autoRenew: boolean = true,
     ) {
@@ -149,7 +150,6 @@ export const useProgramActions = () => {
             return undefined;
         }
         try {
-            const depositTokenProgramId = await getMintProgramId(mintKey);
             const uniqueSeed = crypto.getRandomValues(new Uint8Array(8));
 
             const [subscriptionPDA] = PublicKey.findProgramAddressSync(
@@ -161,19 +161,6 @@ export const useProgramActions = () => {
                 PROGRAM_ID
             );
 
-            const [vaultPDA] = PublicKey.findProgramAddressSync(
-                [Buffer.from("vault"), subscriptionPDA.toBytes()],
-                PROGRAM_ID
-            );
-
-            const payerATA = getAssociatedTokenAddressSync(
-                mintKey,
-                payerKey,
-                false,
-                depositTokenProgramId
-            );
-
-            // Calculate next payment (now + period)
             const now = Math.floor(Date.now() / 1000);
             const nextPaymentTs = now + Number(periodSeconds);
 
@@ -188,12 +175,8 @@ export const useProgramActions = () => {
                 .accounts({
                     payer: payerKey,
                     subscription: subscriptionPDA,
-                    vaultTokenAccount: vaultPDA,
-                    payerTokenAccount: payerATA,
-                    mint: mintKey,
                     globalStats: getGlobalStatsPDA(PROGRAM_ID),
                     systemProgram: web3.SystemProgram.programId,
-                    tokenProgram: depositTokenProgramId,
                     rent: SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
@@ -305,18 +288,7 @@ export const useProgramActions = () => {
     async function cancelSubscription(
         payerKey: web3.PublicKey,
         uniqueSeed: Buffer,
-        mintAddress: PublicKey,
-        vaultTokenAccount: PublicKey
     ) {
-
-        const tokenProgramId = await getMintProgramId(mintAddress);
-
-        const payerTokenAccount = getAssociatedTokenAddressSync(
-            mintAddress,
-            payerKey,
-            false,
-            tokenProgramId
-        );
 
         const [subscriptionKey] = web3.PublicKey.findProgramAddressSync(
             [
@@ -335,11 +307,7 @@ export const useProgramActions = () => {
                 .accounts({
                     payer: payerKey,
                     subscription: subscriptionKey,
-                    vaultTokenAccount: vaultTokenAccount,
-                    payerTokenAccount: payerTokenAccount,
-                    mint: mintAddress,
                     globalStats: globalStatsPDA,
-                    tokenProgram: tokenProgramId,
                 })
                 .rpc();
             const account = await getEventsFromSignature(txSig, "subscriptionCancelled");

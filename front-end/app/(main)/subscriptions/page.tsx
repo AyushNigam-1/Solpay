@@ -25,7 +25,7 @@ const page = () => {
     // const { publicKey } = useProgram()
     const [plan, setPlan] = useState<Plan>()
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
-    const publicKey = new PublicKey(Cookies.get("user")!)
+    // const publicKey = new PublicKey(Cookies.get("user")!)
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const [popupOpen, setPopupOpen] = useState(false);
     const [popupAction, setPopupAction] = useState<"fund" | "withdraw">("fund");
@@ -43,7 +43,7 @@ const page = () => {
         staleTime: 1000 * 3000,
     });
 
-    // console.log("subscriptions", subscriptions)
+    console.log("subscriptions", subscriptions)
     // const {
     //     data: tokens,
     //     // isLoading,
@@ -127,10 +127,11 @@ const page = () => {
                                         <TableHeaders columns={headers} />
                                         <tbody>
                                             {filteredData!.map((subscription) => {
+                                                const currentTier = subscription.account.planMetadata?.tiers.find((tier) => tier.tierName == subscription.account.tierName)
                                                 return (
                                                     <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscription); setOpenDetails(true) }}>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {subscription.account.planMetadata.name}
+                                                            {subscription.account.planMetadata?.name}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {subscription.account.tierName}
@@ -138,20 +139,20 @@ const page = () => {
                                                         <td className="px-6 py-2">
                                                             <div className="flex items-end gap-2 ">
                                                                 <img
-                                                                    src={subscription.account.planMetadata.tokenImage}
+                                                                    src={subscription.account.planMetadata?.tokenImage}
                                                                     className='w-6 rounded-full object-cover'
-                                                                    alt={`${subscription.account.planMetadata.tokenImage} icon`}
+                                                                    alt={`${subscription.account.planMetadata?.tokenImage} icon`}
                                                                 />
                                                                 <p className="text-xl text-gray-400">
-                                                                    {subscription.account.planMetadata.tokenSymbol}
+                                                                    {subscription.account.planMetadata?.tokenSymbol}
                                                                 </p>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {subscription.account.planMetadata.tiers.find((tier) => tier.tierName == subscription.account.tierName)?.amount}
+                                                            {currentTier?.amount}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(subscription.account.planMetadata.tiers.find((tier) => tier.tierName == subscription.account.tierName)?.periodSeconds)}
+                                                            {formatPeriod(currentTier?.periodSeconds)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}

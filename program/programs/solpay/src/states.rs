@@ -28,7 +28,6 @@ pub struct InitializeGlobalStats<'info> {
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    /// Subscription PDA
     #[account(
         init,
         payer = payer,
@@ -37,40 +36,9 @@ pub struct InitializeSubscription<'info> {
         bump
     )]
     pub subscription: Account<'info, Subscription>,
-
-    /// Vault token account (PDA owned token account)
-    #[account(
-        init,
-        payer = payer,
-        token::mint = mint,
-        token::authority = subscription,
-        token::token_program = token_program,  // ← THIS LINE IS REQUIRED
-        seeds = [VAULT_SEED, subscription.key().as_ref()],
-        bump
-    )]
-    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
-    #[account(
-            mut,
-            token::mint = mint,
-            token::authority = payer,
-        )]
-    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
-    /// Mint for this subscription
-    pub mint:InterfaceAccount<'info, Mint>,
-    /// CHECK: The payee key is only saved for later payment processing. It is not used for direct signing or transfer authority in this instruction.
-    // pub payee: UncheckedAccount<'info>,
-    // #[account(
-    //     mut,
-    //     constraint = payee_token_account.mint == mint.key(),
-    //     constraint = payee_token_account.owner == payee.key(),
-    // )]
-    // pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
-    /// Global stats (singleton)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
-
     pub system_program: Program<'info, System>,
-    pub token_program: Interface<'info, TokenInterface>,
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -103,26 +71,12 @@ pub token_program: Interface<'info, TokenInterface>
 pub struct CancelSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-
     #[account(mut, close = payer, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref(), subscription.unique_seed.as_ref()], bump = subscription.bump)]
     pub subscription: Account<'info, Subscription>,
-
-    /// Vault token account (owned by subscription PDA)
-    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
-
-    /// Mint for the token
-    pub mint: InterfaceAccount<'info, Mint>,
-
-    /// Payer token account (destination for refund)
-    #[account(mut)]
-    pub payer_token_account: InterfaceAccount<'info, TokenAccount>,
-
     /// Global stats (mutable)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
 
-    pub token_program: Interface<'info, TokenInterface>
 }
 
 
@@ -258,9 +212,6 @@ pub struct Subscription {
     #[max_len(32)]   
     pub plan_pda:String,
     #[max_len(300)]
-    pub payer_token_account: Pubkey,
-    pub mint: Pubkey,
-    pub vault_token_account: Pubkey,
     pub next_payment_ts: u64,
     pub auto_renew: bool,
     pub active: bool,

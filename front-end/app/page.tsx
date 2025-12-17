@@ -24,7 +24,7 @@ function App() {
       console.log("User fetched or created:", data);
       Cookies.set("user", data);
       console.log(data)
-      // router.push("/dashboard");
+      router.push("/plans");
     },
     onError: (error) => {
       console.error("Error fetching/creating user:", error);

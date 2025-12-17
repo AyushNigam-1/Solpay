@@ -6,5 +6,5 @@ use sqlx::types::Json;
 #[derive(Debug, Serialize, Deserialize, Clone, FromRow)]
 pub struct User {
     pub address: String,
-    pub subscription: Json<Vec<Subscription>>,
+    pub subscriptions: Json<Vec<Subscription>>,
 }

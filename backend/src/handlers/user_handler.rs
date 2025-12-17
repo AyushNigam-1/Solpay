@@ -1,7 +1,4 @@
-use crate::{
-    models::{subscription::Subscription, user::User},
-    state::AppState,
-};
+use crate::{models::user::User, state::AppState};
 use axum::{
     extract::{Extension, Path},
     http::StatusCode,
@@ -14,13 +11,11 @@ pub async fn create_user(state: &AppState, address: &str) -> Result<String, Stat
         address
     );
 
-    let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users2 (address, subscriptions) VALUES ($1, $2) RETURNING address",
-    )
-    .bind(address)
-    .bind(sqlx::types::Json(Vec::<Subscription>::new()))
-    .fetch_one(&state.db)
-    .await;
+    let user =
+        sqlx::query_as::<_, User>("INSERT INTO users2 (address) VALUES ($1) RETURNING address")
+            .bind(address)
+            .fetch_one(&state.db)
+            .await;
 
     match user {
         Ok(u) => {

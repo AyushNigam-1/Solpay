@@ -1,13 +1,18 @@
 use crate::handlers::subscription_handler::{
-    create_subscription, delete_subscription, get_subscriptions,
+    create_subscription, delete_subscription, get_subscriptions, update_subscription,
 };
-use axum::{Router, routing::get}; // Import your shared state type
+use axum::{
+    Router,
+    routing::{get, post},
+}; // Import your shared state type
 
-pub fn escrow_routes() -> Router {
-    Router::new().route(
-        "/subscriptions/{address}",
-        get(get_subscriptions)
-            .post(create_subscription)
-            .delete(delete_subscription), // .put(update_escrow)
-    )
+pub fn subscription_routes() -> Router {
+    Router::new()
+        .route(
+            "/subscriptions/{subscription_pda}",
+            get(get_subscriptions)
+                .delete(delete_subscription)
+                .patch(update_subscription),
+        )
+        .route("/subscriptions", post(create_subscription))
 }
