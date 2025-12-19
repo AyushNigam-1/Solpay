@@ -6,36 +6,15 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 pub async fn create_subscription(
     Extension(state): Extension<AppState>,
-    // Path(address): Path<String>,
     Json(payload): Json<Subscription>,
 ) -> impl IntoResponse {
-    // println!("📩 Creating subscription for user: {}", address);
     println!("🧾 Subscription data: {:?}", payload);
 
-    // Optional: Verify user exists (thanks to FK, it will fail anyway if not)
-    // let user_exists: Result<(i32,), sqlx::Error> =
-    //     sqlx::query_as("SELECT 1 FROM users2 WHERE address = $1")
-    //         .bind(&address)
-    //         .fetch_optional(&state.db)
-    //         .await;
-
-    // match user_exists {
-    //     Ok(Some(_)) => {} // user exists
-    //     Ok(None) => {
-    //         eprintln!("⚠️ User not found: {}", address);
-    //         return (StatusCode::NOT_FOUND, "User not found").into_response();
-    //     }
-    //     Err(e) => {
-    //         eprintln!("Database error checking user: {:?}", e);
-    //         return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
-    //     }
-    // }
-
-    // Insert new subscription
     let result = sqlx::query!(
         r#"
         INSERT INTO subscriptions (
@@ -96,75 +75,102 @@ pub async fn create_subscription(
         }
     }
 }
-use serde::Deserialize;
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum UpdateValue {
+    Bool(bool),
+    String(String),
+}
 #[derive(Deserialize)]
 pub struct UpdateSubscriptionField {
     pub field: String,
-    pub value: bool,
+    pub value: UpdateValue,
 }
+
 pub async fn update_subscription(
     Extension(state): Extension<AppState>,
     Path(subscription_pda): Path<String>,
     Json(payload): Json<UpdateSubscriptionField>,
 ) -> impl IntoResponse {
-    println!(
-        "✏️ Updating subscription {}: {} = {}",
-        subscription_pda, payload.field, payload.value
-    );
-
+    // Run the query based on field
     let result = match payload.field.as_str() {
-        "active" => {
-            sqlx::query!(
-                r#"
-                UPDATE subscriptions
-                SET active = $1
-                WHERE subscription_pda = $2
-                "#,
-                payload.value,
-                subscription_pda
-            )
-            .execute(&state.db)
-            .await
-        }
         "auto_renew" => {
-            sqlx::query!(
-                r#"
-                UPDATE subscriptions
-                SET auto_renew = $1
-                WHERE subscription_pda = $2
-                "#,
-                payload.value,
-                subscription_pda
-            )
-            .execute(&state.db)
-            .await
+            if let UpdateValue::Bool(b) = payload.value {
+                sqlx::query!(
+                    "UPDATE subscriptions SET auto_renew = $1 WHERE subscription_pda = $2",
+                    b,
+                    &subscription_pda
+                )
+                .execute(&state.db)
+                .await
+            } else {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "Expected boolean for auto_renew"})),
+                )
+                    .into_response();
+            }
+        }
+        "active" => {
+            if let UpdateValue::Bool(b) = payload.value {
+                sqlx::query!(
+                    "UPDATE subscriptions SET active = $1 WHERE subscription_pda = $2",
+                    b,
+                    &subscription_pda
+                )
+                .execute(&state.db)
+                .await
+            } else {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "Expected boolean for active"})),
+                )
+                    .into_response();
+            }
+        }
+        "tier" => {
+            if let UpdateValue::String(s) = payload.value {
+                sqlx::query!(
+                    "UPDATE subscriptions SET tier_name = $1 WHERE subscription_pda = $2",
+                    &s,
+                    &subscription_pda
+                )
+                .execute(&state.db)
+                .await
+            } else {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "Expected string for tier"})),
+                )
+                    .into_response();
+            }
         }
         _ => {
             return (
                 StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "Invalid field name" })),
+                Json(json!({"error": "Invalid field"})),
             )
                 .into_response();
         }
     };
 
+    // Handle DB result
     match result {
         Ok(res) if res.rows_affected() == 0 => (
             StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Subscription not found" })),
+            Json(json!({"error": "Subscription not found"})),
         )
             .into_response(),
         Ok(_) => (
             StatusCode::OK,
-            Json(json!({ "message": "Subscription updated successfully" })),
+            Json(json!({"message": "Subscription updated successfully"})),
         )
             .into_response(),
         Err(e) => {
             eprintln!("Failed to update subscription: {:?}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": "Failed to update subscription" })),
+                Json(json!({"error": "Database error"})),
             )
                 .into_response()
         }

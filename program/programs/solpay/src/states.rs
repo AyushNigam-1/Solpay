@@ -42,30 +42,34 @@ pub struct InitializeSubscription<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-#[derive(Accounts)]
-pub struct ExecutePayment<'info> {
-    /// Subscription account (PDA)
-    #[account(mut, seeds = [SUBSCRIPTION_SEED, subscription.payer.as_ref() ,subscription.unique_seed.as_ref()], bump = subscription.bump)]
-    pub subscription: Account<'info, Subscription>,
+  #[derive(Accounts)]
+    pub struct ExecutePayment<'info> {
+        #[account(mut)]
+        pub subscription: Account<'info, Subscription>,
 
-    /// Vault token account (owned by subscription PDA)
-    #[account(mut, constraint = vault_token_account.owner == subscription.key())]
-    pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+        /// The plan account (loaded via PDA from subscription.plan_pda)
+        #[account(
+        seeds = [b"plan", subscription.plan_pda.as_ref()],
+        bump
+    )]
+        pub plan: Account<'info, PlanAccount>,
 
-    /// Mint for the token
-    pub mint: InterfaceAccount<'info, Mint>,
+        #[account(mut)]
+        pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    /// Payee token account (destination)
-    #[account(mut)]
-    pub payee_token_account: InterfaceAccount<'info, TokenAccount>,
+        #[account(mut)]
+        pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
 
-    /// Global stats (mutable)
-    #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
-    pub global_stats: Account<'info, GlobalStats>,
+        pub mint: InterfaceAccount<'info, Mint>,
 
-    /// Token program
-pub token_program: Interface<'info, TokenInterface>
-}
+        pub token_program: Interface<'info, TokenInterface>,
+
+        pub clock: Sysvar<'info, Clock>,
+        pub system_program: Program<'info, System>,
+
+        // For Tuk Tuk rescheduling
+        pub tuktuk_task_queue: AccountInfo<'info>,
+    }
 
 #[derive(Accounts)]
 pub struct CancelSubscription<'info> {
@@ -148,7 +152,6 @@ pub enum UpdateValue {
 pub enum SubscriptionField {
     AutoRenew,
     Active,
-    Duration,
     Tier
 }
 // --- UPDATE PLAN CONTEXT ---
@@ -210,9 +213,9 @@ pub struct Subscription {
     #[max_len(32)]   
     pub tier_name :String,
     #[max_len(32)]   
-    pub plan_pda:String,
+    pub plan_pda:Pubkey,
     #[max_len(300)]
-    pub next_payment_ts: u64,
+    pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,
     pub bump: u8,

@@ -6,7 +6,12 @@ use crate::errors::ErrorCode;
 use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
+use anchor_lang::solana_program::instruction::AccountMeta;
+use anchor_spl::token_interface::{transfer_checked, TransferChecked};
+use pako::decompress;
 
+pub const TUKTUK_PROGRAM_ID: Pubkey = pubkey!("tuktukUrfhXT6ZT77QTU8RQtvgL967uRuVagWF57zVA");
+const QUEUE_TASK_IX_DISCRIMINATOR: [u8; 8] = [199, 124, 129, 223, 143, 148, 252, 252]; // hash("global:queue_task_v0")
 declare_id!("7rX2hvG7Eq2XFAv5WfviYgeyjd2tKoFd4b9i4Ty9ThdS");
 
 #[program]
@@ -29,9 +34,9 @@ pub mod recurring_payments {
     pub fn initialize_subscription(
         ctx: Context<InitializeSubscription>,
         tier_name: String,
-        plan_pda: String,
+        plan_pda: Pubkey,
         auto_renew: bool,
-        next_payment_ts: u64,
+        next_payment_ts: i64,
         unique_seed: [u8; 8],
     ) -> Result<()> {
         // 2. INITIALIZE SUBSCRIPTION STATE
@@ -44,7 +49,15 @@ pub mod recurring_payments {
         subscription.bump = ctx.bumps.subscription;
         subscription.next_payment_ts = next_payment_ts;
         subscription.unique_seed = unique_seed; // ← FIXED: Save unique seed
-
+                                                // if auto_renew {
+                                                //     queue_renewal_task(
+                                                //         ctx.accounts.tuktuk_task_queue.to_account_info(),
+                                                //         ctx.accounts.subscription.to_account_info(),
+                                                //         ctx.accounts.clock.to_account_info(),
+                                                //         ctx.accounts.system_program.to_account_info(),
+                                                //         next_payment_ts,
+                                                //     )?;
+                                                // }
         let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = stats
             .total_subscriptions
@@ -66,77 +79,81 @@ pub mod recurring_payments {
         Ok(())
     }
 
-    // pub fn execute_payment(ctx: Context<ExecutePayment>) -> Result<()> {
-    //     let clock = Clock::get()?;
-    //     let subscription = &mut ctx.accounts.subscription; // MUTABLE BORROW
+    pub fn execute_payment(ctx: Context<ExecutePayment>) -> Result<()> {
+        let clock = Clock::get()?;
+        let subscription = &mut ctx.accounts.subscription;
 
-    //     require!(subscription.active, ErrorCode::SubscriptionInactive);
-    //     require!(
-    //         clock.unix_timestamp >= subscription.next_payment_ts,
-    //         ErrorCode::PaymentNotDue
-    //     );
+        // --- Guards ---
+        // require!(subscription.active, ErrorCode::SubscriptionInactive);
+        require!(
+            clock.unix_timestamp >= subscription.next_payment_ts,
+            ErrorCode::PaymentNotDue
+        );
 
-    //     // ---- Check Vault Balance ----
-    //     let vault_amount = ctx.accounts.vault_token_account.amount;
-    //     require!(
-    //         vault_amount >= subscription.amount,
-    //         ErrorCode::InsufficientFunds
-    //     );
+        let plan = &ctx.accounts.plan;
 
-    //     // ---- PDA Signer Seeds ----accounts
-    //     let seeds = &[
-    //         SUBSCRIPTION_SEED,
-    //         subscription.payer.as_ref(),
-    //         &[subscription.bump],
-    //     ];
-    //     let signer_seeds = &[&seeds[..]];
+        // --- Decompress tiers (Borsh bytes, NOT JSON) ---
+        let decompressed = decompress(&plan.tiers).map_err(|_| ErrorCode::DecompressionFailed)?;
 
-    //     // ---- CPI TRANSFER ----
-    //     // FIX: Pass the .to_account_info() directly into the struct fields.
-    //     // The authority must be the AccountInfo of the Subscription PDA.
-    //     let cpi_accounts = TransferChecked {
-    //         from: ctx.accounts.vault_token_account.to_account_info(),
-    //         mint: ctx.accounts.mint.to_account_info(),
-    //         to: ctx.accounts.payee_token_account.to_account_info(),
-    //         authority: subscription.to_account_info(), // Use the mutable reference to get the AccountInfo for the CPI
-    //     };
+        // Defensive size cap (prevents DoS via giant blobs)
+        require!(
+            decompressed.len() <= 8_192, // tune this
+            ErrorCode::TierDataTooLarge
+        );
 
-    //     let cpi_program = ctx.accounts.token_program.to_account_info();
+        // --- Deserialize Vec<SubscriptionTier> ---
+        let tiers: Vec<SubscriptionTier> =
+            Vec::try_from_slice(&decompressed).map_err(|_| ErrorCode::TierDeserializationFailed)?;
 
-    //     // The temporary immutable borrow for the CPI is fully contained here.
-    //     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        // --- Find tier (string-based, still allowed but fragile) ---
+        let current_tier = tiers
+            .iter()
+            .find(|tier| tier.tier_name == subscription.tier_name)
+            .ok_or(ErrorCode::TierNotFound)?;
 
-    //     transfer_checked(
-    //         // Assuming 'token' is the correct module
-    //         cpi_ctx,
-    //         subscription.amount,
-    //         ctx.accounts.mint.decimals,
-    //     )?;
-    //     // The CPI is complete, and the immutable borrow is dropped, allowing the mutable borrow to continue.
+        // --- Transfer payment ---
+        let seeds = &[
+            b"subscription",
+            subscription.payer.as_ref(),
+            subscription.unique_seed.as_ref(),
+            &[subscription.bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
 
-    //     // ---- Update next payment timestamp ----
-    //     // MUTABLE BORROW USED AGAIN
-    //     subscription.next_payment_ts = subscription
-    //         .next_payment_ts
-    //         .checked_add(subscription.period_seconds as i64)
-    //         .ok_or(error!(ErrorCode::NumericalOverflow))?;
+        let cpi_accounts = TransferChecked {
+            from: ctx.accounts.vault_token_account.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.receiver_token_account.to_account_info(),
+            authority: ctx.accounts.subscription.to_account_info(),
+        };
 
-    //     // ---- Update global stats ----
-    //     // let stats = &mut ctx.accounts.global_stats;
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            cpi_accounts,
+            signer_seeds,
+        );
 
-    //     // ... (rest of the stats update logic)
-    //     // ---- Emit Event ----
-    //     // emit!(PaymentExecuted {
-    //     //     subscription: subscription.key(),
-    //     //     payer: subscription.payer,
-    //     //     // payee: subscription.payee,
-    //     //     amount: subscription.amount,
-    //     //     next_payment_ts: subscription.next_payment_ts,
-    //     //     timestamp: clock.unix_timestamp,
-    //     // });
+        transfer_checked(cpi_ctx, current_tier.amount, ctx.accounts.mint.decimals)?;
 
-    //     Ok(())
-    // }
+        // --- Advance next payment timestamp ---
+        subscription.next_payment_ts = subscription
+            .next_payment_ts
+            .checked_add(current_tier.period_seconds)
+            .ok_or(ErrorCode::NumericalOverflow)?;
+
+        // --- Re-queue task if auto-renew ---
+        if subscription.auto_renew {
+            queue_renewal_task(
+                ctx.accounts.tuktuk_task_queue.to_account_info(),
+                ctx.accounts.subscription.to_account_info(),
+                ctx.accounts.clock.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+                subscription.next_payment_ts,
+            )?;
+        }
+
+        Ok(())
+    }
 
     pub fn cancel_subscription(ctx: Context<CancelSubscription>) -> Result<()> {
         let clock = Clock::get()?;
@@ -200,6 +217,52 @@ pub mod recurring_payments {
             }
             _ => return Err(ErrorCode::InvalidFieldValue.into()),
         }
+        Ok(())
+    }
+
+    pub fn schedule_my_task(
+        ctx: Context<ScheduleTask>,
+        trigger_ts: i64,
+        description: String,
+    ) -> Result<()> {
+        // Build trigger
+        let trigger = tuktuk_program::TriggerV0::Timestamp(trigger_ts);
+
+        // Build the instruction array of the transaction you want Tuktuk to run later
+        let ix = anchor_lang::solana_program::instruction::Instruction {
+            program_id: ctx.accounts.target_program.key(),
+            accounts: vec![
+                // e.g., the accounts your target ix needs
+                AccountMeta::new_readonly(ctx.accounts.target_account.key(), false),
+            ],
+            data: ctx.accounts.target_data.clone(),
+        };
+        let compiled = tuktuk_program::CompiledInstructionV0 {
+            program_id_index: 0, // index into the transaction accounts
+            accounts: vec![],
+            data: ix.data.clone(),
+        };
+        let transaction = tuktuk_program::CompiledTransactionV0 {
+            num_rw_signers: 0,
+            num_ro_signers: 0,
+            num_rw: 1,
+            accounts: vec![ctx.accounts.target_program.key()],
+            instructions: vec![compiled],
+            signer_seeds: vec![],
+        };
+
+        // Call Tuktuk CPI
+        let cpi_program = ctx.accounts.tuktuk_program.to_account_info();
+        let cpi_accounts = QueueTaskV0 {
+            task_queue: ctx.accounts.task_queue.to_account_info(),
+            task_queue_authority: ctx.accounts.queue_authority.to_account_info(),
+            queue_authority: ctx.accounts.authority.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        cpi::queue_task_v0(cpi_ctx, trigger, transaction, description)?;
+
         Ok(())
     }
 }
