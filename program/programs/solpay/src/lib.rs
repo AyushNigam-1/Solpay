@@ -95,12 +95,6 @@ pub mod recurring_payments {
         // --- Decompress tiers (Borsh bytes, NOT JSON) ---
         let decompressed = decompress(&plan.tiers).map_err(|_| ErrorCode::DecompressionFailed)?;
 
-        // Defensive size cap (prevents DoS via giant blobs)
-        require!(
-            decompressed.len() <= 8_192, // tune this
-            ErrorCode::TierDataTooLarge
-        );
-
         // --- Deserialize Vec<SubscriptionTier> ---
         let tiers: Vec<SubscriptionTier> =
             Vec::try_from_slice(&decompressed).map_err(|_| ErrorCode::TierDeserializationFailed)?;
@@ -250,7 +244,6 @@ pub mod recurring_payments {
             instructions: vec![compiled],
             signer_seeds: vec![],
         };
-
         // Call Tuktuk CPI
         let cpi_program = ctx.accounts.tuktuk_program.to_account_info();
         let cpi_accounts = QueueTaskV0 {
