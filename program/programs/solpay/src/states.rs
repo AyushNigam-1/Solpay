@@ -3,8 +3,11 @@ use crate::constants::*;
 use anchor_spl::token_interface::{
     Mint, TokenAccount, TokenInterface,
 };
+
 use crate::errors::ErrorCode;
 use anchor_spl::associated_token::AssociatedToken; 
+// use tuktuk::program::Tuktuk;
+// use tuktuk::state::TaskQueueV0;
 
 #[derive(Accounts)]
 pub struct InitializeGlobalStats<'info> {
@@ -23,6 +26,8 @@ pub struct InitializeGlobalStats<'info> {
     pub system_program: Program<'info, System>,
 }
 
+
+
 #[derive(Accounts)]
 #[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
@@ -36,40 +41,38 @@ pub struct InitializeSubscription<'info> {
         bump
     )]
     pub subscription: Account<'info, Subscription>,
+    #[account(mut)]
+    pub tuktuk_task_queue: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub tuktuk_task: UncheckedAccount<'info>,
+    pub tuktuk_program: UncheckedAccount<'info>,
+    pub clock: Sysvar<'info, Clock>,
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
-  #[derive(Accounts)]
-    pub struct ExecutePayment<'info> {
-        #[account(mut)]
-        pub subscription: Account<'info, Subscription>,
+#[derive(Accounts)]
+pub struct ExecutePayment<'info> {
+    #[account(mut)]
+    pub subscription: Account<'info, Subscription>,
 
-        /// The plan account (loaded via PDA from subscription.plan_pda)
-        #[account(
-        seeds = [b"plan", subscription.plan_pda.as_ref()],
-        bump
-    )]
-        pub plan: Account<'info, PlanAccount>,
+    pub plan: Account<'info, Plan>,
 
-        #[account(mut)]
-        pub vault_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: user-owned token account (SPL or Token-2022)
+    #[account(mut)]
+    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
 
-        #[account(mut)]
-        pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: merchant receiver
+    #[account(mut)]
+    pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
 
-        pub mint: InterfaceAccount<'info, Mint>,
+    pub mint: InterfaceAccount<'info, Mint>,
 
-        pub token_program: Interface<'info, TokenInterface>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
 
-        pub clock: Sysvar<'info, Clock>,
-        pub system_program: Program<'info, System>,
-
-        // For Tuk Tuk rescheduling
-        pub tuktuk_task_queue: AccountInfo<'info>,
-    }
 
 #[derive(Accounts)]
 pub struct CancelSubscription<'info> {
@@ -103,11 +106,11 @@ pub struct CreatePlan<'info> {
     #[account(
         init,
         payer = creator,
-        space = 8 + PlanAccount::INIT_SPACE,
+        space = 8 + Plan::INIT_SPACE,
         seeds = [b"plan", creator.key().as_ref()],
         bump
     )]
-    pub plan: Account<'info, PlanAccount>,
+    pub plan: Account<'info, Plan>,
     pub mint: InterfaceAccount<'info, Mint>,
     /// CHECK: This is safe — used only to derive receiver's ATA. No signing, no ownership checks needed.
     pub receiver: AccountInfo<'info>,
@@ -138,7 +141,7 @@ pub struct CancelPlan<'info> {
         bump = plan.bump,
         has_one = creator @ ErrorCode::Unauthorized,
     )]
-    pub plan: Account<'info, PlanAccount>,
+    pub plan: Account<'info, Plan>,
 
 }
 
@@ -167,13 +170,13 @@ pub struct UpdatePlan<'info> {
         bump = plan.bump,
         has_one = creator @ ErrorCode::Unauthorized,
     )]
-    pub plan: Account<'info, PlanAccount>,
+    pub plan: Account<'info, Plan>,
 }
 
 
 #[account]
 #[derive(InitSpace)]
-pub struct PlanAccount {
+pub struct Plan {
     pub creator: Pubkey,
     pub token:Pubkey,
     pub mint: Pubkey,
