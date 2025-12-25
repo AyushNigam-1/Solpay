@@ -3,11 +3,7 @@ use crate::constants::*;
 use anchor_spl::token_interface::{
     Mint, TokenAccount, TokenInterface,
 };
-
 use crate::errors::ErrorCode;
-use anchor_spl::associated_token::AssociatedToken; 
-// use tuktuk::program::Tuktuk;
-// use tuktuk::state::TaskQueueV0;
 
 #[derive(Accounts)]
 pub struct InitializeGlobalStats<'info> {
@@ -27,9 +23,8 @@ pub struct InitializeGlobalStats<'info> {
 }
 
 
-
 #[derive(Accounts)]
-#[instruction(tier_name:String,plan_pda:String , period_seconds: i64, auto_renew: bool, unique_seed: [u8; 8])]
+#[instruction(tier_name:String,plan_pda:Pubkey , period_seconds: i64,amount:u64, auto_renew: bool, unique_seed: [u8; 8])]
 pub struct InitializeSubscription<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -41,17 +36,12 @@ pub struct InitializeSubscription<'info> {
         bump
     )]
     pub subscription: Account<'info, Subscription>,
-    #[account(mut)]
-    pub tuktuk_task_queue: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub tuktuk_task: UncheckedAccount<'info>,
-    pub tuktuk_program: UncheckedAccount<'info>,
-    pub clock: Sysvar<'info, Clock>,
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
+
 
 #[derive(Accounts)]
 pub struct ExecutePayment<'info> {
@@ -100,32 +90,28 @@ pub struct UpdateSubscriptionStatus<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(name: String)]
 pub struct CreatePlan<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
+
     #[account(
         init,
         payer = creator,
         space = 8 + Plan::INIT_SPACE,
-        seeds = [b"plan", creator.key().as_ref()],
+        seeds = [
+            b"plan",
+            creator.key().as_ref(),
+        ],
         bump
     )]
     pub plan: Account<'info, Plan>,
+
     pub mint: InterfaceAccount<'info, Mint>,
-    /// CHECK: This is safe — used only to derive receiver's ATA. No signing, no ownership checks needed.
-    pub receiver: AccountInfo<'info>,
-    pub token_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
-    #[account(
-        init_if_needed,
-        payer = creator,
-        associated_token::mint = mint,
-        associated_token::authority = receiver,
-        associated_token::token_program = token_program,
-    )]
-    pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    pub receiver: SystemAccount<'info>, // ✅ SAFE
+
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
@@ -178,19 +164,24 @@ pub struct UpdatePlan<'info> {
 #[derive(InitSpace)]
 pub struct Plan {
     pub creator: Pubkey,
-    pub token:Pubkey,
     pub mint: Pubkey,
+    pub receiver: Pubkey,
+
     #[max_len(64)]
-    pub name: String,  // e.g., "Spotify Premium Pack"
-    pub receiver :Pubkey,
+    pub name: String,
+
     #[max_len(10)]
-    pub token_symbol : String,
+    pub token_symbol: String,
+
     #[max_len(100)]
-    pub token_image : String,
-    #[max_len(1000)] 
-    pub tiers: Vec<u8>,// Array of plans
+    pub token_image: String,
+
+    #[max_len(1000)]
+    pub tiers: Vec<u8>,
+
     pub bump: u8,
 }
+
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 #[derive(InitSpace)]
@@ -223,6 +214,8 @@ pub struct Subscription {
     pub active: bool,
     pub bump: u8,
     pub unique_seed: [u8; 8],
+     pub amount: u64,          // 🔒 locked price
+    pub period_seconds: i64,
 }
 
 #[account]

@@ -7,15 +7,11 @@ use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
 use anchor_spl::token_interface::{transfer_checked, TransferChecked};
-// use pako::decompress;
 
-pub const TUKTUK_PROGRAM_ID: Pubkey = pubkey!("tuktukUrfhXT6ZT77QTU8RQtvgL967uRuVagWF57zVA");
-const QUEUE_TASK_IX_DISCRIMINATOR: [u8; 8] = [199, 124, 129, 223, 143, 148, 252, 252]; // hash("global:queue_task_v0")
-declare_id!("7rX2hvG7Eq2XFAv5WfviYgeyjd2tKoFd4b9i4Ty9ThdS");
+declare_id!("DUNyVxYZBG7YvU5Nsbci75stbBnjBtBjjibH6FtVPFaL");
 
 #[program]
 pub mod recurring_payments {
-    use snap::raw::decompress_len;
 
     use super::*;
     pub fn initialize_global_stats(ctx: Context<InitializeGlobalStats>) -> Result<()> {
@@ -36,8 +32,9 @@ pub mod recurring_payments {
         ctx: Context<InitializeSubscription>,
         tier_name: String,
         plan_pda: Pubkey,
+        period_seconds: i64,
+        amount: u64,
         auto_renew: bool,
-        next_payment_ts: i64,
         unique_seed: [u8; 8],
     ) -> Result<()> {
         // 2. INITIALIZE SUBSCRIPTION STATE
@@ -48,8 +45,9 @@ pub mod recurring_payments {
         subscription.auto_renew = auto_renew;
         subscription.active = true;
         subscription.bump = ctx.bumps.subscription;
-        subscription.next_payment_ts = next_payment_ts;
         subscription.unique_seed = unique_seed;
+        subscription.amount = amount;
+        subscription.period_seconds = period_seconds;
         let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = stats
             .total_subscriptions
@@ -64,7 +62,6 @@ pub mod recurring_payments {
             auto_renew: auto_renew,
             active: true,
             bump: ctx.bumps.subscription,
-            next_payment_ts: next_payment_ts,
             unique_seed: unique_seed,
         });
 
@@ -73,43 +70,47 @@ pub mod recurring_payments {
 
     pub fn execute_payment(ctx: Context<ExecutePayment>) -> Result<()> {
         let clock = Clock::get()?;
-        let subscription = &mut ctx.accounts.subscription;
 
-        // --- Guards ---
-        require!(
-            clock.unix_timestamp >= subscription.next_payment_ts,
-            ErrorCode::PaymentNotDue
-        );
-        // require!(subscription.active, ErrorCode::SubscriptionInactive);
+        // ---------------- MUTATION SCOPE ----------------
+        let (amount, _, payer, unique_seed, bump) = {
+            let subscription = &mut ctx.accounts.subscription;
 
-        let plan = &ctx.accounts.plan;
+            require!(
+                clock.unix_timestamp >= subscription.next_payment_ts,
+                ErrorCode::PaymentNotDue
+            );
 
-        // --- Decompress tiers ---
-        let decompressed = decompress(&plan.tiers).map_err(|_| ErrorCode::DecompressionFailed)?;
+            // copy values we need later
+            let amount = subscription.amount;
+            let period_seconds = subscription.period_seconds;
+            let payer = subscription.payer;
+            let unique_seed = subscription.unique_seed;
+            let bump = subscription.bump;
 
-        let tiers: Vec<SubscriptionTier> =
-            Vec::try_from_slice(&decompressed).map_err(|_| ErrorCode::TierDeserializationFailed)?;
+            // update next payment timestamp
+            subscription.next_payment_ts = subscription
+                .next_payment_ts
+                .checked_add(subscription.period_seconds)
+                .ok_or(ErrorCode::NumericalOverflow)?;
 
-        let current_tier = tiers
-            .iter()
-            .find(|tier| tier.tier_name == subscription.tier_name)
-            .ok_or(ErrorCode::TierNotFound)?;
+            (amount, period_seconds, payer, unique_seed, bump)
+        }; // 👈 mutable borrow ENDS HERE
 
-        // --- PDA signer seeds (delegate authority) ---
+        // ---------------- CPI SCOPE ----------------
+
         let seeds = &[
             b"subscription",
-            subscription.payer.as_ref(),
-            subscription.unique_seed.as_ref(),
-            &[subscription.bump],
+            payer.as_ref(),
+            unique_seed.as_ref(),
+            &[bump],
         ];
         let signer_seeds = &[&seeds[..]];
 
-        // --- Transfer from USER token account using allowance ---
         let cpi_accounts = TransferChecked {
-            from: ctx.accounts.user_token_account.to_account_info(), // 👈 USER funds
+            from: ctx.accounts.user_token_account.to_account_info(),
             mint: ctx.accounts.mint.to_account_info(),
             to: ctx.accounts.receiver_token_account.to_account_info(),
-            authority: ctx.accounts.subscription.to_account_info(), // 👈 delegate
+            authority: ctx.accounts.subscription.to_account_info(),
         };
 
         let cpi_ctx = CpiContext::new_with_signer(
@@ -118,13 +119,7 @@ pub mod recurring_payments {
             signer_seeds,
         );
 
-        transfer_checked(cpi_ctx, current_tier.amount, ctx.accounts.mint.decimals)?;
-
-        // --- Advance next payment ---
-        subscription.next_payment_ts = subscription
-            .next_payment_ts
-            .checked_add(current_tier.period_seconds)
-            .ok_or(ErrorCode::NumericalOverflow)?;
+        transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
 
         Ok(())
     }
@@ -157,14 +152,16 @@ pub mod recurring_payments {
         tiers: Vec<u8>,
     ) -> Result<()> {
         let plan = &mut ctx.accounts.plan;
+
         plan.creator = ctx.accounts.creator.key();
         plan.mint = ctx.accounts.mint.key();
         plan.receiver = ctx.accounts.receiver.key();
+        plan.name = name;
         plan.token_symbol = token_symbol;
         plan.token_image = token_image;
-        plan.name = name;
         plan.tiers = tiers;
         plan.bump = ctx.bumps.plan;
+
         Ok(())
     }
 

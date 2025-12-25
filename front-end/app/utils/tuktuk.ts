@@ -4,14 +4,8 @@ import tuktukIdl from "../tuktuk.json";
 import { PublicKey, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
-/* ---------- constants ---------- */
-
-const TUKTUK_PROGRAM_ID = new PublicKey(
-    "tuktukUrfhXT6ZT77QTU8RQtvgL967uRuVagWF57zVA"
-);
-
 const TUKTUK_TASK_QUEUE_PUBKEY = new PublicKey(
-    "PUT_YOUR_TASK_QUEUE_PUBKEY_HERE"
+    "8aNVo2fpoY3XPq2b1MbuC3xVArRLcn7w2Yue8vEPYgu6"
 );
 
 /* ---------- program factory ---------- */
@@ -25,7 +19,7 @@ function getTuktukProgram(provider: AnchorProvider) {
 
 /* ---------- scheduler ---------- */
 
-async function scheduleWithTukTuk(
+export async function scheduleWithTukTuk(
     provider: AnchorProvider,
     executePaymentIx: any,
     executeAtTs: number

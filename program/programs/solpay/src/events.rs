@@ -6,7 +6,6 @@ pub struct SubscriptionInitialized {
     pub payer: Pubkey,
     pub tier_name: String,
     pub plan_pda: String,
-    pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,
     pub bump: u8,

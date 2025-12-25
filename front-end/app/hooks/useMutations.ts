@@ -1,9 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProgramActions } from "./useProgramActions";
 import { PublicKey } from "@solana/web3.js";
-import { Plan, UpdateField, UpdateParams, UpdateSubscriptionParams } from "../types";
-import axios from "axios";
-import Cookies from "js-cookie"
+import { Plan, UpdateField } from "../types";
 import { useDbActions } from "./useDbActions";
 
 export const useMutations = () => {
@@ -48,25 +46,32 @@ export const useMutations = () => {
             planPDA,
             payerKey,
             periodSeconds,
-            autoRenew = true,
+            amount,
+            autoRenew,
+            mint
         }: {
             tier: string;
             planPDA: PublicKey;
             payerKey: PublicKey;
             periodSeconds: number;
+            amount: number;          // 🔒 locked price
             autoRenew?: boolean;
+            mint: PublicKey
         }) => {
-            const subscriptionPDA = await programActions.initializeSubscription(
-                tier,
-                planPDA,
-                payerKey,
-                periodSeconds,
-                autoRenew
+            const subscription = await programActions.initializeSubscription(
+                tier,                   // tier name
+                planPDA,                // plan PDA
+                payerKey,               // user wallet
+                periodSeconds,          // billing period
+                amount,                 // 🔒 locked amount
+                autoRenew,
+                mint             // auto-renew flag
             );
-            if (!subscriptionPDA) {
+            if (!subscription) {
                 throw new Error("Failed to create subscription");
             }
-            return subscriptionPDA;
+            return subscription;
+
         },
 
         onSuccess: ({ subscriptionPDA, account }) => {
@@ -135,7 +140,6 @@ export const useMutations = () => {
         if (!txSig) {
             throw new Error("Update failed");
         }
-
         return txSig;
     }
 

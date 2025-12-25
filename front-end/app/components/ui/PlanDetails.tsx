@@ -270,7 +270,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
 
                                     <button
-                                        onClick={() => type == "new" ? createSubscription.mutate({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, periodSeconds: selectedTier?.periodSeconds, autoRenew }) : managePlan.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer! })}
+                                        onClick={() => type == "new" ? createSubscription.mutate({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, periodSeconds: Number(selectedTier?.periodSeconds), amount: Number(selectedTier?.amount), autoRenew, mint: new PublicKey(processedPlan.mint) }) : managePlan.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer! })}
                                         disabled={!selectedTier || createSubscription.isPending || managePlan.isPending}
                                         className="w-full sm:w-auto flex items-center justify-center gap-2 p-3 rounded-lg font-semibold text-lg transition-all bg-blue-400/70  text-white cursor-pointer disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed disabled:border disabled:border-gray-700"
                                     >

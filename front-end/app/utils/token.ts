@@ -1,7 +1,8 @@
-import { getTokenMetadata, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { createApproveInstruction, getAssociatedTokenAddress, getTokenMetadata, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import axios from "axios";
 import { FullTokenMetadata, UserTokenAccount } from "../types";
+import { Wallet } from "@coral-xyz/anchor";
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
@@ -119,4 +120,54 @@ export async function fetchUserTokenAccounts(
     }
     console.log("inside fetch acc", userAccounts)
     return userAccounts;
+}
+
+export async function approveSubscriptionSpending({
+    connection,
+    wallet,
+    mint,
+    subscriptionPDA,
+    allowanceAmount,
+}: {
+    connection: Connection;
+    wallet: Wallet;
+    mint: PublicKey;
+    subscriptionPDA: PublicKey;
+    allowanceAmount: bigint;
+}) {
+    if (!wallet.publicKey) {
+        throw new Error("Wallet not connected");
+    }
+
+    const userTokenAccount = await getAssociatedTokenAddress(
+        mint,
+        wallet.publicKey,
+        false
+    );
+
+    const approveIx = createApproveInstruction(
+        userTokenAccount,   // source (user funds)
+        subscriptionPDA,    // delegate (program PDA)
+        wallet.publicKey,   // owner
+        allowanceAmount     // total allowance
+    );
+
+    const tx = new Transaction().add(approveIx);
+    tx.feePayer = wallet.publicKey;
+    tx.recentBlockhash = (
+        await connection.getLatestBlockhash()
+    ).blockhash;
+
+    const signedTx = await wallet.signTransaction(tx);
+
+    const txSig = await connection.sendRawTransaction(
+        signedTx.serialize()
+    );
+
+    await connection.confirmTransaction(txSig, "confirmed");
+
+    return {
+        txSig,
+        userTokenAccount,
+    };
 }

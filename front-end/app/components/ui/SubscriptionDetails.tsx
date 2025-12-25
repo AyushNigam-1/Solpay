@@ -294,7 +294,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                             // setAutoRenew()
                                                             manageAutoRenew.mutateAsync({
                                                                 subscriptionPDA: subscription?.publicKey,
-                                                                field: "autoRenew",
+                                                                field: "auto_renew",
                                                                 value: !autoRenew,
                                                                 payerKey: subscription?.account.payer,
                                                             }).then(() => setAutoRenew(!autoRenew))
