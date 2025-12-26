@@ -3,10 +3,12 @@ import { useProgramActions } from "./useProgramActions";
 import { PublicKey } from "@solana/web3.js";
 import { Plan, UpdateField } from "../types";
 import { useDbActions } from "./useDbActions";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { getMintProgramId } from "../utils/token";
 
 export const useMutations = () => {
     const programActions = useProgramActions();
-    const { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb } = useDbActions()
+    const { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription } = useDbActions()
     const queryClient = useQueryClient();
 
     const createPlan = useMutation({
@@ -48,6 +50,7 @@ export const useMutations = () => {
             periodSeconds,
             amount,
             autoRenew,
+            receiver,
             mint
         }: {
             tier: string;
@@ -56,6 +59,8 @@ export const useMutations = () => {
             periodSeconds: number;
             amount: number;          // 🔒 locked price
             autoRenew?: boolean;
+            receiver: PublicKey,
+
             mint: PublicKey
         }) => {
             const subscription = await programActions.initializeSubscription(
@@ -65,7 +70,9 @@ export const useMutations = () => {
                 periodSeconds,          // billing period
                 amount,                 // 🔒 locked amount
                 autoRenew,
-                mint             // auto-renew flag
+                receiver,
+                mint,
+                // auto-renew flag
             );
             if (!subscription) {
                 throw new Error("Failed to create subscription");
@@ -74,10 +81,46 @@ export const useMutations = () => {
 
         },
 
-        onSuccess: ({ subscriptionPDA, account }) => {
+        onSuccess: async ({ subscriptionPDA, account }, { amount, mint, payerKey, periodSeconds, planPDA, receiver, tier, autoRenew }) => {
             // toast.success("Subscription created successfully!");
             console.log("New Subscription PDA:", subscriptionPDA, account);
             createSubscriptionDb.mutate({ account })
+            if (!autoRenew) {
+                console.log("ℹ️ Auto-renew disabled, skipping TukTuk scheduling")
+                return
+            }
+
+            try {
+                const userTokenAccount = await getAssociatedTokenAddress(
+                    mint,
+                    payerKey
+                )
+
+                const receiverTokenAccount = await getAssociatedTokenAddress(
+                    mint,
+                    receiver
+                )
+                const tokenProgram = await getMintProgramId(mint)
+                const executeAtTs =
+                    Math.floor(Date.now() / 1000) + periodSeconds
+
+                console.log("🕒 Scheduling payment at:", executeAtTs)
+
+                await scheduleSubscription({
+                    subscriptionPda: subscriptionPDA,
+                    planPda: planPDA.toBase58(),
+                    userTokenAccount: userTokenAccount.toBase58(),
+                    receiverTokenAccount: receiverTokenAccount.toBase58(),
+                    mint: mint.toBase58(),
+                    tokenProgram: tokenProgram.toBase58(),
+                    executeAtTs,
+                })
+
+                console.log("✅ TukTuk task scheduled successfully")
+            } catch (err) {
+                console.error("❌ Failed to schedule TukTuk task", err)
+                // optional: show toast or mark subscription as "needs retry"
+            }
             // Refetch your subscriptions list
             // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
             // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", payerKey.toBase58()] });
@@ -178,6 +221,7 @@ export const useMutations = () => {
             // toast.error(`Failed to update ${variables.field}: ${error.message || "Unknown error"}`);
         },
     })
+
     const managePlan = useMutation({
         mutationFn: editSubscription,
         onSuccess: (txSig, variables) => {

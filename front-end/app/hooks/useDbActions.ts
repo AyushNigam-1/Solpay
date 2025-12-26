@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { UpdateParams, UpdateSubscriptionParams } from "../types";
+import { ScheduleSubscriptionRequest, ScheduleSubscriptionResponse, UpdateParams, UpdateSubscriptionParams } from "../types";
 import axios from "axios";
 
 export const useDbActions = () => {
@@ -82,5 +82,65 @@ export const useDbActions = () => {
             alert("Failed to remove from database. Check console.");
         },
     });
-    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb }
+
+    async function scheduleSubscription(
+        params: ScheduleSubscriptionRequest
+    ): Promise<ScheduleSubscriptionResponse> {
+        try {
+            const res = await axios.post<ScheduleSubscriptionResponse>(
+                `${API_BASE}/api/schedule-subscription`,
+                {
+                    subscription_pda: params.subscriptionPda,
+                    plan_pda: params.planPda,
+                    user_token_account: params.userTokenAccount,
+                    receiver_token_account: params.receiverTokenAccount,
+                    mint: params.mint,
+                    token_program: params.tokenProgram,
+                    execute_at_ts: params.executeAtTs,
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    timeout: 15_000,
+                }
+            )
+
+            if (!res.data.success) {
+                throw new Error("TukTuk scheduling failed (success=false)")
+            }
+
+            console.log("✅ Task scheduled via TukTuk")
+            console.log("Tx signature:", res.data.tx_signature)
+
+            return res.data
+        } catch (err: any) {
+            // Axios-specific error handling
+            if (axios.isAxiosError(err)) {
+                console.error("❌ Axios error")
+
+                if (err.response) {
+                    console.error("Status:", err.response.status)
+                    console.error("Response:", err.response.data)
+                    throw new Error(
+                        typeof err.response.data === "string"
+                            ? err.response.data
+                            : JSON.stringify(err.response.data)
+                    )
+                }
+
+                if (err.request) {
+                    console.error("❌ No response from backend")
+                    throw new Error("Backend not reachable")
+                }
+
+                throw new Error(err.message)
+            }
+
+            console.error("❌ Unknown error:", err)
+            throw err
+        }
+    }
+
+    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription }
 }

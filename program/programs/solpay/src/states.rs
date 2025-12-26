@@ -206,9 +206,7 @@ pub struct Subscription {
     pub payer: Pubkey,
     #[max_len(32)]   
     pub tier_name :String,
-    #[max_len(32)]   
     pub plan_pda:Pubkey,
-    #[max_len(300)]
     pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,

@@ -1,8 +1,8 @@
-import { createApproveInstruction, getAssociatedTokenAddress, getTokenMetadata, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, createApproveInstruction, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getTokenMetadata, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 import axios from "axios";
 import { FullTokenMetadata, UserTokenAccount } from "../types";
-import { Wallet } from "@coral-xyz/anchor";
+import type { WalletContextState } from "@solana/wallet-adapter-react";
 
 const connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
@@ -122,6 +122,14 @@ export async function fetchUserTokenAccounts(
     return userAccounts;
 }
 
+
+// import {
+//   getAssociatedTokenAddress,
+//   createAssociatedTokenAccountInstruction,
+//   createApproveInstruction,
+//   ASSOCIATED_TOKEN_PROGRAM_ID,
+// } from "@solana/spl-token";
+
 export async function approveSubscriptionSpending({
     connection,
     wallet,
@@ -130,44 +138,68 @@ export async function approveSubscriptionSpending({
     allowanceAmount,
 }: {
     connection: Connection;
-    wallet: Wallet;
+    wallet: WalletContextState;
     mint: PublicKey;
     subscriptionPDA: PublicKey;
     allowanceAmount: bigint;
 }) {
-    if (!wallet.publicKey) {
-        throw new Error("Wallet not connected");
+    if (!wallet.publicKey || !wallet.signTransaction) {
+        throw new Error("Wallet not connected or cannot sign");
     }
 
-    const userTokenAccount = await getAssociatedTokenAddress(
-        mint,
-        wallet.publicKey,
-        false
-    );
+    try {
+        // 🔑 detect correct token program (SPL or Token-2022)
+        const tokenProgramId = await getMintProgramId(mint);
 
-    const approveIx = createApproveInstruction(
-        userTokenAccount,   // source (user funds)
-        subscriptionPDA,    // delegate (program PDA)
-        wallet.publicKey,   // owner
-        allowanceAmount     // total allowance
-    );
+        const userTokenAccount = await getAssociatedTokenAddress(
+            mint,
+            wallet.publicKey,
+            false,
+            tokenProgramId,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+        );
 
-    const tx = new Transaction().add(approveIx);
-    tx.feePayer = wallet.publicKey;
-    tx.recentBlockhash = (
-        await connection.getLatestBlockhash()
-    ).blockhash;
+        const instructions = [];
 
-    const signedTx = await wallet.signTransaction(tx);
+        const ataInfo = await connection.getAccountInfo(userTokenAccount);
 
-    const txSig = await connection.sendRawTransaction(
-        signedTx.serialize()
-    );
+        if (!ataInfo) {
+            instructions.push(
+                createAssociatedTokenAccountInstruction(
+                    wallet.publicKey,
+                    userTokenAccount,
+                    wallet.publicKey,
+                    mint,
+                    tokenProgramId,
+                    ASSOCIATED_TOKEN_PROGRAM_ID
+                )
+            );
+        }
 
-    await connection.confirmTransaction(txSig, "confirmed");
+        instructions.push(
+            createApproveInstruction(
+                userTokenAccount,
+                subscriptionPDA,      // delegate
+                wallet.publicKey,
+                allowanceAmount,
+                [],
+                tokenProgramId        // ✅ THIS fixes your error
+            )
+        );
 
-    return {
-        txSig,
-        userTokenAccount,
-    };
+        const tx = new Transaction().add(...instructions);
+        tx.feePayer = wallet.publicKey;
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+        const signed = await wallet.signTransaction(tx);
+        const sig = await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(sig, "confirmed");
+
+        return { txSig: sig, userTokenAccount };
+    } catch (err: any) {
+        console.error("approveSubscriptionSpending error:", err);
+        throw new Error(err?.message || "Failed to approve subscription spending");
+    }
 }
+
+

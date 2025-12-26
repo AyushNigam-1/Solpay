@@ -1,22 +1,18 @@
 import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
-import { Connection, PublicKey, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
-import Cookies from "js-cookie"
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { approveSubscriptionSpending, fetchTokenMetadata, getMintProgramId } from "../utils/token";
-import { createApproveInstruction, getAssociatedTokenAddress } from "@solana/spl-token";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { PublicKey } from "@solana/web3.js";
+import { approveSubscriptionSpending } from "../utils/token";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { Plan, planQuery } from "../types";
 import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
 import { buildExecutePaymentIx, scheduleWithTukTuk } from "../utils/tuktuk";
-// import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
-
-const ACTIVE_STATUS_OFFSET = 225;
+import { useWallet } from "@solana/wallet-adapter-react";
 
 export const useProgramActions = () => {
-    const { program, getGlobalStatsPDA, PROGRAM_ID, connection, wallet, provider } = useProgram()
+    const wallet = useWallet();
+    const { program, getGlobalStatsPDA, PROGRAM_ID, connection, provider } = useProgram()
 
     async function getEventsFromSignature(
         txSignature: string,
@@ -105,26 +101,9 @@ export const useProgramActions = () => {
 
     async function fetchUserSubscriptions() {
         console.log("fetching")
-        // console.log(`\nAttempting to fetch subscriptions for Payer: ${payerKey.toBase58()}`);
-        const payerKey = new PublicKey(Cookies.get("user")!)
-        const filters = [
-            {
-                memcmp: {
-                    offset: 8,
-                    bytes: payerKey.toBase58(),
-                },
-            },
-            {
-                memcmp: {
-                    offset: ACTIVE_STATUS_OFFSET,
-                    bytes: bs58.encode([1]),
-                },
-            }
-        ];
-        console.log("sub fetch")
         try {
             const subscriptions = await (program!.account as any).subscription.all();
-            console.log(subscriptions)
+            console.log("subscriptions", subscriptions)
             if (subscriptions.length === 0) {
                 console.log("✅ No active or inactive subscriptions found for this user.");
                 return;
@@ -148,6 +127,7 @@ export const useProgramActions = () => {
         periodSeconds: number | string,
         amount: number | string,
         autoRenew: boolean = true,
+        receiver: PublicKey,
         mint: PublicKey,
     ) {
         if (!program || !payerKey) {
@@ -203,19 +183,19 @@ export const useProgramActions = () => {
                     subscriptionPDA,
                     planPda,
                     await getAssociatedTokenAddress(mint, payerKey),
-                    await getAssociatedTokenAddress(mint, /* merchant */),
+                    await getAssociatedTokenAddress(mint, receiver),
                     mint
                 );
 
-                // 6. schedule via TukTuk
-                const executeAtTs =
-                    Math.floor(Date.now() / 1000) + Number(periodSeconds);
+                // // 6. schedule via TukTuk
+                // const executeAtTs =
+                //     Math.floor(Date.now() / 1000) + Number(periodSeconds);
 
-                await scheduleWithTukTuk(
-                    provider!,
-                    executeIx,
-                    executeAtTs
-                );
+                // await scheduleWithTukTuk(
+                //     provider!,
+                //     executeIx,
+                //     executeAtTs
+                // );
             }
             const account = await getEventsFromSignature(
                 txSig,
@@ -365,141 +345,6 @@ export const useProgramActions = () => {
         }
     }
 
-    // async function withdrawRemaining(
-    //     subscriptionPDA: PublicKey,
-    //     payerKey: PublicKey // wallet.publicKey
-    // ): Promise<string | undefined> {
-    //     if (!program || !payerKey) {
-    //         alert("Wallet or program not connected");
-    //         return undefined;
-    //     }
-
-    //     try {
-    //         // 1. Fetch subscription account to get mint + bump
-    //         const subscription = await (program.account as any).subscription.fetch(subscriptionPDA);
-
-    //         // 2. Derive vault PDA (same seeds as in program)
-    //         const [vaultPDA] = PublicKey.findProgramAddressSync(
-    //             [
-    //                 Buffer.from("vault"),
-    //                 subscriptionPDA.toBuffer(),
-    //             ],
-    //             PROGRAM_ID
-    //         );
-
-    //         // 3. Derive payer's ATA for the mint
-    //         const payerTokenAccount = getAssociatedTokenAddressSync(
-    //             subscription.mint,
-    //             payerKey,
-    //             false,
-    //             TOKEN_2022_PROGRAM_ID // or detect if it's Token-2022
-    //         );
-
-    //         // 4. Build and send transaction
-    //         const txSig = await program.methods
-    //             .withdrawRemaining()
-    //             .accounts({
-    //                 payer: payerKey,
-    //                 subscription: subscriptionPDA,
-    //                 vaultTokenAccount: vaultPDA,
-    //                 payerTokenAccount,
-    //                 mint: subscription.mint,
-    //                 tokenProgram: TOKEN_2022_PROGRAM_ID,
-    //             })
-    //             .rpc();
-
-    //         console.log("Remaining funds withdrawn!");
-    //         console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-
-    //         // Optional: refresh UI
-    //         // await refetchSubscriptions();
-
-    //         return txSig;
-    //     } catch (error: any) {
-    //         console.error("Failed to withdraw remaining funds:", error);
-
-    //         // Common user-friendly errors
-    //         if (error.message.includes("SubscriptionActive")) {
-    //             alert("Cannot withdraw — subscription is still active!");
-    //         } else if (error.message.includes("Unauthorized")) {
-    //             alert("Only the original payer can withdraw funds.");
-    //         } else {
-    //             alert("Withdraw failed: " + (error.message || "Unknown error"));
-    //         }
-
-    //         return undefined;
-    //     }
-    // }
-
-    // async function manageVault(
-    //     subscriptionPDA: PublicKey,
-    //     action: "fund" | "withdraw",
-    //     amount: number | string, // raw amount (e.g. 50000000 for 50 USDC)
-    //     payerKey: PublicKey
-    // ): Promise<string | undefined> {
-    //     if (!program || !payerKey) {
-    //         alert("Wallet or program not connected");
-    //         return undefined;
-    //     }
-    //     console.log(subscriptionPDA)
-    //     try {
-    //         // Fetch subscription to get mint
-    //         const subscription = await (program.account as any).subscription.fetch(subscriptionPDA);
-    //         console.log(subscription)
-    //         // // Derive vault PDA
-    //         const [vaultPDA] = PublicKey.findProgramAddressSync(
-    //             [
-    //                 Buffer.from("vault"),
-    //                 subscriptionPDA.toBuffer(),
-    //             ],
-    //             PROGRAM_ID
-    //         );
-
-    //         // Payer's ATA
-    //         const payerATA = getAssociatedTokenAddressSync(
-    //             subscription.mint,
-    //             payerKey,
-    //             false,
-    //             TOKEN_2022_PROGRAM_ID
-    //         );
-
-    //         // Convert amount to BN
-    //         const amountBN = new anchor.BN(amount);
-
-    //         // Build transaction
-    //         const txSig = await program.methods
-    //             .manageVault(
-    //                 action === "fund" ? { fund: {} } : { withdraw: {} },
-    //                 amountBN
-    //             )
-    //             .accounts({
-    //                 payer: payerKey,
-    //                 subscription: subscriptionPDA,
-    //                 vaultTokenAccount: vaultPDA,
-    //                 payerTokenAccount: payerATA,
-    //                 mint: subscription.mint,
-    //                 tokenProgram: TOKEN_2022_PROGRAM_ID,
-    //             })
-    //             .rpc();
-
-    //         console.log(`Vault ${action}ed successfully!`);
-    //         // console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-
-    //         // return txSig;
-    //     } catch (error: any) {
-    //         console.error(`Failed to ${action} vault:`, error);
-
-    //         if (error.message.includes("InsufficientVaultBalance")) {
-    //             alert("Not enough tokens in vault to withdraw");
-    //         } else if (error.message.includes("ZeroAmount")) {
-    //             alert("Amount must be greater than 0");
-    //         } else {
-    //             alert(`Error: ${error.message || "Transaction failed"}`);
-    //         }
-    //         return undefined;
-    //     }
-    // }
-
     async function createPlan(
         creatorKey: PublicKey,
         plan: Plan
@@ -576,6 +421,8 @@ export const useProgramActions = () => {
             return null;
         }
     }
+
+
     return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, updateSubscription }
 }
 

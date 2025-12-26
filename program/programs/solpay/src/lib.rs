@@ -47,6 +47,7 @@ pub mod recurring_payments {
         subscription.bump = ctx.bumps.subscription;
         subscription.unique_seed = unique_seed;
         subscription.amount = amount;
+        subscription.next_payment_ts = Clock::get()?.unix_timestamp + period_seconds;
         subscription.period_seconds = period_seconds;
         let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = stats

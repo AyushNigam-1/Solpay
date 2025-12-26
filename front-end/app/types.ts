@@ -40,7 +40,7 @@ export interface UpdateParams {
     account?: Subscription,
 }
 
-export type UpdateField = "auto_renew" | "active" | "tier";
+export type UpdateField = "autoRenew" | "active" | "tier";
 
 export type UpdateSubscriptionParams = {
     subscriptionPDA: string;
@@ -95,7 +95,20 @@ export interface Tier {
     periodSeconds: number | string | anchor.BN; // Flexible input
     description: string;
 }
+export type ScheduleSubscriptionRequest = {
+    subscriptionPda: string
+    planPda: string
+    userTokenAccount: string
+    receiverTokenAccount: string
+    mint: string
+    tokenProgram: string
+    executeAtTs: number
+}
 
+export type ScheduleSubscriptionResponse = {
+    success: boolean
+    tx_signature: string
+}
 export interface Plan {
     creator?: string,
     receiver: string,
