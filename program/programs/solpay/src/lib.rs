@@ -39,6 +39,7 @@ pub mod recurring_payments {
     ) -> Result<()> {
         // 2. INITIALIZE SUBSCRIPTION STATE
         let subscription = &mut ctx.accounts.subscription;
+        let next_payment_ts = Clock::get()?.unix_timestamp + period_seconds;
         subscription.tier_name = tier_name.clone();
         subscription.plan_pda = plan_pda.clone();
         subscription.payer = ctx.accounts.payer.key();
@@ -47,7 +48,7 @@ pub mod recurring_payments {
         subscription.bump = ctx.bumps.subscription;
         subscription.unique_seed = unique_seed;
         subscription.amount = amount;
-        subscription.next_payment_ts = Clock::get()?.unix_timestamp + period_seconds;
+        subscription.next_payment_ts = next_payment_ts;
         subscription.period_seconds = period_seconds;
         let stats = &mut ctx.accounts.global_stats;
         stats.total_subscriptions = stats
@@ -60,6 +61,7 @@ pub mod recurring_payments {
             tier_name: tier_name.to_string(),
             plan_pda: plan_pda.to_string(),
             payer: ctx.accounts.payer.key(),
+            next_payment_ts: next_payment_ts,
             auto_renew: auto_renew,
             active: true,
             bump: ctx.bumps.subscription,

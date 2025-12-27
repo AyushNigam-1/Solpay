@@ -4,6 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "./components/providers/ReactQueryProvider";
 import { SolanaWalletProvider } from "./components/providers/SolanaWalletProvider";
 
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

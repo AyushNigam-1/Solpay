@@ -1,20 +1,37 @@
-// use crate::models::escrow::Account; // Assuming AppState is defined in models
-use anyhow::anyhow;
+use anchor_lang::prelude::*;
+use flate2::read::ZlibDecoder;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
+    hash::hash,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer, read_keypair_file},
     transaction::Transaction,
 };
+use spl_associated_token_account::get_associated_token_address;
+use std::io::Read;
 use std::str::FromStr;
-use tracing::{error, info};
+use tracing::info;
 
-const CANCEL_IX_DISCRIMINATOR: [u8; 8] = [232, 219, 223, 41, 219, 236, 220, 190];
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+pub struct Plan {
+    pub creator: Pubkey,
+    pub mint: Pubkey,
+    pub receiver: Pubkey,
+    pub name: String,
+    pub token_symbol: String,
+    pub token_image: String,
+    pub tiers: Vec<u8>, // compressed bytes
+    pub bump: u8,
+}
 
-// Assuming the Global Stats PDA seed for the client to find the key
+fn decompress_tiers(data: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let mut decoder = ZlibDecoder::new(data);
+    let mut out = Vec::new();
+    decoder.read_to_end(&mut out)?;
+    Ok(out)
+}
 
-// --- 1. SolanaClient Definition ---
 pub struct SolanaClient {
     pub rpc: RpcClient,
     pub payer: Keypair,
@@ -35,5 +52,84 @@ impl SolanaClient {
             payer,
             program_id,
         }
+    }
+
+    pub async fn execute_subscription_payment(
+        &self,
+        subscription: Pubkey,
+        plan: Pubkey,
+        user_token_account: Pubkey,
+        receiver_token_account: Pubkey,
+        mint: Pubkey,
+        token_program: Pubkey,
+    ) -> anyhow::Result<()> {
+        info!("🔁 Executing subscription payment on-chain");
+
+        // 1️⃣ Anchor discriminator
+        let discriminator = &hash(b"global:execute_payment").to_bytes()[..8];
+
+        let mut data = Vec::with_capacity(8);
+        data.extend_from_slice(discriminator);
+
+        // 2️⃣ Build instruction
+        let ix = Instruction {
+            program_id: self.program_id,
+            accounts: vec![
+                AccountMeta::new(subscription, false),  // subscription (mut)
+                AccountMeta::new_readonly(plan, false), // plan
+                AccountMeta::new(user_token_account, false), // user token (mut)
+                AccountMeta::new(receiver_token_account, false), // receiver token (mut)
+                AccountMeta::new_readonly(mint, false), // mint
+                AccountMeta::new_readonly(token_program, false), // token program
+            ],
+            data,
+        };
+
+        // 3️⃣ Send transaction
+        let blockhash = self.rpc.get_latest_blockhash().await?;
+
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&self.payer.pubkey()),
+            &[&self.payer],
+            blockhash,
+        );
+
+        let sig = self.rpc.send_and_confirm_transaction(&tx).await?;
+
+        info!("✅ execute_payment success: {}", sig);
+
+        Ok(())
+    }
+
+    pub async fn get_plan(&self, plan_pda: Pubkey) -> anyhow::Result<Option<(Plan)>> {
+        // 1️⃣ Fetch raw account
+        let account = match self.rpc.get_account(&plan_pda).await {
+            Ok(acc) => acc,
+            Err(err) => {
+                // same behavior as JS: account does not exist → return null
+                if err.to_string().contains("AccountNotFound") {
+                    return Ok(None);
+                }
+                return Err(err.into());
+            }
+        };
+
+        let data: &[u8] = &account.data;
+
+        // CHECK: Ensure data is long enough for discriminator (8 bytes)
+        if data.len() < 8 {
+            return Err(anyhow::anyhow!("Account data too small"));
+        }
+
+        // FIX: Skip the first 8 bytes (Discriminator) and use standard deserialize
+        let mut data_slice = &data[8..];
+        let mut plan = Plan::deserialize(&mut data_slice)?;
+
+        // 3️⃣ Decompress tiers (pako-compatible)
+        plan.tiers = decompress_tiers(&plan.tiers)?;
+
+        // 4️⃣ Return same shape as JS
+        Ok(Some(plan))
     }
 }

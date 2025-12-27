@@ -15,7 +15,7 @@ const initialFormState: Plan = {
     token: "",
     receiver: "",
     tiers: [
-        { tierName: "", amount: undefined, periodSeconds: undefined, description: "" } // Default to 30 days
+        { tierName: "", amount: '', periodSeconds: "", description: "" } // Default to 30 days
     ]
 };
 
@@ -178,7 +178,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             {createPlan.isPending ?
                                                 <Loader /> : <CirclePlus />
                                             }
-                                            Create  
+                                            Create
                                         </button>
                                     </div>
                                 </form>

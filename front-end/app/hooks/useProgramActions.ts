@@ -7,7 +7,6 @@ import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { Plan, planQuery } from "../types";
 import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
-import { buildExecutePaymentIx, scheduleWithTukTuk } from "../utils/tuktuk";
 import { useWallet } from "@solana/wallet-adapter-react";
 
 export const useProgramActions = () => {
@@ -178,24 +177,6 @@ export const useProgramActions = () => {
                     allowanceAmount: BigInt("18446744073709551615"), // explained below
                 });
 
-                const executeIx = await buildExecutePaymentIx(
-                    program,
-                    subscriptionPDA,
-                    planPda,
-                    await getAssociatedTokenAddress(mint, payerKey),
-                    await getAssociatedTokenAddress(mint, receiver),
-                    mint
-                );
-
-                // // 6. schedule via TukTuk
-                // const executeAtTs =
-                //     Math.floor(Date.now() / 1000) + Number(periodSeconds);
-
-                // await scheduleWithTukTuk(
-                //     provider!,
-                //     executeIx,
-                //     executeAtTs
-                // );
             }
             const account = await getEventsFromSignature(
                 txSig,

@@ -1,16 +1,19 @@
 use axum::{Extension, Router};
 use dotenvy::dotenv;
 use std::env;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 mod handlers;
 mod models;
 mod routes;
 mod state;
+mod worker;
 use crate::state::AppState;
 use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tracing_subscriber;
 mod solana_client;
+use crate::worker::run_keeper;
 
 #[tokio::main]
 async fn main() {
@@ -26,6 +29,7 @@ async fn main() {
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
+    tokio::spawn(run_keeper(Arc::new(app_state.clone())));
 
     let app = Router::new()
         .nest("/api", routes::create_routes())

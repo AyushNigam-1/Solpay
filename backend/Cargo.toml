@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+spl-associated-token-account = "8.0.0"
+anchor-lang = "1.0.0-rc.1"
+flate2 = "1.1.5"
 tuktuk-sdk = "0.4"
 borsh = "1.6.0"
 once_cell = "1.21.3"

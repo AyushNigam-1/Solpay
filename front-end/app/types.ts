@@ -23,8 +23,6 @@ export interface Subscription {
     mint: web3.PublicKey;
     tierName: string,
     planPda: string
-    // amount: anchor.BN;
-    // periodSeconds: anchor.BN;
     nextPaymentTs: anchor.BN;
     active: boolean;
     autoRenew: boolean;

@@ -14,6 +14,18 @@ pub async fn create_subscription(
     Json(payload): Json<Subscription>,
 ) -> impl IntoResponse {
     println!("🧾 Subscription data: {:?}", payload);
+    let next_payment_ts = match i64::from_str_radix(&payload.next_payment_ts, 16) {
+        Ok(v) => v,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": "Invalid hex timestamp"
+                })),
+            )
+                .into_response();
+        }
+    };
 
     let result = sqlx::query!(
         r#"
@@ -32,7 +44,7 @@ pub async fn create_subscription(
         payload.payer,
         payload.tier_name,
         payload.plan_pda,
-        payload.next_payment_ts,
+        next_payment_ts,
         payload.auto_renew,
         payload.active,
         &payload.unique_seed,
