@@ -33,6 +33,15 @@ export interface Subscription {
     duration: anchor.BN;
     planMetadata?: Plan
 }
+export interface PaymentHistory {
+    user_pubkey: string;
+    company: string;
+    token_mint: string;
+    amount: number;
+    status: string;
+    tx_signature?: string;
+    created_at: string; // ISO string
+}
 
 export interface UpdateParams {
     account?: Subscription,

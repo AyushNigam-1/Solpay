@@ -6,7 +6,7 @@ use crate::errors::ErrorCode;
 use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
-use anchor_spl::token_interface::{transfer_checked, TransferChecked};
+use anchor_spl::token_interface::{transfer, transfer_checked, Transfer, TransferChecked};
 
 declare_id!("DUNyVxYZBG7YvU5Nsbci75stbBnjBtBjjibH6FtVPFaL");
 
@@ -71,36 +71,28 @@ pub mod recurring_payments {
         Ok(())
     }
 
-    pub fn execute_payment(ctx: Context<ExecutePayment>) -> Result<()> {
+    pub fn execute_payment(
+        ctx: Context<ExecutePayment>,
+        new_amount: u64,
+        new_period_seconds: i64,
+    ) -> Result<()> {
         let clock = Clock::get()?;
+        let subscription = &mut ctx.accounts.subscription;
 
-        // ---------------- MUTATION SCOPE ----------------
-        let (amount, _, payer, unique_seed, bump) = {
-            let subscription = &mut ctx.accounts.subscription;
+        // ---------- VALIDATION ----------
+        require!(
+            clock.unix_timestamp >= subscription.next_payment_ts,
+            ErrorCode::PaymentNotDue
+        );
 
-            require!(
-                clock.unix_timestamp >= subscription.next_payment_ts,
-                ErrorCode::PaymentNotDue
-            );
+        // ---------- OLD VALUES (USED FOR PAYMENT) ----------
+        let charge_amount = subscription.amount;
 
-            // copy values we need later
-            let amount = subscription.amount;
-            let period_seconds = subscription.period_seconds;
-            let payer = subscription.payer;
-            let unique_seed = subscription.unique_seed;
-            let bump = subscription.bump;
+        let payer = subscription.payer;
+        let unique_seed = subscription.unique_seed;
+        let bump = subscription.bump;
 
-            // update next payment timestamp
-            subscription.next_payment_ts = subscription
-                .next_payment_ts
-                .checked_add(subscription.period_seconds)
-                .ok_or(ErrorCode::NumericalOverflow)?;
-
-            (amount, period_seconds, payer, unique_seed, bump)
-        }; // 👈 mutable borrow ENDS HERE
-
-        // ---------------- CPI SCOPE ----------------
-
+        // ---------- CPI TRANSFER (OLD AMOUNT ONLY) ----------
         let seeds = &[
             b"subscription",
             payer.as_ref(),
@@ -109,11 +101,10 @@ pub mod recurring_payments {
         ];
         let signer_seeds = &[&seeds[..]];
 
-        let cpi_accounts = TransferChecked {
+        let cpi_accounts = Transfer {
             from: ctx.accounts.user_token_account.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
             to: ctx.accounts.receiver_token_account.to_account_info(),
-            authority: ctx.accounts.subscription.to_account_info(),
+            authority: subscription.to_account_info(),
         };
 
         let cpi_ctx = CpiContext::new_with_signer(
@@ -122,7 +113,15 @@ pub mod recurring_payments {
             signer_seeds,
         );
 
-        transfer_checked(cpi_ctx, amount, ctx.accounts.mint.decimals)?;
+        transfer_checked(cpi_ctx, charge_amount, ctx.accounts.mint.decimals)?;
+
+        // ---------- UPDATE SUBSCRIPTION FOR NEXT CYCLE ----------
+        subscription.amount = new_amount;
+
+        subscription.next_payment_ts = subscription
+            .next_payment_ts
+            .checked_add(new_period_seconds)
+            .ok_or(ErrorCode::NumericalOverflow)?;
 
         Ok(())
     }

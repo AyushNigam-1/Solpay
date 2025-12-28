@@ -9,6 +9,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+
+
 pub async fn create_subscription(
     Extension(state): Extension<AppState>,
     Json(payload): Json<Subscription>,

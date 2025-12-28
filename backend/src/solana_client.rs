@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use flate2::read::ZlibDecoder;
 use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_sdk::signature::Signature;
 use solana_sdk::{
     hash::hash,
     instruction::{AccountMeta, Instruction},
@@ -8,10 +9,9 @@ use solana_sdk::{
     signature::{Keypair, Signer, read_keypair_file},
     transaction::Transaction,
 };
-use spl_associated_token_account::get_associated_token_address;
 use std::io::Read;
 use std::str::FromStr;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct Plan {
@@ -62,32 +62,42 @@ impl SolanaClient {
         receiver_token_account: Pubkey,
         mint: Pubkey,
         token_program: Pubkey,
-    ) -> anyhow::Result<()> {
+        new_amount: u64,
+        new_period_seconds: i64,
+    ) -> anyhow::Result<Signature> {
         info!("🔁 Executing subscription payment on-chain");
 
-        // 1️⃣ Anchor discriminator
+        // ---------- 1️⃣ Build instruction data ----------
         let discriminator = &hash(b"global:execute_payment").to_bytes()[..8];
 
-        let mut data = Vec::with_capacity(8);
+        let mut data = Vec::with_capacity(8 + 8 + 8);
         data.extend_from_slice(discriminator);
+        data.extend_from_slice(&new_amount.to_le_bytes());
+        data.extend_from_slice(&new_period_seconds.to_le_bytes());
 
-        // 2️⃣ Build instruction
         let ix = Instruction {
             program_id: self.program_id,
             accounts: vec![
-                AccountMeta::new(subscription, false),  // subscription (mut)
-                AccountMeta::new_readonly(plan, false), // plan
-                AccountMeta::new(user_token_account, false), // user token (mut)
-                AccountMeta::new(receiver_token_account, false), // receiver token (mut)
-                AccountMeta::new_readonly(mint, false), // mint
-                AccountMeta::new_readonly(token_program, false), // token program
+                AccountMeta::new(subscription, false),
+                AccountMeta::new_readonly(plan, false),
+                AccountMeta::new(user_token_account, false),
+                AccountMeta::new(receiver_token_account, false),
+                AccountMeta::new_readonly(mint, false),
+                AccountMeta::new_readonly(token_program, false),
             ],
             data,
         };
 
-        // 3️⃣ Send transaction
-        let blockhash = self.rpc.get_latest_blockhash().await?;
+        // ---------- 2️⃣ Get blockhash ----------
+        let blockhash = match self.rpc.get_latest_blockhash().await {
+            Ok(bh) => bh,
+            Err(e) => {
+                error!("❌ Failed to fetch latest blockhash: {}", e);
+                return Err(e.into());
+            }
+        };
 
+        // ---------- 3️⃣ Build transaction ----------
         let tx = Transaction::new_signed_with_payer(
             &[ix],
             Some(&self.payer.pubkey()),
@@ -95,14 +105,20 @@ impl SolanaClient {
             blockhash,
         );
 
-        let sig = self.rpc.send_and_confirm_transaction(&tx).await?;
+        // ---------- 4️⃣ Send transaction ----------
+        let sig = match self.rpc.send_and_confirm_transaction(&tx).await {
+            Ok(sig) => sig,
+            Err(e) => {
+                error!("❌ execute_payment transaction failed: {}", e);
+                return Err(e.into());
+            }
+        };
 
         info!("✅ execute_payment success: {}", sig);
-
-        Ok(())
+        Ok(sig)
     }
 
-    pub async fn get_plan(&self, plan_pda: Pubkey) -> anyhow::Result<Option<(Plan)>> {
+    pub async fn get_plan(&self, plan_pda: Pubkey) -> anyhow::Result<Option<Plan>> {
         // 1️⃣ Fetch raw account
         let account = match self.rpc.get_account(&plan_pda).await {
             Ok(acc) => acc,

@@ -1,10 +1,34 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ScheduleSubscriptionRequest, ScheduleSubscriptionResponse, UpdateParams, UpdateSubscriptionParams } from "../types";
+import { PaymentHistory, ScheduleSubscriptionRequest, ScheduleSubscriptionResponse, UpdateParams, UpdateSubscriptionParams } from "../types";
 import axios from "axios";
 
 export const useDbActions = () => {
     const API_BASE = "http://127.0.0.1:3000"
     const queryClient = useQueryClient();
+
+    const useGetUserTransactions = () => {
+        return useMutation({
+            mutationFn: async ({
+                userPubkey,
+            }: {
+                userPubkey: string;
+            }) => {
+                const res = await axios.get<PaymentHistory[]>(
+                    `${API_BASE}/transactions/${userPubkey}`
+                );
+                return res.data;
+            },
+
+            onSuccess: (data) => {
+                console.log("✅ Transactions fetched:", data);
+            },
+
+            onError: (error) => {
+                console.error("❌ Failed to fetch transactions:", error);
+            },
+        });
+    };
+
 
     const createSubscriptionDb = useMutation({
         mutationFn: async ({
@@ -142,5 +166,5 @@ export const useDbActions = () => {
         }
     }
 
-    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription }
+    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription, useGetUserTransactions }
 }

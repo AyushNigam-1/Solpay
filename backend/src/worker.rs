@@ -1,8 +1,10 @@
+use crate::handlers::transaction_handler::create_transaction;
+use crate::models::transaction::PaymentHistory;
 use crate::state::AppState;
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
-use spl_associated_token_account::get_associated_token_address;
+use spl_associated_token_account::get_associated_token_address_with_program_id;
 use sqlx::Row;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -34,6 +36,13 @@ fn parse_tiers(tiers: &[u8]) -> Result<Vec<Tier>> {
     Ok(parsed)
 }
 
+pub fn find_tier_by_name<'a>(tiers: &'a [Tier], tier_name: &str) -> Result<&'a Tier> {
+    tiers
+        .iter()
+        .find(|t| t.tier_name == tier_name)
+        .ok_or_else(|| anyhow!("Tier '{}' not found in plan", tier_name))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tier {
@@ -59,7 +68,7 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
                 bump,
                 subscription_pda AS subscription
             FROM subscriptions
-            WHERE auto_renew = false
+            WHERE auto_renew = true
             AND active = true
             AND next_payment_ts <= $1
             ORDER BY next_payment_ts ASC
@@ -76,7 +85,7 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
         return Ok(());
     };
 
-    let subscription_pda = Pubkey::from_str(sub.get("subscription"));
+    let subscription_pda = Pubkey::from_str(sub.get("subscription"))?;
 
     let plan_opt = state
         .solana
@@ -93,60 +102,102 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
 
     let tiers = parse_tiers(&plan.tiers)?;
 
+    let tier = find_tier_by_name(&tiers, sub.get("tier_name"))?;
+
     let payer_pubkey = Pubkey::from_str(sub.get("payer"))?;
 
-    let payer_token_account = get_associated_token_address(&payer_pubkey, &plan.mint);
-
-    let receiver_token_account = get_associated_token_address(&plan.receiver, &plan.mint);
-
     let token_program = state.solana.rpc.get_account(&plan.mint).await?;
+
+    let payer_token_account = get_associated_token_address_with_program_id(
+        &payer_pubkey,
+        &plan.mint,
+        &token_program.owner,
+    );
+
+    if state
+        .solana
+        .rpc
+        .get_account(&payer_token_account)
+        .await
+        .is_err()
+    {
+        anyhow::bail!(
+            "User token account {} does not exist. User must receive tokens first.",
+            payer_token_account
+        );
+    }
+
+    let receiver_token_account = get_associated_token_address_with_program_id(
+        &plan.receiver,
+        &plan.mint,
+        &token_program.owner,
+    );
+
     // // ----------------------------
-    println!("{:?},{:?}", plan, tiers);
-    // // ⛓ Execute on-chain payment
+    println!("{:?},{:?}", plan, tiers,);
+
+    let amount: u64 = tier.amount.parse()?;
+    let period_seconds: i64 = tier.period_seconds.parse()?;
+    // ⛓ Execute on-chain payment
     let result = state
         .solana
         .execute_subscription_payment(
-            subscription_pda?,
+            subscription_pda,
             Pubkey::from_str(sub.get("plan_pda"))?,
             payer_token_account,
             receiver_token_account,
             plan.mint,
             token_program.owner,
+            amount,
+            period_seconds,
         )
         .await;
 
-    // match result {
-    //     Ok(_) => {
-    //         let next_ts = sub.get("next_payment_ts") + sub.get("period_seconds");
+    match result {
+        Ok(signature) => {
+            let next_ts = sub.get::<i64, _>("next_payment_ts") + period_seconds;
 
-    //         sqlx::query!(
-    //             r#"
-    //             UPDATE subscriptions
-    //             SET next_payment_ts = $1
-    //             WHERE subscription_pda = $2
-    //             "#,
-    //             next_ts,
-    //             subscription_pda
-    //         )
-    //         .execute(&state.db)
-    //         .await?;
+            sqlx::query!(
+                r#"
+            UPDATE subscriptions
+            SET next_payment_ts = $1
+            WHERE subscription_pda = $2
+            "#,
+                next_ts,
+                subscription_pda.to_string()
+            )
+            .execute(&state.db)
+            .await?;
 
-    //         tracing::info!(
-    //             "✅ Subscription {} renewed. Next payment at {}",
-    //             subscription_pda,
-    //             next_ts
-    //         );
-    //     }
+            let history = PaymentHistory {
+                user_pubkey: payer_pubkey.to_string(),
+                company: plan.name.to_string(),
+                token_mint: plan.mint.to_string(),
+                amount: amount as i64,
+                status: "success".to_string(),
+                tx_signature: Some(signature.to_string()),
+                created_at: chrono::Utc::now(),
+            };
 
-    //     Err(e) => {
-    //         tracing::error!(
-    //             "❌ Renewal failed for {}: {} (will retry)",
-    //             sub.subscription,
-    //             e
-    //         );
-    //         // DB untouched → retry next cycle
-    //     }
-    // }
+            if let Err(e) = create_transaction(&state.db, &history).await {
+                tracing::error!("❌ Failed to save payment history: {}", e);
+            }
+
+            tracing::info!(
+                "✅ Subscription {} renewed. Next payment at {}",
+                subscription_pda,
+                next_ts
+            );
+        }
+
+        Err(e) => {
+            tracing::error!(
+                "❌ Failed to renew subscription {}: {}",
+                subscription_pda,
+                e
+            );
+        }
+    }
 
     Ok(())
 }
