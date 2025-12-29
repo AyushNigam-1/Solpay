@@ -1,14 +1,15 @@
-import { useProgramActions } from '@/app/hooks/useProgramActions';
-import { Plan, StatCardProps, Subscription } from '@/app/types';
-import { formatPeriod } from '@/app/utils/duration';
-import { Ban, Calendar, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, Pause, Pen, Play, Repeat2, Timer, Trash, Wallet, X } from 'lucide-react';
+import { PaymentHistory, Plan, StatCardProps, Subscription } from '@/app/types';
+import { formatDate, formatPeriod } from '@/app/utils/duration';
+import { ArrowUpRight, Ban, Calendar, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, MousePointerClick, Pause, Pen, Play, Repeat2, RotateCw, Route, Timer, Trash, Wallet, X } from 'lucide-react';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import TableHeaders from './TableHeaders';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { useMutations } from '@/app/hooks/useMutations';
 import Loader from './Loader';
-
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { useProgram } from '@/app/hooks/useProgram';
 interface subscriptionDetailsProps {
     isOpen: boolean;
     subscription: { account: Subscription, publicKey: PublicKey }
@@ -20,6 +21,25 @@ interface subscriptionDetailsProps {
 const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen, onClose }: subscriptionDetailsProps) => {
     const { deleteSubscription, manageAutoRenew, manageStatus } = useMutations()
     const [autoRenew, setAutoRenew] = useState(subscription?.account.autoRenew)
+    const { publicKey } = useProgram()
+
+    const {
+        data: transactions,
+        isLoading,
+        isFetching,
+        isError: isQueryError,
+        refetch,
+    } = useQuery<PaymentHistory[]>({
+        queryKey: ["CompanyTransactions", publicKey, subscription?.account.planMetadata!.name],
+        queryFn: async () => {
+            const res = await axios.get<PaymentHistory[]>(
+                `http://127.0.0.1:3000/api/transactions/${publicKey}/${subscription?.account.planMetadata!.name}`
+            );
+            return res.data;
+        },
+        enabled: !!publicKey && !!subscription?.account.planMetadata!.name,
+        staleTime: 1000 * 3000,
+    });
 
     useEffect(() => {
         if (subscription?.account?.autoRenew !== undefined) {
@@ -27,7 +47,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
         }
     }, [subscription?.account?.autoRenew]);
     // console.log("subscription?",)
-    const currentTier = subscription?.account.planMetadata.tiers.find((tier) => tier.tierName == subscription?.account.tierName)
+    const currentTier = subscription?.account.planMetadata!.tiers.find((tier) => tier.tierName == subscription?.account.tierName)
     const handleClose = () => {
         // if (!isMutating) {
         onClose();
@@ -57,44 +77,14 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
             ),
             title: "Status"
         },
+        {
+            icon: (
+                <MousePointerClick />
+            ),
+            title: "Action"
+        },
     ]
-    const transactions = [
-        {
-            data: "2025/11/11",
-            amount: 25000,
-            status: "Completed"
-        },
-        {
-            data: "2026/01/11",
-            amount: 8750.50,
-            status: "Pending"
-        },
-        {
-            data: "2026/03/11",
-            amount: 45000,
-            status: "Pending"
-        },
-        {
-            data: "2026/05/11",
-            amount: 120000,
-            status: "Pending"
-        },
-        {
-            data: "2026/07/11",
-            amount: 33500.75,
-            status: "Pending"
-        },
-        {
-            data: "2026/09/11",
-            amount: 120000,
-            status: "Pending"
-        },
-        {
-            data: "2026/11/11",
-            amount: 33500.75,
-            status: "Pending"
-        },
-    ];
+
     const safeToNumber = (val: any): number => {
         if (!val) return 0;
         if (typeof val === 'number') return val;
@@ -161,7 +151,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                 <div className=" flex justify-between items-center ">
                                     <div className='flex gap-2' >
                                         <h2 className="text-2xl font-bold text-white ">
-                                            {subscription?.account.planMetadata.name}
+                                            {subscription?.account.planMetadata!.name}
                                         </h2>
                                         <div className={`flex p-1 bg-white/5 rounded-lg pr-2 ${subscription?.account.active ? 'text-blue-400' : 'text-red-400'}`} >
                                             <Dot />
@@ -206,7 +196,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-3'>
                                         <span className="hidden sm:inline text-gray-400 ">Creator</span>
                                         <span className='truncate font-bold text-lg'>
-                                            {subscription?.account.planMetadata.creator?.toString()}
+                                            {subscription?.account.planMetadata!.creator?.toString()}
                                             {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
                                         </span>
                                     </div>
@@ -214,7 +204,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className='flex flex-col gap-2 w-full bg-white/5 rounded-xl p-3'>
                                         <span className="hidden sm:inline text-gray-400 "> Reciever</span>
                                         <span className="truncate font-bold text-lg" >
-                                            {subscription?.account.planMetadata.receiver.toString()}
+                                            {subscription?.account.planMetadata!.receiver.toString()}
                                         </span>
                                     </div>
                                 </div>
@@ -260,7 +250,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                         <span className='text-3xl font-bold text-white'>
                                                             {currentTier?.amount.toString()}
                                                         </span>
-                                                        <span className=" font-medium text-gray-400">{subscription?.account.planMetadata.tokenSymbol}</span>
+                                                        <span className=" font-medium text-gray-400">{subscription?.account.planMetadata!.tokenSymbol}</span>
                                                     </div>
                                                     <div className="text-sm font-medium text-gray-300 ">
                                                         {/* Every 2 Months */}
@@ -294,7 +284,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                             // setAutoRenew()
                                                             manageAutoRenew.mutateAsync({
                                                                 subscriptionPDA: subscription?.publicKey,
-                                                                field: "auto_renew",
+                                                                field: "autoRenew",
                                                                 value: !autoRenew,
                                                                 payerKey: subscription?.account.payer,
                                                             }).then(() => setAutoRenew(!autoRenew))
@@ -340,20 +330,20 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                 <TableHeaders columns={headers} />
                                                 <tbody>
 
-                                                    {transactions.map((tx, index) => {
+                                                    {transactions?.map((tx, index) => {
                                                         const isFirstRow = index === 0;
-                                                        const isLastRow = index === transactions.length - 1;
+                                                        const isLastRow = index === transactions?.length - 1;
                                                         return (
-                                                            <tr key={subscription?.account.bump} className="transition hover:bg-white/5 cursor-pointer border border-white/5 rounded-2xl" >
+                                                            <tr key={subscription?.account.bump} className="transition cursor-pointer border border-white/5 rounded-2xl" >
                                                                 <td className={`
                                                     px-6 py-2 text-xl text-gray-400
                                                     ${isFirstRow ? "rounded-tl-2xl" : ""}
                                                     ${isLastRow ? "rounded-bl-2xl" : ""}
                                                 `}>
-                                                                    {tx.data}
+                                                                    {formatDate(tx.createdAt)}
                                                                 </td>
                                                                 <td className='px-6 py-2 text-xl text-gray-400 '>
-                                                                    100 OPOS
+                                                                    {tx.amount} OPOS
                                                                 </td>
 
                                                                 <td className={`
@@ -361,8 +351,34 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                         ${isFirstRow ? "rounded-tr-2xl" : ""}
                                                         ${isLastRow ? "rounded-br-2xl" : ""}
                                                     `}>
-                                                                    {tx.status}
+                                                                    {tx.status == 'success' ? <span className='flex gap-2 items-center' >
+                                                                        <CircleCheck />
+                                                                        Success
+                                                                    </span> :
+                                                                        <span className='flex gap-2 items-center'>
+                                                                            <CircleCheck />
+                                                                            Failed
+                                                                        </span>}
                                                                 </td>
+                                                                <td className="px-6 py-2 text-xl ">
+                                                                    {
+                                                                        tx.status == 'success' ? <button className='flex gap-2 items-center text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
+                                                                            window.open(
+                                                                                `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
+                                                                                "_blank",
+                                                                                "noopener,noreferrer"
+                                                                            )}>
+                                                                            <ArrowUpRight className='size-5' />
+                                                                            Verify
+                                                                        </button> :
+                                                                            <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { "" }}>
+                                                                                <RotateCw />                                                                    Retry
+                                                                            </button>
+                                                                    }
+
+                                                                    {/* {subscription.account.active ? "Active" : "Disabled"} */}
+                                                                </td>
+
                                                             </tr>
                                                         )
                                                     })}
@@ -401,22 +417,6 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
 
                                 </div>
 
-                                {/* <div className='grid grid-cols-3 gap-4' >
-                    <button className='flex justify-center text-blue-400 items-center gap-2 transition-shadow hover:shadow-xl bg-white/5 p-3 rounded-xl text-lg font-semibold' onClick={() => { setPopupAction("withdraw"); setPopupOpen(true); onClose() }}  > <CircleArrowUp /> Withdraw </button>
-                    <StatCard title='Balance' value={subscription?.account.prefundedAmount.toString()} icon={Timer} />
-                    <button className='flex justify-center items-center gap-2 text-blue-400 transition-shadow hover:shadow-xl bg-white/5 p-3 rounded-xl text-lg font-semibold' onClick={() => { setPopupAction("fund"); setPopupOpen(true); onClose() }} > <CircleArrowDown /> Fund </button>
-                </div> */}
-
-                                {/* <div className='h-0.5 w-full bg-white/5 flex' /> */}
-                                {/* <div className="flex justify-between"> */}
-
-                                {/* <button
-                                    onClick={() => cancelSubscription(subscription?.account.payer, subscription?.account.uniqueSeed, subscription?.account.mint, subscription?.account.vaultTokenAccount)}
-                                    className={` text-center group flex justify-center m-auto items-center gap-3 p-4 rounded-xl text-lg bg-white/5 text-red-400 transition cursor-pointer`}>
-                                    <Trash className="w-5 h-5" />
-                                    Delete
-                                </button> */}
-                                {/* </div> */}
                             </DialogPanel>
                         </TransitionChild>
                     </div>

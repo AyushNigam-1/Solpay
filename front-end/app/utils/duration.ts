@@ -1,4 +1,6 @@
-export function formatPeriod(periodBN: string): string {
+import BN from "bn.js";
+
+export function formatPeriod(periodBN: string | number | BN): string {
     // Constants in seconds
     const SECOND = 1;
     const MINUTE = 60 * SECOND;
@@ -50,3 +52,16 @@ export function formatPeriod(periodBN: string): string {
     // Fallback to displaying raw seconds if it doesn't align neatly
     return `${totalSeconds} Second${totalSeconds !== 1 ? 's' : ''}`;
 }
+
+export const formatDate = (isoString: string): string => {
+    if (!isoString) return "";
+
+    const date = new Date(isoString);
+
+    const year = date.getFullYear();
+    // getMonth() is 0-indexed, so we add 1. padStart ensures "09" instead of "9"
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}/${month}/${day}`;
+};

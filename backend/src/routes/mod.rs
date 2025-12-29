@@ -1,3 +1,4 @@
+pub mod notification_routes;
 pub mod subscription_routes;
 pub mod transaction_routes;
 pub mod user_routes;
@@ -8,4 +9,5 @@ pub fn create_routes() -> Router {
         .merge(user_routes::user_routes())
         .merge(subscription_routes::subscription_routes())
         .merge(transaction_routes::transaction_routes())
+        .merge(notification_routes::notification_routes())
 }

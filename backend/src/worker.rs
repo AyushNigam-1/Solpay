@@ -1,4 +1,6 @@
+use crate::handlers::notification_handler::create_notification;
 use crate::handlers::transaction_handler::create_transaction;
+use crate::models::notification::Notification;
 use crate::models::transaction::PaymentHistory;
 use crate::state::AppState;
 use anyhow::{Result, anyhow};
@@ -134,7 +136,7 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
     );
 
     // // ----------------------------
-    println!("{:?},{:?}", plan, tiers,);
+    println!("{:?},{:?}", plan, tiers);
 
     let amount: u64 = tier.amount.parse()?;
     let period_seconds: i64 = tier.period_seconds.parse()?;
@@ -153,10 +155,12 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
         )
         .await;
 
+    let mut notification_message: String;
+    let mut notification_type;
+
     match result {
         Ok(signature) => {
             let next_ts = sub.get::<i64, _>("next_payment_ts") + period_seconds;
-
             sqlx::query!(
                 r#"
             UPDATE subscriptions
@@ -182,7 +186,9 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
             if let Err(e) = create_transaction(&state.db, &history).await {
                 tracing::error!("❌ Failed to save payment history: {}", e);
             }
-
+            notification_message =
+                format!("✅ Subscription renewed successfully. Amount: {}", amount);
+            notification_type = "Success";
             tracing::info!(
                 "✅ Subscription {} renewed. Next payment at {}",
                 subscription_pda,
@@ -196,8 +202,24 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
                 subscription_pda,
                 e
             );
+            notification_message = format!("❌ Subscription renewal failed. Reason: {}", e);
+            notification_type = "Failed";
         }
     }
 
+    let notification = Notification {
+        id: None,
+        user_pubkey: payer_pubkey.to_string(),
+        plan_name: plan.name.to_string(),
+        subscription_pda: subscription_pda.to_string(),
+        message: notification_message,
+        created_at: Some(chrono::Utc::now()),
+        is_read: false,
+        r#type: notification_type.to_string(),
+    };
+
+    if let Err(e) = create_notification(&state.db, &notification).await {
+        tracing::error!("❌ Failed to insert notification: {}", e);
+    }
     Ok(())
 }

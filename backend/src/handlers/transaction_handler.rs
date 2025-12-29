@@ -9,7 +9,6 @@ use axum::{
 use sqlx::PgPool;
 
 pub async fn create_transaction(db: &PgPool, record: &PaymentHistory) -> Result<()> {
-    // basic sanity checks (cheap, safe)
     if record.amount <= 0 {
         anyhow::bail!("amount must be greater than zero");
     }
@@ -65,6 +64,40 @@ pub async fn get_transactions(
         ORDER BY created_at DESC
         "#,
         user_pubkey
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("DB error: {}", e),
+        )
+    })?;
+
+    Ok(Json(records))
+}
+
+pub async fn get_user_company_transactions(
+    Extension(state): Extension<AppState>,
+    Path((user_pubkey, company_name)): Path<(String, String)>,
+) -> Result<Json<Vec<PaymentHistory>>, (StatusCode, String)> {
+    let records = sqlx::query_as!(
+        PaymentHistory,
+        r#"
+        SELECT
+            user_pubkey,
+            company,
+            token_mint,
+            amount,
+            status,
+            tx_signature,
+            created_at
+        FROM payment_history
+        WHERE user_pubkey = $1 AND company = $2
+        ORDER BY created_at DESC
+        "#,
+        user_pubkey,
+        company_name
     )
     .fetch_all(&state.db)
     .await

@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { CheckCircle2, Crown, Zap, ShieldCheck, X, Check } from 'lucide-react';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
-import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, Tier } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useMutations } from '@/app/hooks/useMutations';

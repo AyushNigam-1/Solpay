@@ -33,14 +33,24 @@ export interface Subscription {
     duration: anchor.BN;
     planMetadata?: Plan
 }
+export type Notification = {
+    id: number;                 // DB primary key
+    userPubkey: string;
+    planName: string;       // wallet address
+    subscriptionPda: string;    // related subscription
+    message: string;            // notification text
+    createdAt: string;
+    type: string        // ISO timestamp from backend
+};
+
 export interface PaymentHistory {
-    user_pubkey: string;
+    userPubkey: string;
     company: string;
-    token_mint: string;
+    tokenMint: string;
     amount: number;
     status: string;
-    tx_signature?: string;
-    created_at: string; // ISO string
+    txSignature?: string;
+    createdAt: string; // ISO string
 }
 
 export interface UpdateParams {

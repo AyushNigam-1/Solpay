@@ -10,7 +10,6 @@ import Loader from '@/app/components/ui/Loader';
 import Error from '@/app/components/ui/Error';
 import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { PublicKey } from '@solana/web3.js';
-import Cookies from "js-cookie"
 import { formatPeriod } from '@/app/utils/duration';
 import { Banknote, Building, ChartNoAxesGantt, CircleDot, Coins, Timer } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
@@ -149,10 +148,10 @@ const page = () => {
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {currentTier?.amount}
+                                                            {currentTier?.amount.toString()}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(currentTier?.periodSeconds)}
+                                                            {formatPeriod(currentTier!.periodSeconds!)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}
