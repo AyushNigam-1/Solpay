@@ -36,7 +36,8 @@ export interface Subscription {
 export type Notification = {
     id: number;                 // DB primary key
     userPubkey: string;
-    planName: string;       // wallet address
+    planName: string;
+    tier: string      // wallet address
     subscriptionPda: string;    // related subscription
     message: string;            // notification text
     createdAt: string;
@@ -45,10 +46,11 @@ export type Notification = {
 
 export interface PaymentHistory {
     userPubkey: string;
-    company: string;
-    tokenMint: string;
+    plan: string;
+    tier: string
     amount: number;
     status: string;
+    subscriptionPda: string;    // related subscription
     txSignature?: string;
     createdAt: string; // ISO string
 }

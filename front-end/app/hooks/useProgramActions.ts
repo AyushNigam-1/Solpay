@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
-import { approveSubscriptionSpending } from "../utils/token";
+import { approveSubscriptionSpending, fetchTokenMetadata } from "../utils/token";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import { Plan, planQuery } from "../types";
 import { formatPeriod } from "../utils/duration";
@@ -341,8 +341,8 @@ export const useProgramActions = () => {
         if (compressedTiers.length > 1000) {
             throw new Error("Compressed tier data exceeds on-chain limit");
         }
+        const tokenMetadata = await fetchTokenMetadata(new PublicKey(plan.token))
 
-        // PDA MUST match on-chain seeds
         const [planPDA] = PublicKey.findProgramAddressSync(
             [
                 Buffer.from("plan"),
@@ -355,8 +355,8 @@ export const useProgramActions = () => {
             const txSig = await program.methods
                 .createPlan(
                     plan.name,
-                    plan.tokenSymbol,
-                    plan.tokenImage,
+                    tokenMetadata.symbol,
+                    tokenMetadata.image,
                     Buffer.from(compressedTiers)
                 )
                 .accounts({
@@ -367,7 +367,6 @@ export const useProgramActions = () => {
                     systemProgram: web3.SystemProgram.programId,
                 })
                 .rpc();
-
             return txSig
         } catch (error: any) {
             console.error("Failed to create plan:", error);

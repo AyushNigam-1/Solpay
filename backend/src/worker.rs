@@ -3,8 +3,7 @@ use crate::handlers::transaction_handler::create_transaction;
 use crate::models::notification::Notification;
 use crate::models::transaction::PaymentHistory;
 use crate::state::AppState;
-use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
+use crate::utils::{find_tier_by_name, parse_tiers};
 use solana_sdk::pubkey::Pubkey;
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 use sqlx::Row;
@@ -26,34 +25,6 @@ pub async fn run_keeper(state: Arc<AppState>) {
     }
 }
 
-fn parse_tiers(tiers: &[u8]) -> Result<Vec<Tier>> {
-    // 1️⃣ bytes → string
-    let tiers_str =
-        std::str::from_utf8(tiers).map_err(|e| anyhow!("Invalid UTF-8 in tiers: {}", e))?;
-
-    // 2️⃣ string → JSON → Vec<Tier>
-    let parsed: Vec<Tier> = serde_json::from_str(tiers_str)
-        .map_err(|e| anyhow!("Failed to parse tiers JSON: {}", e))?;
-
-    Ok(parsed)
-}
-
-pub fn find_tier_by_name<'a>(tiers: &'a [Tier], tier_name: &str) -> Result<&'a Tier> {
-    tiers
-        .iter()
-        .find(|t| t.tier_name == tier_name)
-        .ok_or_else(|| anyhow!("Tier '{}' not found in plan", tier_name))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Tier {
-    pub tier_name: String,
-    pub amount: String, // or u64 if you want to parse
-    pub period_seconds: String,
-    pub description: String,
-}
-
 async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
 
@@ -70,8 +41,7 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
                 bump,
                 subscription_pda AS subscription
             FROM subscriptions
-            WHERE auto_renew = true
-            AND active = true
+            WHERE active = true
             AND next_payment_ts <= $1
             ORDER BY next_payment_ts ASC
             LIMIT 1
@@ -101,6 +71,29 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
             return Ok(()); // or continue loop
         }
     };
+    // 🔕 Auto-renew OFF → subscription expired notification
+    if !sub.get::<bool, _>("auto_renew") {
+        let payer_pubkey = Pubkey::from_str(sub.get("payer"))?;
+
+        let notification = Notification {
+            id: None,
+            user_pubkey: payer_pubkey.to_string(),
+            plan_name: sub.get("tier_name"),
+            tier: sub.get("tier_name"),
+            subscription_pda: sub.get("subscription"),
+            message: "⛔ Subscription has been expired (auto-renew is off)".to_string(),
+            created_at: Some(chrono::Utc::now()),
+            is_read: false,
+            r#type: "Expired".to_string(),
+        };
+
+        if let Err(e) = create_notification(&state.db, &notification).await {
+            tracing::error!("❌ Failed to insert expired notification: {}", e);
+        }
+
+        tracing::info!("⛔ Subscription expired (auto-renew disabled)");
+        return Ok(()); // ⛔ stop processing
+    }
 
     let tiers = parse_tiers(&plan.tiers)?;
 
@@ -155,8 +148,8 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
         )
         .await;
 
-    let mut notification_message: String;
-    let mut notification_type;
+    let notification_message: String;
+    let notification_type;
 
     match result {
         Ok(signature) => {
@@ -175,19 +168,19 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
 
             let history = PaymentHistory {
                 user_pubkey: payer_pubkey.to_string(),
-                company: plan.name.to_string(),
-                token_mint: plan.mint.to_string(),
+                plan: plan.name.to_string(),
+                tier: sub.get("tier_name"),
                 amount: amount as i64,
                 status: "success".to_string(),
                 tx_signature: Some(signature.to_string()),
+                subscription_pda: subscription_pda.to_string(),
                 created_at: chrono::Utc::now(),
             };
 
             if let Err(e) = create_transaction(&state.db, &history).await {
                 tracing::error!("❌ Failed to save payment history: {}", e);
             }
-            notification_message =
-                format!("✅ Subscription renewed successfully. Amount: {}", amount);
+            notification_message = format!("✅ Subscription renewed successfully");
             notification_type = "Success";
             tracing::info!(
                 "✅ Subscription {} renewed. Next payment at {}",
@@ -202,7 +195,7 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
                 subscription_pda,
                 e
             );
-            notification_message = format!("❌ Subscription renewal failed. Reason: {}", e);
+            notification_message = format!("❌ Subscription renewal failed");
             notification_type = "Failed";
         }
     }
@@ -211,6 +204,7 @@ async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
         id: None,
         user_pubkey: payer_pubkey.to_string(),
         plan_name: plan.name.to_string(),
+        tier: sub.get("tier_name"),
         subscription_pda: subscription_pda.to_string(),
         message: notification_message,
         created_at: Some(chrono::Utc::now()),

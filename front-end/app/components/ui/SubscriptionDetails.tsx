@@ -10,6 +10,7 @@ import Loader from './Loader';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useProgram } from '@/app/hooks/useProgram';
+import BN from 'bn.js';
 interface subscriptionDetailsProps {
     isOpen: boolean;
     subscription: { account: Subscription, publicKey: PublicKey }
@@ -56,8 +57,49 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
             // setFormData(initialFormState);
         }, 300);
     }
+    function timeRemainingUntil(nextPaymentTs: BN): string {
+        // Current time in seconds
+        const now = Math.floor(Date.now() / 1000);
+        console.log("nextPaymentTs", nextPaymentTs)
+        // Convert BN to number (safe for timestamps up to year ~3000)
+        const nextTs = nextPaymentTs.toNumber();
 
+        // Difference in seconds
+        const diffSeconds = nextTs - now;
 
+        if (diffSeconds <= 0) {
+            return "due now or overdue";
+        }
+
+        const minute = 60;
+        const hour = minute * 60;
+        const day = hour * 24;
+        const month = day * 30; // approximate
+        const year = day * 365;
+
+        if (diffSeconds >= year) {
+            const years = Math.floor(diffSeconds / year);
+            return `${years} Year${years > 1 ? "s" : ""} Left`;
+        }
+
+        if (diffSeconds >= month) {
+            const months = Math.floor(diffSeconds / month);
+            return `${months} Month${months > 1 ? "s" : ""} Left`;
+        }
+
+        if (diffSeconds >= day) {
+            const days = Math.floor(diffSeconds / day);
+            return `${days} Day${days > 1 ? "s" : ""} Left`;
+        }
+
+        if (diffSeconds >= hour) {
+            const hours = Math.floor(diffSeconds / hour);
+            return `${hours} Hours${hours > 1 ? "s" : ""} Left`;
+        }
+
+        const minutes = Math.floor(diffSeconds / minute);
+        return `${minutes} Minute${minutes > 1 ? "s" : ""} Left`;
+    }
     const headers: any = [
         {
             icon: (
@@ -144,7 +186,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                             leaveTo="opacity-0 scale-90 translate-y-12"
                         >
                             <DialogPanel
-                                className={`bg-white/5 rounded-3xl text-left align-middle shadow-2xl border border-gray-800 w-full max-w-6xl  p-6 space-y-4 relative`}
+                                className={`bg-white/5 rounded-3xl text-left align-middle shadow-2xl border border-gray-800 w-full max-w-7xl  p-6 space-y-4 relative`}
                                 onClick={(e) => e.stopPropagation()}
                             >
 
@@ -220,6 +262,9 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className='space-y-4 col-span-3 rounded-2xl'>
                                         <div className='flex justify-between'>
                                             <h6 className='text-xl font-bold'>Tier</h6>
+                                            <p className='font-medium text-heading text-blue-400'>
+                                                {subscription?.account.nextPaymentTs && timeRemainingUntil(subscription?.account.nextPaymentTs)}
+                                            </p>
                                             {/* <button className='flex justify-center text-blue-400 items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold mb-0'
                                                 onClick={() => { setPlan(subscription?.account.planMetadata); setPlanDetailsOpen(true); onClose() }}
                                             >

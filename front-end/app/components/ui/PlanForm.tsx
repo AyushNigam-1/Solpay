@@ -160,8 +160,8 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5  rounded-xl">
                                                         <InputGroup label='Tier Name' value={field.tierName} name="tierName" onChange={(e) => handleChange(e, index)} placeholder='e.g. Basic / Pro' />
-                                                        <InputGroup label='Price (Raw Amount)' type='number' value={field.amount} name='amount' onChange={(e) => handleChange(e, index)} placeholder='0.00' />
-                                                        <InputGroup label='Duration (Seconds)' type='number' value={field.periodSeconds} name='periodSeconds' onChange={(e) => handleChange(e, index)} placeholder='2592000 (30 Days)' />
+                                                        <InputGroup label='Price (Raw Amount)' type='number' value={field.amount as string} name='amount' onChange={(e) => handleChange(e, index)} placeholder='0.00' />
+                                                        <InputGroup label='Duration (Seconds)' type='number' value={field.periodSeconds as string} name='periodSeconds' onChange={(e) => handleChange(e, index)} placeholder='2592000 (30 Days)' />
                                                         <InputGroup label='Description' value={field.description} name='description' textarea={true} onChange={(e) => handleChange(e, index)} placeholder='Describe the pros and cons of this plan' classNames='col-span-3' />
                                                     </div>
                                                     <div className='h-0.5 bg-white/5 w-full' />

@@ -21,21 +21,22 @@ pub async fn create_transaction(db: &PgPool, record: &PaymentHistory) -> Result<
         r#"
         INSERT INTO payment_history (
             user_pubkey,
-            company,
-            token_mint,
+            plan,
+            tier,
             amount,
             status,
             tx_signature,
-            created_at
-                    )
-        VALUES ($1, $2, $3, $4, $5, $6,$7)
+            subscription_pda,
+            created_at )
+        VALUES ($1, $2, $3, $4, $5, $6,$7,$8)
         "#,
         record.user_pubkey,
-        record.company,
-        record.token_mint,
+        record.plan,
+        record.tier,
         record.amount,
         record.status,
         record.tx_signature,
+        record.subscription_pda,
         record.created_at
     )
     .execute(db)
@@ -52,12 +53,13 @@ pub async fn get_transactions(
         PaymentHistory,
         r#"
         SELECT
-            user_pubkey,
-            company,
-            token_mint,
+            user_pubkey, 
+            plan,
+            tier,
             amount,
             status,
             tx_signature,
+            subscription_pda,
             created_at
         FROM payment_history
         WHERE user_pubkey = $1
@@ -86,14 +88,15 @@ pub async fn get_user_company_transactions(
         r#"
         SELECT
             user_pubkey,
-            company,
-            token_mint,
+            plan,
+            tier,
             amount,
             status,
             tx_signature,
+            subscription_pda,
             created_at
         FROM payment_history
-        WHERE user_pubkey = $1 AND company = $2
+        WHERE user_pubkey = $1 AND plan = $2
         ORDER BY created_at DESC
         "#,
         user_pubkey,

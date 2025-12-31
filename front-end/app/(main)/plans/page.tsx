@@ -6,12 +6,13 @@ import Loader from '@/app/components/ui/Loader';
 import PlanDetails from '@/app/components/ui/PlanDetails';
 import PlanForm from '@/app/components/ui/PlanForm';
 import TableHeaders from '@/app/components/ui/TableHeaders';
+import { useMutations } from '@/app/hooks/useMutations';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, planQuery } from '@/app/types';
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
-import { Building, Coins, Logs, MousePointerClick, Trash, UserPlus, UserStar, Zap } from 'lucide-react';
+import { ChartNoAxesGantt, Coins, Logs, MousePointerClick, Trash, UserPlus, UserStar, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const page = () => {
@@ -23,7 +24,8 @@ const page = () => {
     const [plan, setPlan] = useState<Plan>()
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
 
-    const { fetchAllSubscriptionPlans, cancelPlan } = useProgramActions();
+    const { fetchAllSubscriptionPlans, } = useProgramActions();
+    const { cancelPlan } = useMutations()
 
     const {
         data: plans,
@@ -40,9 +42,9 @@ const page = () => {
     const headers: any = [
         {
             icon: (
-                <Building />
+                <ChartNoAxesGantt />
             ),
-            title: "Company"
+            title: "Plan"
         },
         {
             icon: (
@@ -89,7 +91,7 @@ const page = () => {
 
     return (
         <div className='space-y-4 font-mono'>
-            <Header title="Marketplace" setOpen={setOpen} refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
+            <Header title="Plans" setOpen={setOpen} refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
             <div className=''>
                 {isLoading || isFetching ? (
                     <Loader />
@@ -120,7 +122,7 @@ const page = () => {
                                                                 <img
                                                                     src={plan.account.tokenImage}
                                                                     className='w-6 rounded-full object-cover'
-                                                                // alt={`${subscription.account.tokenMetadata.symbol} icon`}
+                                                                    alt={`${plan.account.tokenSymbol} icon`}
                                                                 />
                                                                 <p className="text-xl text-gray-400">
                                                                     {plan.account.tokenSymbol}
@@ -132,15 +134,18 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl ">
                                                             {
-                                                                plan.account.creator?.toString() == publicKey ? <button className='flex gap-2 items-center text-red-400' onClick={() => cancelPlan(plan.account.creator!)}>
-                                                                    <Trash className='size-5' />
-                                                                    Delete
+                                                                plan.account.creator?.toString() == publicKey ? <button className=' text-red-400' onClick={() => cancelPlan.mutate(plan.account.creator!)}>
+                                                                    {
+                                                                        cancelPlan.isPending && cancelPlan.variables?.toString() == plan.account.creator ? <Loader /> : <span className='flex gap-2 items-center' >
+                                                                            <Trash className='size-5' />
+                                                                            Delete
+                                                                        </span>
+                                                                    }
                                                                 </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setPlanPDA(plan.publicKey); setOpenDetails(true) }}>
                                                                     <Zap className="w-5 h-5 " />
                                                                     Subscribe
                                                                 </button>
                                                             }
-
                                                             {/* {subscription.account.active ? "Active" : "Disabled"} */}
                                                         </td>
                                                     </tr>

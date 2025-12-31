@@ -7,6 +7,7 @@ mod handlers;
 mod models;
 mod routes;
 mod state;
+mod utils;
 mod worker;
 use crate::state::AppState;
 use tower_http::cors::Any;

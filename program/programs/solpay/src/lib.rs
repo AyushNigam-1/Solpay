@@ -2,11 +2,12 @@ pub mod constants;
 pub mod errors;
 pub mod events;
 pub mod states;
+use crate::constants::*;
 use crate::errors::ErrorCode;
 use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
-use anchor_spl::token_interface::{transfer, transfer_checked, Transfer, TransferChecked};
+use anchor_spl::token_interface::{transfer_checked, TransferChecked};
 
 declare_id!("DUNyVxYZBG7YvU5Nsbci75stbBnjBtBjjibH6FtVPFaL");
 
@@ -94,16 +95,18 @@ pub mod recurring_payments {
 
         // ---------- CPI TRANSFER (OLD AMOUNT ONLY) ----------
         let seeds = &[
-            b"subscription",
+            SUBSCRIPTION_SEED, // ← use the constant, not raw literal
             payer.as_ref(),
             unique_seed.as_ref(),
             &[bump],
         ];
+
         let signer_seeds = &[&seeds[..]];
 
-        let cpi_accounts = Transfer {
+        let cpi_accounts = TransferChecked {
             from: ctx.accounts.user_token_account.to_account_info(),
             to: ctx.accounts.receiver_token_account.to_account_info(),
+            mint: ctx.accounts.mint.to_account_info(),
             authority: subscription.to_account_info(),
         };
 

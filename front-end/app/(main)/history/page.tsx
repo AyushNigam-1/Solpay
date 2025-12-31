@@ -5,7 +5,7 @@ import { useProgram } from '@/app/hooks/useProgram';
 import { PaymentHistory } from '@/app/types';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, Banknote, Building, Calendar, CircleCheck, CircleDot, Logs, MousePointerClick, RotateCw, Route, Timer, Trash } from 'lucide-react';
+import { ArrowUpRight, Banknote, Building, Calendar, ChartNoAxesGantt, CircleCheck, CircleDot, Logs, MousePointerClick, RotateCw, Route, Timer, Trash } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import Error from '@/app/components/ui/Error';
 import TableHeaders from '@/app/components/ui/TableHeaders';
@@ -40,14 +40,14 @@ const page = () => {
         const lowerCaseQuery = searchQuery.toLowerCase().trim();
         return transactions?.filter(subscription => {
             return (
-                subscription.company.toString().includes(lowerCaseQuery));
+                subscription.plan.toString().includes(lowerCaseQuery) || subscription.tier.toString().includes(lowerCaseQuery));
         });
     }, [transactions, searchQuery]);
 
     const headers = [
         {
             icon: (
-                <Building />
+                <ChartNoAxesGantt />
             ),
             title: "Plan"
         },
@@ -98,16 +98,15 @@ const page = () => {
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
                                         <TableHeaders columns={headers} />
                                         <tbody>
-                                            {filteredData?.map((tx) => {
+                                            {filteredData?.map((tx, index) => {
                                                 return (
                                                     <tr key={tx.txSignature} className="border-t-0 border-2  border-white/5"
                                                     >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {/* {tx.company} */}
-                                                            ChatGpt
+                                                            {tx.plan}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-gray-400">
-                                                            Basic
+                                                            {tx.tier}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
                                                             {tx.amount} OPOS
@@ -116,9 +115,9 @@ const page = () => {
                                                             {formatDate(tx.createdAt)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {tx.status == 'success' ? <span className='flex gap-2 items-center' >
+                                                            {(tx.status == 'success' && index != filteredData.length - 1) ? <span className='flex gap-2 items-center' >
                                                                 <CircleCheck />
-                                                                Success
+                                                                Succeed
                                                             </span> :
                                                                 <span className='flex gap-2 items-center'>
                                                                     <CircleCheck />
@@ -127,7 +126,7 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl flex items-center gap-3">
                                                             {
-                                                                tx.status == 'success' ? <button className='flex gap-1 border-r-2 border-white/8 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
+                                                                (tx.status == 'success' && index != filteredData.length - 1) ? <button className='flex gap-1 border-r-2 border-white/8 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
                                                                     window.open(
                                                                         `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
                                                                         "_blank",
@@ -136,8 +135,8 @@ const page = () => {
                                                                     <ArrowUpRight className='size-5' />
                                                                     Verify
                                                                 </button> :
-                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-3 cursor-pointer text-blue-400' onClick={() => { "" }}>
-                                                                        <RotateCw />                                                                    Retry
+                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-6 cursor-pointer text-blue-400' onClick={() => { "" }}>
+                                                                        <RotateCw className='size-5' />                                                                    Retry
                                                                     </button>
                                                             }
                                                             <button className='flex gap-1 items-center cursor-pointer hover:text-red-500 text-red-400' onClick={() => ""}>

@@ -132,6 +132,27 @@ export const useMutations = () => {
         },
     });
 
+    const cancelPlan = useMutation({
+        mutationFn: async (creatorKey: PublicKey | string) => {
+            const txSig = await programActions.cancelPlan(creatorKey);
+            if (!txSig) {
+                throw new Error('Failed to cancel plan');
+            }
+            return txSig;
+        },
+        onSuccess: (txSig, creatorKey) => {
+            console.log('Plan cancelled successfully:', txSig);
+            // Invalidate any queries that depend on plans list
+            queryClient.invalidateQueries({ queryKey: ['plans'] });
+            queryClient.invalidateQueries({ queryKey: ['plans', creatorKey.toString()] });
+            // Optional: show toast
+            // toast.success('Plan cancelled successfully!');
+        },
+        onError: (error) => {
+            console.error('Error cancelling plan:', error);
+            // toast.error('Failed to cancel plan');
+        },
+    });
 
     const deleteSubscription = useMutation({
         mutationFn: async ({
@@ -191,9 +212,7 @@ export const useMutations = () => {
         onSuccess: (txSig, { field, subscriptionPDA, value }) => {
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
             updateSubscriptionDb.mutate({ field, subscriptionPDA: String(subscriptionPDA), value })
-            // queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
             queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-            // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
         },
 
         onError: (error: any, variables) => {
@@ -204,16 +223,17 @@ export const useMutations = () => {
 
     const manageAutoRenew = useMutation({
         mutationFn: editSubscription,
-        onSuccess: (txSig, variables) => {
+        onSuccess: (txSig, { field, subscriptionPDA, value }) => {
             // toast.success(
             //     `${variables.field === "tier" ? "Tier" : variables.field === "autoRenew" ? "Auto-Renew" : variables.field === "active" ? "Status" : "Duration"} updated successfully!`
             // );
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
+            updateSubscriptionDb.mutate({ field, subscriptionPDA: String(subscriptionPDA), value })
 
             // Refetch relevant queries
-            queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
-            queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-            queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
+            // queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
+            // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+            // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
         },
 
         onError: (error: any, variables) => {
@@ -224,16 +244,17 @@ export const useMutations = () => {
 
     const managePlan = useMutation({
         mutationFn: editSubscription,
-        onSuccess: (txSig, variables) => {
+        onSuccess: (txSig, { field, subscriptionPDA, value }) => {
             // toast.success(
             //     `${variables.field === "tier" ? "Tier" : variables.field === "autoRenew" ? "Auto-Renew" : variables.field === "active" ? "Status" : "Duration"} updated successfully!`
             // );
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
+            updateSubscriptionDb.mutate({ field, subscriptionPDA: String(subscriptionPDA), value })
 
             // Refetch relevant queries
-            queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
-            queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-            queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
+            // queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
+            // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+            // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
         },
 
         onError: (error: any, variables) => {
@@ -241,5 +262,5 @@ export const useMutations = () => {
             // toast.error(`Failed to update ${variables.field}: ${error.message || "Unknown error"}`);
         },
     })
-    return { createSubscription, manageStatus, manageAutoRenew, managePlan, createPlan, deleteSubscription }
+    return { createSubscription, manageStatus, manageAutoRenew, managePlan, createPlan, cancelPlan, deleteSubscription }
 }

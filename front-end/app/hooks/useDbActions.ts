@@ -29,6 +29,33 @@ export const useDbActions = () => {
         });
     };
 
+    const deleteNotification = useMutation({
+        mutationFn: async ({ notificationId, userPubkey }: {
+            notificationId: number; // or bigint if IDs are large
+            userPubkey: string;
+        }) => {
+            const response = await axios.delete(
+                `/api/notifications/${notificationId}/${userPubkey}`
+            );
+
+            if (response.status !== 200) {
+                throw new Error(response.data.error || 'Failed to delete notification');
+            }
+
+            return response.data;
+        },
+        onSuccess: (data, { userPubkey }) => {
+            console.log('Notification deleted successfully:', data);
+
+            // Invalidate notifications list for this user
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: ['notifications', userPubkey] });
+        },
+        onError: (error: any) => {
+            console.error('Error deleting notification:', error);
+            // toast.error(error.message || 'Failed to delete notification');
+        },
+    });
 
     const createSubscriptionDb = useMutation({
         mutationFn: async ({
@@ -60,12 +87,21 @@ export const useDbActions = () => {
                 field,
                 value
             );
+            let wrappedValue: any;
+            if (typeof value === "boolean") {
+                wrappedValue = { Bool: value };
+            } else if (typeof value === "string") {
+                wrappedValue = { String: value };
+            } else {
+                throw new Error("Unsupported value type");
+            }
 
+            console.log("✏️ Updating subscription:", subscriptionPDA, field, wrappedValue);
             const response = await axios.patch(
                 `${API_BASE}/api/subscriptions/${subscriptionPDA}`,
                 {
                     field,
-                    value,
+                    value: wrappedValue,
                 }
             );
             return response.data;
@@ -166,5 +202,5 @@ export const useDbActions = () => {
         }
     }
 
-    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription, useGetUserTransactions }
+    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription, useGetUserTransactions, deleteNotification }
 }

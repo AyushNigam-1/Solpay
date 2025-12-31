@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Notification {
     pub id: Option<uuid::Uuid>,
     pub plan_name: String,
+    pub tier: String,
     pub user_pubkey: String,
     pub subscription_pda: String,
     pub message: String,

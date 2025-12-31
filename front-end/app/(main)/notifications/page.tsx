@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import Error from '@/app/components/ui/Error';
 import TableHeaders from '@/app/components/ui/TableHeaders';
 import { Notification } from '@/app/types';
-import { Building, Calendar, MessageCircle, MousePointer, MousePointerClick, Recycle, RotateCw, Timer, Trash } from 'lucide-react';
+import { Building, Calendar, Logs, MessageCircle, MousePointer, MousePointerClick, Recycle, RotateCw, Timer, Trash } from 'lucide-react';
 import { formatDate } from '@/app/utils/duration';
 
 
@@ -58,7 +58,12 @@ const page = () => {
             ),
             title: "Plan"
         },
-
+        {
+            icon: (
+                <Logs />
+            ),
+            title: "Tier"
+        },
         {
             icon: (
                 <MessageCircle />
@@ -86,10 +91,11 @@ const page = () => {
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
                                         <colgroup>
-                                            <col className="w-[22%]" />
-                                            <col className="w-[22%]" />
+                                            <col className="w-[16%]" />
+                                            <col className="w-[16%]" />
+                                            <col className="w-[16%]" />
                                             <col className="w-[36%]" />
-                                            <col className="w-[22%]" />
+                                            <col className="w-[16%]" />
                                         </colgroup>
                                         <TableHeaders columns={headers} />
                                         <tbody>
@@ -102,6 +108,9 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white w-1/6">
                                                             {notification.planName}
+                                                        </td>
+                                                        <td className="px-6 py-2 text-xl font-semibold text-white w-1/6">
+                                                            {notification.tier}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 w-1/2">
                                                             {/* {plan.account.creator?.toString().slice(0, 10)}... */}
@@ -126,7 +135,7 @@ const page = () => {
                                 </div>
                             </>
                             :
-                            !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No transactions found.</p>
+                            !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No notifications found.</p>
                 }
                 {filteredData?.length === 0 && searchQuery && (
                     <div className="lg:col-span-4 p-8 rounded-xl text-center text-gray-400">

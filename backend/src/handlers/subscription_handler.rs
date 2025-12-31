@@ -1,5 +1,6 @@
-use crate::AppState;
+use crate::handlers::transaction_handler::create_transaction;
 use crate::models::subscription::Subscription;
+use crate::{AppState, models::transaction::PaymentHistory};
 use anyhow::Result;
 use axum::{
     extract::{Extension, Json, Path},
@@ -8,8 +9,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
-
 
 pub async fn create_subscription(
     Extension(state): Extension<AppState>,
@@ -56,17 +55,30 @@ pub async fn create_subscription(
     .execute(&state.db)
     .await;
 
-    match result {
+    let (status, body) = match result {
         Ok(_) => {
-            // println!("✅ Subscription created successfully for {}", address);
+            // Record initial transaction history (fire and forget)
+            let history_record = PaymentHistory {
+                user_pubkey: payload.payer.clone(),
+                plan: payload.plan_pda.clone(),
+                tier: payload.tier_name.clone(),
+                amount: 0, // initial subscription — amount handled separately
+                status: "success".to_string(),
+                tx_signature: Some(payload.tx_signature), // if you have it
+                subscription_pda: payload.subscription.clone(),
+                created_at: chrono::Utc::now(),
+            };
+            if let Err(e) = create_transaction(&state.db, &history_record).await {
+                eprintln!("Failed to record transaction history: {:?}", e);
+                // Don't fail the whole request
+            }
             (
                 StatusCode::CREATED,
-                Json(serde_json::json!({
+                json!({
                     "message": "Subscription created successfully",
                     "subscription_pda": payload.subscription
-                })),
+                }),
             )
-                .into_response()
         }
         Err(sqlx::Error::Database(db_err))
             if db_err.constraint() == Some("subscriptions_pkey")
@@ -75,19 +87,19 @@ pub async fn create_subscription(
             eprintln!("Duplicate subscription PDA: {}", payload.subscription);
             (
                 StatusCode::CONFLICT,
-                Json(serde_json::json!({ "error": "Subscription already exists" })),
+                json!({ "error": "Subscription already exists" }),
             )
-                .into_response()
         }
         Err(e) => {
             eprintln!("Failed to create subscription: {:?}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": "Failed to create subscription" })),
+                json!({ "error": "Failed to create subscription" }),
             )
-                .into_response()
         }
-    }
+    };
+
+    (status, Json(body)).into_response()
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -108,7 +120,7 @@ pub async fn update_subscription(
 ) -> impl IntoResponse {
     // Run the query based on field
     let result = match payload.field.as_str() {
-        "auto_renew" => {
+        "autoRenew" => {
             if let UpdateValue::Bool(b) = payload.value {
                 sqlx::query!(
                     "UPDATE subscriptions SET auto_renew = $1 WHERE subscription_pda = $2",

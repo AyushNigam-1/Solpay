@@ -11,7 +11,7 @@ import Error from '@/app/components/ui/Error';
 import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { PublicKey } from '@solana/web3.js';
 import { formatPeriod } from '@/app/utils/duration';
-import { Banknote, Building, ChartNoAxesGantt, CircleDot, Coins, Timer } from 'lucide-react';
+import { Banknote, Building, ChartNoAxesGantt, CircleDot, Coins, Logs, Timer } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
 import PlanDetails from '@/app/components/ui/PlanDetails';
 
@@ -74,15 +74,15 @@ const page = () => {
     const headers = [
         {
             icon: (
-                <Building size={20} />
-            ),
-            title: "Company"
-        },
-        {
-            icon: (
                 <ChartNoAxesGantt />
             ),
             title: "Plan"
+        },
+        {
+            icon: (
+                <Logs />
+            ),
+            title: "Tier"
         },
         {
             icon: (

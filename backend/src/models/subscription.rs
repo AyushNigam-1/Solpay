@@ -13,10 +13,14 @@ pub struct Subscription {
     pub unique_seed: [u8; 8],
     pub bump: u8,
     pub subscription: String,
+    pub tx_signature: String,
 }
 
-// #[derive(Debug, Serialize, Deserialize, Clone)]
-// pub struct Subscription {
-//     pub public_key: String,
-//     pub account: SubscriptionAccount,
-// }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Tier {
+    pub tier_name: String,
+    pub amount: String, // or u64 if you want to parse
+    pub period_seconds: String,
+    pub description: String,
+}

@@ -1,7 +1,10 @@
 use crate::models::notification::Notification;
 use crate::state::AppState;
-use axum::{Extension, Json, extract::Path};
+use axum::{Extension, Json, extract::Path, response::IntoResponse};
+use hyper::StatusCode;
+use serde_json::json;
 use sqlx::PgPool;
+use uuid::Uuid;
 
 pub async fn create_notification(db: &PgPool, notification: &Notification) -> anyhow::Result<()> {
     sqlx::query!(
@@ -10,15 +13,17 @@ pub async fn create_notification(db: &PgPool, notification: &Notification) -> an
             user_pubkey,
             subscription_pda,
             plan_name,
+            tier,
             message,
             is_read,
             type
         )
-        VALUES ($1, $2, $3, $4,$5,$6)
+        VALUES ($1, $2, $3, $4,$5,$6,$7)
         "#,
         notification.user_pubkey,
         notification.subscription_pda,
         notification.plan_name,
+        notification.tier,
         notification.message,
         notification.is_read,
         notification.r#type,
@@ -40,7 +45,8 @@ pub async fn get_notifications(
             id,
             user_pubkey,
             plan_name,
-            subscription_pda,
+            tier,
+            subscription_pda, 
             message,
             created_at,
             is_read,
@@ -55,4 +61,49 @@ pub async fn get_notifications(
     .await
     .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(records))
+}
+
+pub async fn delete_notification(
+    Extension(state): Extension<PgPool>,
+    Path((notification_id, user_pubkey)): Path<(Uuid, String)>,
+) -> impl IntoResponse {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM notifications
+        WHERE id = $1 AND user_pubkey = $2
+        "#,
+        notification_id,
+        &user_pubkey
+    )
+    .execute(&state)
+    .await;
+
+    match result {
+        Ok(res) if res.rows_affected() == 1 => (
+            StatusCode::OK,
+            Json(json!({
+                "message": "Notification deleted successfully"
+            })),
+        )
+            .into_response(),
+
+        Ok(_) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
+                "error": "Notification not found or does not belong to you"
+            })),
+        )
+            .into_response(),
+
+        Err(e) => {
+            eprintln!("Failed to delete notification: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to delete notification"
+                })),
+            )
+                .into_response()
+        }
+    }
 }
