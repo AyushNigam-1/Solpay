@@ -10,6 +10,7 @@ pub struct Subscription {
     pub next_payment_ts: String,
     pub auto_renew: bool,
     pub active: bool,
+    pub amount: String,
     pub unique_seed: [u8; 8],
     pub bump: u8,
     pub subscription: String,

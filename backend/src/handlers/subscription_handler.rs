@@ -1,5 +1,6 @@
 use crate::handlers::transaction_handler::create_transaction;
 use crate::models::subscription::Subscription;
+use crate::worker::renew_subscription_by_pda;
 use crate::{AppState, models::transaction::PaymentHistory};
 use anyhow::Result;
 use axum::{
@@ -9,6 +10,8 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use solana_sdk::pubkey::Pubkey;
+use std::str::FromStr;
 
 pub async fn create_subscription(
     Extension(state): Extension<AppState>,
@@ -27,7 +30,18 @@ pub async fn create_subscription(
                 .into_response();
         }
     };
-
+    let amount = match i64::from_str_radix(&payload.amount, 16) {
+        Ok(v) => v,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": "Invalid hex timestamp"
+                })),
+            )
+                .into_response();
+        }
+    };
     let result = sqlx::query!(
         r#"
         INSERT INTO subscriptions (
@@ -37,10 +51,11 @@ pub async fn create_subscription(
             next_payment_ts,
             auto_renew,
             active,
+            amount,
             unique_seed,
             bump,
             subscription_pda
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10)
         "#,
         payload.payer,
         payload.tier_name,
@@ -48,6 +63,7 @@ pub async fn create_subscription(
         next_payment_ts,
         payload.auto_renew,
         payload.active,
+        amount,
         &payload.unique_seed,
         payload.bump as i16,
         payload.subscription
@@ -59,10 +75,11 @@ pub async fn create_subscription(
         Ok(_) => {
             // Record initial transaction history (fire and forget)
             let history_record = PaymentHistory {
+                id: None,
                 user_pubkey: payload.payer.clone(),
                 plan: payload.plan_pda.clone(),
                 tier: payload.tier_name.clone(),
-                amount: 0, // initial subscription — amount handled separately
+                amount: amount, // initial subscription — amount handled separately
                 status: "success".to_string(),
                 tx_signature: Some(payload.tx_signature), // if you have it
                 subscription_pda: payload.subscription.clone(),
@@ -276,52 +293,24 @@ pub async fn delete_subscription(
     }
 }
 
-// Step 2: Find and filter out the escrow to delete
-// let initial_count = escrows.len();
+pub async fn renew_subscription(
+    Extension(state): Extension<AppState>,
+    Path(subscription_pda): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let subscription_pda = Pubkey::from_str(&subscription_pda)
+        .map_err(|_| (StatusCode::BAD_REQUEST, "Invalid subscription PDA".into()))?;
 
-// We filter the list, keeping only the escrows whose unique_seed DOES NOT match
-// the one sent in the request.
-// escrows.retain(|e| e.public_key != escrow_pda);
+    renew_subscription_by_pda(&state, subscription_pda)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Renewal failed: {}", e),
+            )
+        })?;
 
-// if escrows.len() == initial_count {
-//     // If the length didn't change, the escrow wasn't found.
-//     println!(
-//         "⚠️ Escrow with unique_seed {} not found in list.",
-//         escrow_pda
-//     );
-//     return Err(StatusCode::NOT_FOUND);
-// }
-
-// println!("➖ Removed 1 escrow. New count: {}", escrows.len());
-
-// // Step 3: Update the record with the filtered array
-// println!("💾 Updating user {}’s escrows in the database…", address);
-// let res = sqlx::query!(
-//     r#"UPDATE users SET escrows = $1 WHERE address = $2"#,
-//     sqlx::types::Json(&escrows) as _,
-//     address
-// )
-// .execute(&state.db)
-// .await;
-
-// match res {
-//     Ok(_) => {
-//         println!("✅ Escrow successfully deleted for user {}", address);
-//         Ok((
-//             StatusCode::OK,
-//             Json(json!({"message": "Escrow deleted successfully"})),
-//         ))
-//     }
-//     Err(e) => {
-//         eprintln!(
-//             "❌ Failed to update escrows after deletion for {}: {:?}",
-//             address, e
-//         );
-//         Err(StatusCode::INTERNAL_SERVER_ERROR)
-//     }
-// }
-//     Ok((
-//         StatusCode::OK,
-//         Json(json!({"message": "Escrow deleted successfully"})),
-//     ))
-// }
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Subscription renewal triggered"
+    })))
+}

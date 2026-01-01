@@ -9,12 +9,14 @@ import { useMemo, useState } from 'react';
 import Error from '@/app/components/ui/Error';
 import TableHeaders from '@/app/components/ui/TableHeaders';
 import { Notification } from '@/app/types';
-import { Building, Calendar, Logs, MessageCircle, MousePointer, MousePointerClick, Recycle, RotateCw, Timer, Trash } from 'lucide-react';
+import { Calendar, ChartNoAxesGantt, Logs, MessageCircle, MousePointerClick, RotateCw, Trash } from 'lucide-react';
 import { formatDate } from '@/app/utils/duration';
+import { useDbActions } from '@/app/hooks/useDbActions';
 
 
 const page = () => {
     const { publicKey } = useProgram()
+    const { deleteNotification, renewSubscription } = useDbActions()
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const {
         data: notifications,
@@ -26,7 +28,7 @@ const page = () => {
         queryKey: ["Notifications", publicKey],
         queryFn: async () => {
             const res = await axios.get<Notification[]>(
-                `http://127.0.0.1:3000/api/notifications/${publicKey}`
+                `http://127.0.0.1:3000/api/notifications/user/${publicKey}`
             );
             return res.data;
         },
@@ -54,7 +56,7 @@ const page = () => {
         },
         {
             icon: (
-                <Building />
+                <ChartNoAxesGantt />
             ),
             title: "Plan"
         },
@@ -118,13 +120,22 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl gap-4 flex items-center">
                                                             {
-                                                                notification.type !== "Success" && <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { "" }}>
-                                                                    <RotateCw />                                                                    Retry
+                                                                notification.type !== "Success" && <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-6 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: notification.subscriptionPda })}>
+                                                                    {
+                                                                        (renewSubscription.variables?.subscriptionPda == notification.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
+                                                                            <RotateCw className='size-5' />                                                                    Retry
+                                                                        </div>
+                                                                    }
+
                                                                 </button>
                                                             }
-                                                            <button className='flex gap-2 items-center cursor-pointer hover:text-red-500 text-red-400' onClick={() => ""}>
-                                                                <Trash className='size-5' />
-                                                                Delete
+                                                            <button className=' cursor-pointer hover:text-red-500 text-red-400' onClick={() => deleteNotification.mutate({ notificationId: notification.id })}>
+                                                                {
+                                                                    (deleteNotification.variables?.notificationId == notification.id && deleteNotification.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
+                                                                        <Trash className='size-5' />
+                                                                        Delete
+                                                                    </div>
+                                                                }
                                                             </button>
                                                         </td>
                                                     </tr>

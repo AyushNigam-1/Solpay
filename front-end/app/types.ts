@@ -22,7 +22,8 @@ export interface Subscription {
     payee: web3.PublicKey;
     mint: web3.PublicKey;
     tierName: string,
-    planPda: string
+    planPda: string,
+    amount: number,
     nextPaymentTs: anchor.BN;
     active: boolean;
     autoRenew: boolean;
@@ -34,7 +35,7 @@ export interface Subscription {
     planMetadata?: Plan
 }
 export type Notification = {
-    id: number;                 // DB primary key
+    id: string;                 // DB primary key
     userPubkey: string;
     planName: string;
     tier: string      // wallet address
@@ -45,6 +46,7 @@ export type Notification = {
 };
 
 export interface PaymentHistory {
+    id: number;
     userPubkey: string;
     plan: string;
     tier: string

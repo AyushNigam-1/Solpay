@@ -6,6 +6,9 @@ use axum::{
 
 pub fn notification_routes() -> Router {
     Router::new()
-        .route("/notifications/{user_pubkey}", get(get_notifications))
-        .route("/notifications/:id", delete(delete_notification))
+        .route("/notifications/user/{user_pubkey}", get(get_notifications))
+        .route(
+            "/notifications/{notification_id}",
+            delete(delete_notification),
+        )
 }

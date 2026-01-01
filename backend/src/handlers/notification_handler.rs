@@ -64,18 +64,23 @@ pub async fn get_notifications(
 }
 
 pub async fn delete_notification(
-    Extension(state): Extension<PgPool>,
-    Path((notification_id, user_pubkey)): Path<(Uuid, String)>,
+    Path(notification_id): Path<String>,
+    Extension(state): Extension<AppState>,
 ) -> impl IntoResponse {
+    let notification_id = match Uuid::parse_str(&notification_id) {
+        Ok(uuid) => uuid,
+        Err(_) => {
+            return (StatusCode::BAD_REQUEST, "Invalid UUID format").into_response();
+        }
+    };
     let result = sqlx::query!(
         r#"
         DELETE FROM notifications
-        WHERE id = $1 AND user_pubkey = $2
+        WHERE id = $1
         "#,
         notification_id,
-        &user_pubkey
     )
-    .execute(&state)
+    .execute(&state.db)
     .await;
 
     match result {

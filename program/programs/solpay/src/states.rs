@@ -212,7 +212,7 @@ pub struct Subscription {
     pub active: bool,
     pub bump: u8,
     pub unique_seed: [u8; 8],
-     pub amount: u64,          // 🔒 locked price
+     pub amount: u64,        
     pub period_seconds: i64,
 }
 

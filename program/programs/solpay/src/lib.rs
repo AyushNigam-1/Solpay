@@ -62,6 +62,7 @@ pub mod recurring_payments {
             tier_name: tier_name.to_string(),
             plan_pda: plan_pda.to_string(),
             payer: ctx.accounts.payer.key(),
+            amount: amount,
             next_payment_ts: next_payment_ts,
             auto_renew: auto_renew,
             active: true,

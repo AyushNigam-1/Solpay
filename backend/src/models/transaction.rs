@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentHistory {
+    pub id: Option<i64>,
     pub user_pubkey: String,
     pub plan: String, // ✅ renamed
     pub tier: String, // ✅ new

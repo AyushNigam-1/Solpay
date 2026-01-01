@@ -72,7 +72,6 @@ export const useMutations = () => {
                 autoRenew,
                 receiver,
                 mint,
-                // auto-renew flag
             );
             if (!subscription) {
                 throw new Error("Failed to create subscription");
@@ -81,46 +80,10 @@ export const useMutations = () => {
 
         },
 
-        onSuccess: async ({ subscriptionPDA, account }, { amount, mint, payerKey, periodSeconds, planPDA, receiver, tier, autoRenew }) => {
+        onSuccess: async ({ subscriptionPDA, account }) => {
             // toast.success("Subscription created successfully!");
             console.log("New Subscription PDA:", subscriptionPDA, account);
             createSubscriptionDb.mutate({ account })
-            if (!autoRenew) {
-                console.log("ℹ️ Auto-renew disabled, skipping TukTuk scheduling")
-                return
-            }
-
-            try {
-                const userTokenAccount = await getAssociatedTokenAddress(
-                    mint,
-                    payerKey
-                )
-
-                const receiverTokenAccount = await getAssociatedTokenAddress(
-                    mint,
-                    receiver
-                )
-                const tokenProgram = await getMintProgramId(mint)
-                const executeAtTs =
-                    Math.floor(Date.now() / 1000) + periodSeconds
-
-                console.log("🕒 Scheduling payment at:", executeAtTs)
-
-                await scheduleSubscription({
-                    subscriptionPda: subscriptionPDA,
-                    planPda: planPDA.toBase58(),
-                    userTokenAccount: userTokenAccount.toBase58(),
-                    receiverTokenAccount: receiverTokenAccount.toBase58(),
-                    mint: mint.toBase58(),
-                    tokenProgram: tokenProgram.toBase58(),
-                    executeAtTs,
-                })
-
-                console.log("✅ TukTuk task scheduled successfully")
-            } catch (err) {
-                console.error("❌ Failed to schedule TukTuk task", err)
-                // optional: show toast or mark subscription as "needs retry"
-            }
             // Refetch your subscriptions list
             // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
             // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", payerKey.toBase58()] });

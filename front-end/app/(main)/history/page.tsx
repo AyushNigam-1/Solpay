@@ -10,10 +10,12 @@ import { useMemo, useState } from 'react';
 import Error from '@/app/components/ui/Error';
 import TableHeaders from '@/app/components/ui/TableHeaders';
 import { formatDate } from '@/app/utils/duration';
+import { useDbActions } from '@/app/hooks/useDbActions';
 
 const page = () => {
     const { publicKey } = useProgram()
     const [searchQuery, setSearchQuery] = useState<string | null>("")
+    const { deleteTransaction, renewSubscription } = useDbActions()
 
     const {
         data: transactions,
@@ -25,14 +27,16 @@ const page = () => {
         queryKey: ["UserTransactions", publicKey],
         queryFn: async () => {
             const res = await axios.get<PaymentHistory[]>(
-                `http://127.0.0.1:3000/api/transactions/${publicKey}`
+                `http://127.0.0.1:3000/api/transactions/user/${publicKey}`
             );
             return res.data;
         },
         enabled: !!publicKey, // Only fetch if pubkey exists
         staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     });
+
     console.log(transactions)
+
     const filteredData = useMemo(() => {
         if (!searchQuery) {
             return transactions;
@@ -45,6 +49,12 @@ const page = () => {
     }, [transactions, searchQuery]);
 
     const headers = [
+        {
+            icon: (
+                <Calendar />
+            ),
+            title: "Date"
+        },
         {
             icon: (
                 <ChartNoAxesGantt />
@@ -63,12 +73,7 @@ const page = () => {
             ),
             title: "Amount"
         },
-        {
-            icon: (
-                <Calendar />
-            ),
-            title: "Date"
-        },
+
         {
             icon: (
                 <CircleDot />
@@ -102,6 +107,9 @@ const page = () => {
                                                 return (
                                                     <tr key={tx.txSignature} className="border-t-0 border-2  border-white/5"
                                                     >
+                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
+                                                            {formatDate(tx.createdAt)}
+                                                        </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {tx.plan}
                                                         </td>
@@ -111,9 +119,7 @@ const page = () => {
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
                                                             {tx.amount} OPOS
                                                         </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {formatDate(tx.createdAt)}
-                                                        </td>
+
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
                                                             {(tx.status == 'success' && index != filteredData.length - 1) ? <span className='flex gap-2 items-center' >
                                                                 <CircleCheck />
@@ -135,13 +141,22 @@ const page = () => {
                                                                     <ArrowUpRight className='size-5' />
                                                                     Verify
                                                                 </button> :
-                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-6 cursor-pointer text-blue-400' onClick={() => { "" }}>
-                                                                        <RotateCw className='size-5' />                                                                    Retry
+                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-6 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
+                                                                        {
+                                                                            (renewSubscription.variables?.subscriptionPda == tx.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
+                                                                                <RotateCw className='size-5' />                                                                    Retry
+                                                                            </div>
+                                                                        }
+
                                                                     </button>
                                                             }
-                                                            <button className='flex gap-1 items-center cursor-pointer hover:text-red-500 text-red-400' onClick={() => ""}>
-                                                                <Trash className='size-5' />
-                                                                Delete
+                                                            <button className=' cursor-pointer hover:text-red-500 text-red-400' onClick={() => deleteTransaction.mutate(tx.id)}>
+                                                                {
+                                                                    (deleteTransaction.variables == tx.id && deleteTransaction.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
+                                                                        <Trash className='size-5' />
+                                                                        Delete
+                                                                    </div>
+                                                                }
                                                             </button>
                                                         </td>
                                                     </tr>

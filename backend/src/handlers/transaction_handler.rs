@@ -5,7 +5,9 @@ use axum::{
     Json,
     extract::{Extension, Path},
     http::StatusCode,
+    response::IntoResponse,
 };
+use serde_json::json;
 use sqlx::PgPool;
 
 pub async fn create_transaction(db: &PgPool, record: &PaymentHistory) -> Result<()> {
@@ -53,6 +55,7 @@ pub async fn get_transactions(
         PaymentHistory,
         r#"
         SELECT
+            id,
             user_pubkey, 
             plan,
             tier,
@@ -87,6 +90,7 @@ pub async fn get_user_company_transactions(
         PaymentHistory,
         r#"
         SELECT
+            id,
             user_pubkey,
             plan,
             tier,
@@ -112,4 +116,50 @@ pub async fn get_user_company_transactions(
     })?;
 
     Ok(Json(records))
+}
+
+/// DELETE /transactions/:tx_signature/:user_pubkey
+/// Deletes a specific transaction if it belongs to the user
+pub async fn delete_transaction(
+    Extension(state): Extension<AppState>,
+    Path(id): Path<i64>,
+) -> impl IntoResponse {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM payment_history
+        WHERE id = $1
+        "#,
+        &id
+    )
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(res) if res.rows_affected() == 1 => (
+            StatusCode::OK,
+            Json(json!({
+                "message": "Transaction record deleted successfully"
+            })),
+        )
+            .into_response(),
+
+        Ok(_) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
+                "error": "Transaction not found or does not belong to you"
+            })),
+        )
+            .into_response(),
+
+        Err(e) => {
+            eprintln!("Failed to delete transaction: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to delete transaction"
+                })),
+            )
+                .into_response()
+        }
+    }
 }

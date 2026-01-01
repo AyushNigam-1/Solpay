@@ -1,10 +1,11 @@
 use crate::handlers::subscription_handler::{
-    create_subscription, delete_subscription, get_subscriptions, update_subscription,
+    create_subscription, delete_subscription, get_subscriptions, renew_subscription,
+    update_subscription,
 };
 use axum::{
     Router,
     routing::{get, post},
-}; // Import your shared state type
+};
 
 pub fn subscription_routes() -> Router {
     Router::new()
@@ -12,7 +13,8 @@ pub fn subscription_routes() -> Router {
             "/subscriptions/{subscription_pda}",
             get(get_subscriptions)
                 .delete(delete_subscription)
-                .patch(update_subscription),
+                .patch(update_subscription)
+                .post(renew_subscription),
         )
         .route("/subscriptions", post(create_subscription))
 }

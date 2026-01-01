@@ -137,7 +137,7 @@ export const useProgramActions = () => {
         try {
             // 1. generate unique seed
             const uniqueSeed = crypto.getRandomValues(new Uint8Array(8));
-
+            console.log(Array.from(uniqueSeed))
             // 2. derive subscription PDA
             const [subscriptionPDA] = PublicKey.findProgramAddressSync(
                 [
@@ -148,7 +148,6 @@ export const useProgramActions = () => {
                 PROGRAM_ID
             );
 
-            // 3. create subscription on-chain
             const txSig = await program.methods
                 .initializeSubscription(
                     tierName,
@@ -184,10 +183,10 @@ export const useProgramActions = () => {
             );
             return {
                 subscriptionPDA: subscriptionPDA.toBase58(),
-                account,
+                account: { ...account, txSignature: txSig },
             };
         } catch (error: any) {
-            console.error("Failed to create subscription:", error);
+            console.error("Failed to create subscription: from blockchain", error);
             return undefined;
         }
     }

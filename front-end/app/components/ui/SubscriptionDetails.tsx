@@ -1,6 +1,6 @@
 import { PaymentHistory, Plan, StatCardProps, Subscription } from '@/app/types';
 import { formatDate, formatPeriod } from '@/app/utils/duration';
-import { ArrowUpRight, Ban, Calendar, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, History, MousePointerClick, Pause, Pen, Play, Repeat2, RotateCw, Route, Timer, Trash, Wallet, X } from 'lucide-react';
+import { ArrowUpRight, Ban, Calendar, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, FileWarning, History, MousePointerClick, Pause, Pen, Play, Repeat2, RotateCw, Route, Timer, Trash, Wallet, X } from 'lucide-react';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import TableHeaders from './TableHeaders';
@@ -68,7 +68,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
         const diffSeconds = nextTs - now;
 
         if (diffSeconds <= 0) {
-            return "due now or overdue";
+            return "Expired";
         }
 
         const minute = 60;
@@ -206,33 +206,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                         className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition  bg-white/5 p-2 rounded-full">
                                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     </button>
-                                    {/* <div className='flex gap-4' > */}
-                                    {/* <button className='flex justify-center text-blue-400 items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold' >
-                        <History size={20} />
-                        Recent Transactions
-                    </button> */}
-
-
-                                    {/* </div> */}
                                 </div>
-                                {/* <div className='h-0.5 w-full bg-white/5' /> */}
-                                {/* <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
-                    <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-2xl w-full'>
-                        <span className="hidden sm:inline text-gray-400 text-sm">Creator</span>
-                        <span className='truncate font-bold'>
-                            {subscription?.account.planMetadata.creator.toBase58()}
-                        </span>
-                    </div>
-                    <div className='flex flex-col gap-2 bg-white/5 p-3 rounded-2xl w-full'>
-                        <span className="hidden sm:inline text-gray-400 text-sm"> Reciever</span>
-                        <span className="truncate font-bold" >
-                            {subscription?.account.planMetadata.receiver.toBase58()}
-                        </span>
-                    </div>
-                </div> */}
-                                {/* <StatCard title='Created By' value={subscription?.account.planMetadata.creator.toBase58()} icon={Banknote} />
-                <StatCard title='Reciever' value={subscription?.account.planMetadata.receiver.toBase58()} icon={Banknote} /> */}
-
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
                                     <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-3'>
@@ -251,38 +225,19 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     </div>
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-
-                                {/* <div className='grid grid-cols-3 gap-4' >
-                    <StatCard title='Name' value={currentTier?.tierName} icon={Timer} />
-                    <StatCard title='Amount' value={currentTier?.amount.toString()} icon={Banknote} />
-                    <StatCard title='Duration' value={formatPeriod(currentTier?.periodSeconds)} icon={Timer} />
-                </div>
-                <StatCard title='Description' value={currentTier?.description} icon={Banknote} /> */}
                                 <div className='grid grid-cols-12 gap-3' >
                                     <div className='space-y-4 col-span-3 rounded-2xl'>
                                         <div className='flex justify-between'>
                                             <h6 className='text-xl font-bold'>Tier</h6>
-                                            <p className='font-medium text-heading text-blue-400'>
-                                                {subscription?.account.nextPaymentTs && timeRemainingUntil(subscription?.account.nextPaymentTs)}
+                                            <p className={`font-medium text-heading ${subscription?.account.nextPaymentTs && timeRemainingUntil(subscription?.account.nextPaymentTs) == 'Expired' ? 'text-red-400' : ' text-blue-400'}`}>
+                                                {subscription?.account.nextPaymentTs &&
+                                                    (timeRemainingUntil(subscription?.account.nextPaymentTs) == "Expired" ? <span className='flex items-center gap-2' > <CircleAlert size={18} /> Expired  </span> : <span className='flex items-center gap-2' > <Timer size={18} /> {timeRemainingUntil(subscription?.account.nextPaymentTs)} </span>)
+                                                }
                                             </p>
-                                            {/* <button className='flex justify-center text-blue-400 items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold mb-0'
-                                                onClick={() => { setPlan(subscription?.account.planMetadata); setPlanDetailsOpen(true); onClose() }}
-                                            >
-                                                <Repeat2 />
-                                                Change Tier
-                                            </button> */}
                                         </div>
-                                        {/* <div className='h-0.5 w-full    bg-white/5' /> */}
-
                                         <div
                                             className={`relative cursor-pointer rounded-2xl max-w-xs  p-4 border-2 transition-all duration-200 group flex flex-col justify-between space-y-3 border-white/5 m-0`}
                                         >
-                                            {/* <div className="absolute top-4 right-4 text-blue-400">
-                                <CheckCircle2 className="w-6 h-6" />
-                            </div> */}
-                                            {/* <div className={`p-3 rounded-xl  mb-3 ${isSelected ? 'bg-blue-500/20' : 'bg-gray-700/50 group-hover:bg-gray-700'}`}>
-                                                                                    <TierIcon name={tier.tierName} />
-                                                                                </div> */}
                                             <div className='space-y-3'>
                                                 <h4 className="text-2xl font-bold text-white">{currentTier?.tierName}</h4>
                                                 <p className="text-gray-400">{currentTier?.description || "Standard subscription? tier."}  </p>
@@ -374,17 +329,16 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             <table className="w-full table-fixed text-sm text-left rtl:text-right text-body h-full">
                                                 <TableHeaders columns={headers} />
                                                 <tbody>
-
                                                     {transactions?.map((tx, index) => {
                                                         const isFirstRow = index === 0;
                                                         const isLastRow = index === transactions?.length - 1;
                                                         return (
                                                             <tr key={subscription?.account.bump} className="transition cursor-pointer border border-white/5 rounded-2xl" >
                                                                 <td className={`
-                                                    px-6 py-2 text-xl text-gray-400
-                                                    ${isFirstRow ? "rounded-tl-2xl" : ""}
-                                                    ${isLastRow ? "rounded-bl-2xl" : ""}
-                                                `}>
+                                                                    px-6 py-2 text-xl text-gray-400
+                                                                    ${isFirstRow ? "rounded-tl-2xl" : ""}
+                                                                    ${isLastRow ? "rounded-bl-2xl" : ""}
+                                                                `}>
                                                                     {formatDate(tx.createdAt)}
                                                                 </td>
                                                                 <td className='px-6 py-2 text-xl text-gray-400 '>
@@ -459,9 +413,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                         }
                                         Delete Subscription
                                     </button>
-
                                 </div>
-
                             </DialogPanel>
                         </TransitionChild>
                     </div>

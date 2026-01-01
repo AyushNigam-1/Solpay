@@ -30,12 +30,11 @@ export const useDbActions = () => {
     };
 
     const deleteNotification = useMutation({
-        mutationFn: async ({ notificationId, userPubkey }: {
-            notificationId: number; // or bigint if IDs are large
-            userPubkey: string;
+        mutationFn: async ({ notificationId }: {
+            notificationId: string; // or bigint if IDs are large
         }) => {
             const response = await axios.delete(
-                `/api/notifications/${notificationId}/${userPubkey}`
+                `${API_BASE}/api/notifications/${notificationId}`
             );
 
             if (response.status !== 200) {
@@ -44,12 +43,11 @@ export const useDbActions = () => {
 
             return response.data;
         },
-        onSuccess: (data, { userPubkey }) => {
+        onSuccess: (data) => {
             console.log('Notification deleted successfully:', data);
-
             // Invalidate notifications list for this user
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            queryClient.invalidateQueries({ queryKey: ['notifications', userPubkey] });
+            // queryClient.invalidateQueries({ queryKey: ['notifications', userPubkey] });
         },
         onError: (error: any) => {
             console.error('Error deleting notification:', error);
@@ -57,11 +55,61 @@ export const useDbActions = () => {
         },
     });
 
+    const renewSubscription = useMutation({
+        mutationFn: async ({
+            subscriptionPda,
+        }: {
+            subscriptionPda: string;
+        }) => {
+            const res = await axios.post(
+                `${API_BASE}/api/subscriptions/${subscriptionPda}`
+            );
+            return res.data;
+        },
+
+        onSuccess: (data) => {
+            console.log("✅ Subscription renewal triggered:", data);
+        },
+
+        onError: (error: any) => {
+            console.error(
+                "❌ Failed to renew subscription:",
+                error?.response?.data || error.message
+            );
+        },
+    });
+
+    const deleteTransaction = useMutation({
+        mutationFn: async (id: number) => {
+            const response = await axios.delete(
+                `${API_BASE}/api/transactions/${id}`
+            );
+
+            if (response.status !== 200) {
+                throw new Error(response.data.error || 'Failed to delete transaction');
+            }
+
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log('Transaction deleted successfully:', data);
+
+            // Invalidate all relevant transaction queries
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            // queryClient.invalidateQueries({ queryKey: ['transactions', userPubkey] });
+        },
+        onError: (error: any) => {
+            console.error('Error deleting transaction:', error);
+            // toast.error(error.message || 'Failed to delete transaction');
+        },
+    });
+
+
     const createSubscriptionDb = useMutation({
         mutationFn: async ({
             account,
         }: UpdateParams) => {
-            // console.log(action)
+            console.log("account", account)
             const response = await axios.post(`${API_BASE}/api/subscriptions`, account, {
                 headers: { "Content-Type": "application/json" },
             });
@@ -202,5 +250,5 @@ export const useDbActions = () => {
         }
     }
 
-    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription, useGetUserTransactions, deleteNotification }
+    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription, useGetUserTransactions, deleteNotification, deleteTransaction, renewSubscription }
 }
