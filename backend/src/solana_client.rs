@@ -83,6 +83,7 @@ impl SolanaClient {
                 AccountMeta::new(user_token_account, false),
                 AccountMeta::new(receiver_token_account, false),
                 AccountMeta::new_readonly(mint, false),
+                AccountMeta::new_readonly(system_program::ID, false),
                 AccountMeta::new_readonly(token_program, false),
             ],
             data,

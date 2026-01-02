@@ -26,8 +26,6 @@ const page = () => {
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
     // const publicKey = new PublicKey(Cookies.get("user")!)
     const [searchQuery, setSearchQuery] = useState<string | null>("")
-    const [popupOpen, setPopupOpen] = useState(false);
-    const [popupAction, setPopupAction] = useState<"fund" | "withdraw">("fund");
     const { cancelSubscription, fetchUserSubscriptions } = useProgramActions();
 
     const {

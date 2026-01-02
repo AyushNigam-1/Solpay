@@ -7,6 +7,7 @@ use crate::errors::ErrorCode;
 use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
+use anchor_spl::token::Mint;
 use anchor_spl::token_interface::{transfer_checked, TransferChecked};
 
 declare_id!("DUNyVxYZBG7YvU5Nsbci75stbBnjBtBjjibH6FtVPFaL");
@@ -57,6 +58,17 @@ pub mod recurring_payments {
             .checked_add(1)
             .ok_or(ErrorCode::NumericalOverflow)?;
 
+        perform_payment(
+            subscription,
+            ctx.accounts.user_token_account.to_account_info(),
+            ctx.accounts.receiver_token_account.to_account_info(),
+            ctx.accounts.mint.to_account_info(),
+            ctx.accounts.token_program.to_account_info(),
+            amount,
+            Some(&ctx.accounts.payer),
+            false,
+        )?;
+
         emit!(SubscriptionInitialized {
             subscription: ctx.accounts.subscription.key(),
             tier_name: tier_name.to_string(),
@@ -81,43 +93,21 @@ pub mod recurring_payments {
         let clock = Clock::get()?;
         let subscription = &mut ctx.accounts.subscription;
 
-        // ---------- VALIDATION ----------
         require!(
             clock.unix_timestamp >= subscription.next_payment_ts,
             ErrorCode::PaymentNotDue
         );
 
-        // ---------- OLD VALUES (USED FOR PAYMENT) ----------
-        let charge_amount = subscription.amount;
-
-        let payer = subscription.payer;
-        let unique_seed = subscription.unique_seed;
-        let bump = subscription.bump;
-
-        // ---------- CPI TRANSFER (OLD AMOUNT ONLY) ----------
-        let seeds = &[
-            SUBSCRIPTION_SEED, // ← use the constant, not raw literal
-            payer.as_ref(),
-            unique_seed.as_ref(),
-            &[bump],
-        ];
-
-        let signer_seeds = &[&seeds[..]];
-
-        let cpi_accounts = TransferChecked {
-            from: ctx.accounts.user_token_account.to_account_info(),
-            to: ctx.accounts.receiver_token_account.to_account_info(),
-            mint: ctx.accounts.mint.to_account_info(),
-            authority: subscription.to_account_info(),
-        };
-
-        let cpi_ctx = CpiContext::new_with_signer(
+        perform_payment(
+            subscription,
+            ctx.accounts.user_token_account.to_account_info(),
+            ctx.accounts.receiver_token_account.to_account_info(),
+            ctx.accounts.mint.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            cpi_accounts,
-            signer_seeds,
-        );
-
-        transfer_checked(cpi_ctx, charge_amount, ctx.accounts.mint.decimals)?;
+            subscription.amount,
+            None,
+            true,
+        )?;
 
         // ---------- UPDATE SUBSCRIPTION FOR NEXT CYCLE ----------
         subscription.amount = new_amount;
@@ -196,4 +186,69 @@ pub mod recurring_payments {
         }
         Ok(())
     }
+}
+
+fn perform_payment<'info>(
+    subscription: &mut Account<'info, Subscription>,
+    payer_token_account: AccountInfo<'info>,
+    receiver_token_account: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
+    pay_amount: u64,
+    payer: Option<&Signer<'info>>,
+    use_pda_authority: bool,
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    // ---------- Read mint decimals ----------
+    let mint_data = mint.data.borrow();
+    let mut data_slice = &mint_data[..];
+    let mint_account = Mint::try_deserialize(&mut data_slice)?;
+    let decimals = mint_account.decimals;
+    drop(mint_data);
+
+    // ---------- UPDATE STATE FIRST ----------
+    subscription.next_payment_ts = clock.unix_timestamp + subscription.period_seconds;
+
+    // ---------- Resolve authority ----------
+    let authority: AccountInfo<'info> = match payer {
+        Some(payer_signer) => payer_signer.to_account_info(),
+        None => subscription.to_account_info(),
+    };
+
+    // ---------- CPI accounts ----------
+    let cpi_accounts = TransferChecked {
+        from: payer_token_account,
+        to: receiver_token_account,
+        mint,
+        authority,
+    };
+
+    // ---------- CPI ----------
+    if use_pda_authority {
+        let bump_seed = [subscription.bump];
+
+        let seeds: &[&[u8]] = &[
+            SUBSCRIPTION_SEED,
+            subscription.payer.as_ref(),
+            subscription.unique_seed.as_ref(),
+            &bump_seed,
+        ];
+
+        let signer_seeds: &[&[&[u8]]] = &[seeds];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            token_program.to_account_info(),
+            cpi_accounts,
+            signer_seeds,
+        );
+
+        transfer_checked(cpi_ctx, pay_amount, decimals)?;
+    } else {
+        let cpi_ctx = CpiContext::new(token_program.to_account_info(), cpi_accounts);
+
+        transfer_checked(cpi_ctx, pay_amount, decimals)?;
+    }
+
+    Ok(())
 }

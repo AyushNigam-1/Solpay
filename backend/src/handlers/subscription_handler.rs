@@ -77,14 +77,15 @@ pub async fn create_subscription(
             let history_record = PaymentHistory {
                 id: None,
                 user_pubkey: payload.payer.clone(),
-                plan: payload.plan_pda.clone(),
+                plan: payload.plan_name.unwrap(),
                 tier: payload.tier_name.clone(),
-                amount: amount, // initial subscription — amount handled separately
+                amount: amount,
                 status: "success".to_string(),
                 tx_signature: Some(payload.tx_signature), // if you have it
                 subscription_pda: payload.subscription.clone(),
                 created_at: chrono::Utc::now(),
             };
+
             if let Err(e) = create_transaction(&state.db, &history_record).await {
                 eprintln!("Failed to record transaction history: {:?}", e);
                 // Don't fail the whole request

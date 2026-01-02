@@ -36,6 +36,12 @@ pub struct InitializeSubscription<'info> {
         bump
     )]
     pub subscription: Account<'info, Subscription>,
+    #[account(mut)]
+    pub user_token_account: InterfaceAccount<'info, TokenAccount>,
+    #[account(mut)]
+    pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub mint: InterfaceAccount<'info, Mint>,
+    pub token_program: Interface<'info, TokenInterface>,
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
     pub system_program: Program<'info, System>,
@@ -47,19 +53,15 @@ pub struct InitializeSubscription<'info> {
 pub struct ExecutePayment<'info> {
     #[account(mut)]
     pub subscription: Account<'info, Subscription>,
-
     pub plan: Account<'info, Plan>,
-
     /// CHECK: user-owned token account (SPL or Token-2022)
     #[account(mut)]
     pub user_token_account: InterfaceAccount<'info, TokenAccount>,
-
     /// CHECK: merchant receiver
     #[account(mut)]
     pub receiver_token_account: InterfaceAccount<'info, TokenAccount>,
-
     pub mint: InterfaceAccount<'info, Mint>,
-
+    pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -73,7 +75,6 @@ pub struct CancelSubscription<'info> {
     /// Global stats (mutable)
     #[account(mut, seeds = [GLOBAL_STATS_SEED], bump = global_stats.bump)]
     pub global_stats: Account<'info, GlobalStats>,
-
 }
 
 
@@ -81,7 +82,6 @@ pub struct CancelSubscription<'info> {
 pub struct UpdateSubscriptionStatus<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-
     #[account(
         mut,
         has_one = payer @ ErrorCode::Unauthorized
@@ -94,7 +94,6 @@ pub struct UpdateSubscriptionStatus<'info> {
 pub struct CreatePlan<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
-
     #[account(
         init,
         payer = creator,
@@ -106,11 +105,8 @@ pub struct CreatePlan<'info> {
         bump
     )]
     pub plan: Account<'info, Plan>,
-
     pub mint: InterfaceAccount<'info, Mint>,
-
     pub receiver: SystemAccount<'info>, // ✅ SAFE
-
     pub system_program: Program<'info, System>,
 }
 

@@ -2,8 +2,8 @@ import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
-import { approveSubscriptionSpending, fetchTokenMetadata } from "../utils/token";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
+import { approveSubscriptionSpending, fetchTokenMetadata, getMintProgramId } from "../utils/token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { Plan, planQuery } from "../types";
 import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
@@ -135,10 +135,11 @@ export const useProgramActions = () => {
         }
 
         try {
-            // 1. generate unique seed
+            // 1. Generate unique seed
             const uniqueSeed = crypto.getRandomValues(new Uint8Array(8));
-            console.log(Array.from(uniqueSeed))
-            // 2. derive subscription PDA
+            const tokenProgramId = await getMintProgramId(mint);
+
+            // 2. Derive subscription PDA
             const [subscriptionPDA] = PublicKey.findProgramAddressSync(
                 [
                     Buffer.from("subscription"),
@@ -148,6 +149,24 @@ export const useProgramActions = () => {
                 PROGRAM_ID
             );
 
+            // 3. Derive token accounts (ATAs)
+            const userTokenAccount = getAssociatedTokenAddressSync(
+                mint,
+                payerKey,
+                false, // allowOwnerOffCurve (usually false)
+                tokenProgramId,
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+
+            const receiverTokenAccount = getAssociatedTokenAddressSync(
+                mint,
+                receiver,
+                false,
+                tokenProgramId,
+                ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+
+            // 4. Build and send transaction
             const txSig = await program.methods
                 .initializeSubscription(
                     tierName,
@@ -155,38 +174,35 @@ export const useProgramActions = () => {
                     new anchor.BN(periodSeconds),
                     new anchor.BN(amount),
                     autoRenew,
-                    Array.from(uniqueSeed)
+                    Array.from(uniqueSeed),
                 )
                 .accounts({
                     payer: payerKey,
                     subscription: subscriptionPDA,
+                    userTokenAccount,
+                    receiverTokenAccount,
+                    mint,
+                    tokenProgram: tokenProgramId, // or TOKEN_2022_PROGRAM_ID if using extensions
                     globalStats: getGlobalStatsPDA(PROGRAM_ID),
                     systemProgram: web3.SystemProgram.programId,
+                    rent: web3.SYSVAR_RENT_PUBKEY,
                 })
                 .rpc();
 
-            // 4. approve delegate spending ONLY if auto-renew
-            if (autoRenew) {
+            console.log("✅ Subscription created successfully!");
+            console.log("Transaction:", txSig);
+            console.log("Subscription PDA:", subscriptionPDA.toBase58());
 
-                await approveSubscriptionSpending({
-                    connection,
-                    wallet: wallet!,
-                    mint,
-                    subscriptionPDA,
-                    allowanceAmount: BigInt("18446744073709551615"), // explained below
-                });
+            // Optional: fetch event data
+            const account = await getEventsFromSignature(txSig, "subscriptionInitialized");
 
-            }
-            const account = await getEventsFromSignature(
-                txSig,
-                "subscriptionInitialized"
-            );
             return {
                 subscriptionPDA: subscriptionPDA.toBase58(),
                 account: { ...account, txSignature: txSig },
             };
         } catch (error: any) {
-            console.error("Failed to create subscription: from blockchain", error);
+            console.error("Failed to create subscription:", error);
+            alert("Failed to create subscription. Check console for details.");
             return undefined;
         }
     }

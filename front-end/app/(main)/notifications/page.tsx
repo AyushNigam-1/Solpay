@@ -18,6 +18,7 @@ const page = () => {
     const { publicKey } = useProgram()
     const { deleteNotification, renewSubscription } = useDbActions()
     const [searchQuery, setSearchQuery] = useState<string | null>("")
+
     const {
         data: notifications,
         isLoading,
@@ -35,6 +36,7 @@ const page = () => {
         enabled: !!publicKey,
         staleTime: 1000 * 60, // 1 min cache (tweak if needed)
     });
+
     console.log(notifications)
     const filteredData = useMemo(() => {
         if (!searchQuery) {
@@ -119,16 +121,16 @@ const page = () => {
                                                             {notification.message}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl gap-4 flex items-center">
-                                                            {
-                                                                notification.type !== "Success" && <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-6 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: notification.subscriptionPda })}>
+                                                            {/* {
+                                                                notification.type !== "Success" && <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-4 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: notification.subscriptionPda })}>
                                                                     {
                                                                         (renewSubscription.variables?.subscriptionPda == notification.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
-                                                                            <RotateCw className='size-5' />                                                                    Retry
+                                                                            <RotateCw className='size-5' />
+                                                                            {notification.type == "Expired" ? "Renew" : "Retry"}
                                                                         </div>
                                                                     }
-
                                                                 </button>
-                                                            }
+                                                            } */}
                                                             <button className=' cursor-pointer hover:text-red-500 text-red-400' onClick={() => deleteNotification.mutate({ notificationId: notification.id })}>
                                                                 {
                                                                     (deleteNotification.variables?.notificationId == notification.id && deleteNotification.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>

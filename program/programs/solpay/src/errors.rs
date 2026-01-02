@@ -20,4 +20,6 @@ pub enum ErrorCode {
     TierDeserializationFailed,
     #[msg("Subscription tier not found")]
     TierNotFound,
+    #[msg("Missing Signer")]
+    MissingSigner,
 }

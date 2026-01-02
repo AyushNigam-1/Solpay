@@ -121,7 +121,7 @@ const page = () => {
                                                         </td>
 
                                                         <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {(tx.status == 'success' && index != filteredData.length - 1) ? <span className='flex gap-2 items-center' >
+                                                            {tx.status == 'success' ? <span className='flex gap-2 items-center' >
                                                                 <CircleCheck />
                                                                 Succeed
                                                             </span> :
@@ -132,7 +132,7 @@ const page = () => {
                                                         </td>
                                                         <td className="px-6 py-2 text-xl flex items-center gap-3">
                                                             {
-                                                                (tx.status == 'success' && index != filteredData.length - 1) ? <button className='flex gap-1 border-r-2 border-white/8 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
+                                                                tx.status == 'success' ? <button className='flex gap-1 border-r-2 border-white/8 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
                                                                     window.open(
                                                                         `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
                                                                         "_blank",
@@ -141,7 +141,7 @@ const page = () => {
                                                                     <ArrowUpRight className='size-5' />
                                                                     Verify
                                                                 </button> :
-                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-6 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
+                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-3 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
                                                                         {
                                                                             (renewSubscription.variables?.subscriptionPda == tx.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
                                                                                 <RotateCw className='size-5' />                                                                    Retry

@@ -7,6 +7,7 @@ pub struct Subscription {
     pub payer: String,
     pub tier_name: String,
     pub plan_pda: String,
+    pub plan_name: Option<String>,
     pub next_payment_ts: String,
     pub auto_renew: bool,
     pub active: bool,

@@ -4,6 +4,7 @@ use crate::models::notification::Notification;
 use crate::models::transaction::PaymentHistory;
 use crate::state::AppState;
 use crate::utils::{find_tier_by_name, parse_tiers};
+use anchor_lang::prelude::feature::state;
 use solana_sdk::pubkey::Pubkey;
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 use sqlx::Row;
@@ -17,12 +18,12 @@ pub async fn run_keeper(state: Arc<AppState>) {
     let interval = Duration::from_secs(60);
     let mut ticker = time::interval(interval);
 
-    loop {
-        ticker.tick().await;
-        if let Err(err) = scan_and_renew_subscriptions(&state).await {
-            error!("Keeper error: {:?}", err);
-        }
-    }
+    // loop {
+    //     ticker.tick().await;
+    //     if let Err(err) = scan_and_renew_subscriptions(&state).await {
+    //         error!("Keeper error: {:?}", err);
+    //     }
+    // }
 }
 
 pub async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
@@ -56,9 +57,50 @@ pub async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()
         tracing::info!("✅ No subscriptions due for renewal");
         return Ok(());
     };
-
     let subscription_pda = Pubkey::from_str(sub.get("subscription"))?;
 
+    let plan_opt = state
+        .solana
+        .get_plan(Pubkey::from_str(sub.get("plan_pda"))?)
+        .await?;
+
+    let plan = match plan_opt {
+        Some(p) => p,
+        None => {
+            tracing::warn!("Plan not found for subscription {}", subscription_pda);
+            return Ok(());
+        }
+    };
+
+    if !sub.get::<bool, _>("auto_renew") {
+        let notification = Notification {
+            id: None,
+            user_pubkey: Pubkey::from_str(sub.get("payer"))?.to_string(),
+            plan_name: plan.name.clone(),
+            tier: sub.get("tier_name"),
+            subscription_pda: subscription_pda.to_string(),
+            message: "⛔ Subscription has been expired".to_string(),
+            created_at: Some(chrono::Utc::now()),
+            is_read: false,
+            r#type: "Expired".to_string(),
+        };
+
+        let _ = create_notification(&state.db, &notification).await;
+
+        if let Err(e) =
+            update_subscription_active(state, &subscription_pda.to_string(), false).await
+        {
+            tracing::error!(
+                "Failed to deactivate expired subscription {}: {}",
+                subscription_pda,
+                e
+            );
+        } else {
+            tracing::info!("Deactivated expired subscription {}", subscription_pda);
+        }
+
+        return Ok(());
+    }
     // 🔁 Delegate to reusable renewer
     renew_subscription_by_pda(state, subscription_pda).await
 }
@@ -109,22 +151,6 @@ pub async fn renew_subscription_by_pda(
     };
 
     // 🔕 Auto-renew OFF → expired notification
-    if !sub.get::<bool, _>("auto_renew") {
-        let notification = Notification {
-            id: None,
-            user_pubkey: payer_pubkey.to_string(),
-            plan_name: plan.name.clone(),
-            tier: sub.get("tier_name"),
-            subscription_pda: subscription_pda.to_string(),
-            message: "⛔ Subscription has been expired".to_string(),
-            created_at: Some(chrono::Utc::now()),
-            is_read: false,
-            r#type: "Expired".to_string(),
-        };
-
-        let _ = create_notification(&state.db, &notification).await;
-        return Ok(());
-    }
 
     let tiers = parse_tiers(&plan.tiers)?;
     let tier = find_tier_by_name(&tiers, sub.get("tier_name"))?;
@@ -227,6 +253,41 @@ pub async fn renew_subscription_by_pda(
     };
 
     let _ = create_notification(&state.db, &notification).await;
+
+    Ok(())
+}
+
+pub async fn update_subscription_active(
+    state: &AppState,
+    subscription_pda: &str,
+    active: bool,
+) -> anyhow::Result<()> {
+    let result = sqlx::query!(
+        r#"
+        UPDATE subscriptions
+        SET active = $1
+        WHERE subscription_pda = $2
+        "#,
+        active,
+        subscription_pda
+    )
+    .execute(&state.db)
+    .await;
+    // .context("Failed to execute database query to update subscription active status")?;
+    let updated = result?.rows_affected() == 1;
+
+    if !updated {
+        tracing::warn!(
+            "No subscription found with PDA {} to update active status",
+            subscription_pda
+        );
+    } else {
+        tracing::info!(
+            "Successfully updated active status to {} for subscription {}",
+            active,
+            subscription_pda
+        );
+    }
 
     Ok(())
 }

@@ -3,12 +3,10 @@ import { useProgramActions } from "./useProgramActions";
 import { PublicKey } from "@solana/web3.js";
 import { Plan, UpdateField } from "../types";
 import { useDbActions } from "./useDbActions";
-import { getAssociatedTokenAddress } from "@solana/spl-token";
-import { getMintProgramId } from "../utils/token";
 
 export const useMutations = () => {
     const programActions = useProgramActions();
-    const { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription } = useDbActions()
+    const { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb } = useDbActions()
     const queryClient = useQueryClient();
 
     const createPlan = useMutation({
@@ -46,6 +44,7 @@ export const useMutations = () => {
         mutationFn: async ({
             tier,
             planPDA,
+            planName,
             payerKey,
             periodSeconds,
             amount,
@@ -55,12 +54,12 @@ export const useMutations = () => {
         }: {
             tier: string;
             planPDA: PublicKey;
+            planName: string,
             payerKey: PublicKey;
             periodSeconds: number;
             amount: number;          // 🔒 locked price
             autoRenew?: boolean;
             receiver: PublicKey,
-
             mint: PublicKey
         }) => {
             const subscription = await programActions.initializeSubscription(
@@ -80,10 +79,10 @@ export const useMutations = () => {
 
         },
 
-        onSuccess: async ({ subscriptionPDA, account }) => {
+        onSuccess: async ({ subscriptionPDA, account }, { planName }) => {
             // toast.success("Subscription created successfully!");
             console.log("New Subscription PDA:", subscriptionPDA, account);
-            createSubscriptionDb.mutate({ account })
+            createSubscriptionDb.mutate({ account: { ...account, planName } })
             // Refetch your subscriptions list
             // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
             // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", payerKey.toBase58()] });
