@@ -1,5 +1,6 @@
+use crate::types::{Plan, SubscriptionField, UpdateValue};
+use crate::utils::decompress_tiers;
 use anchor_lang::prelude::*;
-use flate2::read::ZlibDecoder;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::signature::Signature;
 use solana_sdk::{
@@ -9,28 +10,8 @@ use solana_sdk::{
     signature::{Keypair, Signer, read_keypair_file},
     transaction::Transaction,
 };
-use std::io::Read;
 use std::str::FromStr;
 use tracing::{error, info};
-
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
-pub struct Plan {
-    pub creator: Pubkey,
-    pub mint: Pubkey,
-    pub receiver: Pubkey,
-    pub name: String,
-    pub token_symbol: String,
-    pub token_image: String,
-    pub tiers: Vec<u8>, // compressed bytes
-    pub bump: u8,
-}
-
-fn decompress_tiers(data: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let mut decoder = ZlibDecoder::new(data);
-    let mut out = Vec::new();
-    decoder.read_to_end(&mut out)?;
-    Ok(out)
-}
 
 pub struct SolanaClient {
     pub rpc: RpcClient,
@@ -148,5 +129,62 @@ impl SolanaClient {
 
         // 4️⃣ Return same shape as JS
         Ok(Some(plan))
+    }
+
+    pub async fn update_subscription_status(
+        &self,
+        subscription_pda: Pubkey,
+        field: SubscriptionField,
+        value: UpdateValue,
+    ) -> anyhow::Result<Signature> {
+        info!("📝 Updating subscription status on-chain");
+
+        let discriminator = &hash(b"global:update_subscription_status").to_bytes()[..8];
+
+        let mut data = Vec::with_capacity(100);
+        data.extend_from_slice(discriminator);
+
+        field.serialize(&mut data)?;
+        value.serialize(&mut data)?;
+
+        let accounts = vec![
+            AccountMeta::new(self.payer.pubkey(), true), // Payer must sign
+            AccountMeta::new(subscription_pda, false),   // Subscription is mutable
+        ];
+
+        let ix = Instruction {
+            program_id: self.program_id,
+            accounts,
+            data,
+        };
+
+        // ---------- 3️⃣ Get blockhash ----------
+        let blockhash = match self.rpc.get_latest_blockhash().await {
+            Ok(bh) => bh,
+            Err(e) => {
+                error!("❌ Failed to fetch latest blockhash: {}", e);
+                return Err(e.into());
+            }
+        };
+
+        // ---------- 4️⃣ Build transaction ----------
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&self.payer.pubkey()),
+            &[&self.payer],
+            blockhash,
+        );
+
+        // ---------- 5️⃣ Send transaction ----------
+        let sig = match self.rpc.send_and_confirm_transaction(&tx).await {
+            Ok(sig) => sig,
+            Err(e) => {
+                error!("❌ update_subscription_status failed: {}", e);
+                return Err(e.into());
+            }
+        };
+
+        info!("✅ update_subscription_status success: {}", sig);
+        Ok(sig)
     }
 }

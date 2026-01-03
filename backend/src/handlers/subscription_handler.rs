@@ -120,6 +120,60 @@ pub async fn create_subscription(
     (status, Json(body)).into_response()
 }
 
+#[derive(serde::Serialize)]
+struct SubscriptionRow {
+    payer: String,
+    tier_name: String,
+    plan_pda: String,
+    next_payment_ts: i64,
+    auto_renew: bool,
+    active: bool,
+    amount: i64,
+    unique_seed: Vec<u8>,
+    bump: i16,
+    subscription_pda: String,
+}
+
+pub async fn get_subscriptions_by_creator(
+    Extension(state): Extension<AppState>,
+    Path(payer): Path<String>,
+) -> impl IntoResponse {
+    let rows = sqlx::query_as!(
+        SubscriptionRow,
+        r#"
+        SELECT
+            payer,
+            tier_name,
+            plan_pda,
+            next_payment_ts,
+            auto_renew,
+            active,
+            amount,
+            unique_seed,
+            bump,
+            subscription_pda
+        FROM subscriptions
+        WHERE payer = $1
+        ORDER BY next_payment_ts ASC
+        "#,
+        payer
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    match rows {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            eprintln!("DB error: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Failed to fetch subscriptions" })),
+            )
+                .into_response()
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum UpdateValue {
     Bool(bool),

@@ -7,7 +7,6 @@ use crate::errors::ErrorCode;
 use crate::{events::*, states::*};
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::clock::Clock;
-use anchor_spl::token::Mint;
 use anchor_spl::token_interface::{transfer_checked, TransferChecked};
 
 declare_id!("DUNyVxYZBG7YvU5Nsbci75stbBnjBtBjjibH6FtVPFaL");
@@ -65,6 +64,7 @@ pub mod recurring_payments {
             ctx.accounts.mint.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             amount,
+            ctx.accounts.mint.decimals,
             Some(&ctx.accounts.payer),
             false,
         )?;
@@ -105,6 +105,7 @@ pub mod recurring_payments {
             ctx.accounts.mint.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
             subscription.amount,
+            ctx.accounts.mint.decimals,
             None,
             true,
         )?;
@@ -172,6 +173,11 @@ pub mod recurring_payments {
         value: UpdateValue,
     ) -> Result<()> {
         let subscription = &mut ctx.accounts.subscription;
+        let signer = ctx.accounts.payer.key();
+        require!(
+            signer == subscription.payer || signer.to_string() == ADMIN_PUBKEY,
+            ErrorCode::Unauthorized
+        );
         match (field, value) {
             (SubscriptionField::AutoRenew, UpdateValue::Bool(b)) => {
                 subscription.auto_renew = b;
@@ -195,19 +201,12 @@ fn perform_payment<'info>(
     mint: AccountInfo<'info>,
     token_program: AccountInfo<'info>,
     pay_amount: u64,
+    decimals: u8,
     payer: Option<&Signer<'info>>,
     use_pda_authority: bool,
 ) -> Result<()> {
     let clock = Clock::get()?;
 
-    // ---------- Read mint decimals ----------
-    let mint_data = mint.data.borrow();
-    let mut data_slice = &mint_data[..];
-    let mint_account = Mint::try_deserialize(&mut data_slice)?;
-    let decimals = mint_account.decimals;
-    drop(mint_data);
-
-    // ---------- UPDATE STATE FIRST ----------
     subscription.next_payment_ts = clock.unix_timestamp + subscription.period_seconds;
 
     // ---------- Resolve authority ----------

@@ -2,7 +2,7 @@
 import Header from '@/app/components/ui/Header';
 import Loader from '@/app/components/ui/Loader';
 import { useProgram } from '@/app/hooks/useProgram';
-import { PaymentHistory } from '@/app/types';
+import { Transaction } from '@/app/types';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { ArrowUpRight, Banknote, Building, Calendar, ChartNoAxesGantt, CircleCheck, CircleDot, Logs, MousePointerClick, RotateCw, Route, Timer, Trash } from 'lucide-react';
@@ -23,10 +23,10 @@ const page = () => {
         isFetching,
         isError: isQueryError,
         refetch,
-    } = useQuery<PaymentHistory[]>({
-        queryKey: ["UserTransactions", publicKey],
+    } = useQuery<Transaction[]>({
+        queryKey: ["transactions"],
         queryFn: async () => {
-            const res = await axios.get<PaymentHistory[]>(
+            const res = await axios.get<Transaction[]>(
                 `http://127.0.0.1:3000/api/transactions/user/${publicKey}`
             );
             return res.data;

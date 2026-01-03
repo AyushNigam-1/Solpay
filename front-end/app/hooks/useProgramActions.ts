@@ -13,6 +13,20 @@ export const useProgramActions = () => {
     const wallet = useWallet();
     const { program, getGlobalStatsPDA, PROGRAM_ID, connection, provider } = useProgram()
 
+    async function getMyPlan() {
+        // const creatorPubkey = typeof creator === "string" ? new PublicKey(creator) : creator;
+        const [planPDA] = PublicKey.findProgramAddressSync(
+            [
+                anchor.utils.bytes.utf8.encode("plan"), // Check if this is "plan" or "subscription_plan" in your lib.rs
+                wallet.publicKey!.toBuffer(),
+            ],
+            PROGRAM_ID
+        );
+        const plan = await getPlan(planPDA)
+        return plan
+
+    }
+
     async function getEventsFromSignature(
         txSignature: string,
         eventName: string
@@ -99,13 +113,11 @@ export const useProgramActions = () => {
     }
 
     async function fetchUserSubscriptions() {
-        console.log("fetching")
         try {
             const subscriptions = await (program!.account as any).subscription.all();
-            console.log("subscriptions", subscriptions)
             if (subscriptions.length === 0) {
                 console.log("✅ No active or inactive subscriptions found for this user.");
-                return;
+                return [];
             }
             for (const { account } of subscriptions) {
                 const planMetadata = await getPlan(new PublicKey(account.planPda))

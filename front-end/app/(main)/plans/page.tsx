@@ -34,7 +34,7 @@ const page = () => {
         isError: isQueryError,
         refetch,
     } = useQuery<planQuery[]>({
-        queryKey: ["AllPlans"],
+        queryKey: ["plans"],
         queryFn: () => fetchAllSubscriptionPlans(),
         staleTime: 1000 * 3000,
     });

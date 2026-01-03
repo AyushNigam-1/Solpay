@@ -46,7 +46,7 @@ export type Notification = {
     type: string        // ISO timestamp from backend
 };
 
-export interface PaymentHistory {
+export interface Transaction {
     id: number;
     userPubkey: string;
     plan: string;
@@ -82,6 +82,12 @@ export interface UserTokenAccount {
     description: string;
     image: string
 }
+
+export interface SubscriptionAccount {
+    publicKey: PublicKey,
+    account: Subscription
+}
+
 export interface FullTokenMetadata {
     name: string;
     symbol: string;

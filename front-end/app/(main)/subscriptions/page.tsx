@@ -11,7 +11,7 @@ import Error from '@/app/components/ui/Error';
 import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { PublicKey } from '@solana/web3.js';
 import { formatPeriod } from '@/app/utils/duration';
-import { Banknote, Building, ChartNoAxesGantt, CircleDot, Coins, Logs, Timer } from 'lucide-react';
+import { Banknote, ChartNoAxesGantt, CircleDot, Coins, Logs, Timer } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
 import PlanDetails from '@/app/components/ui/PlanDetails';
 
@@ -26,7 +26,7 @@ const page = () => {
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
     // const publicKey = new PublicKey(Cookies.get("user")!)
     const [searchQuery, setSearchQuery] = useState<string | null>("")
-    const { cancelSubscription, fetchUserSubscriptions } = useProgramActions();
+    const { fetchUserSubscriptions } = useProgramActions();
 
     const {
         data: subscriptions,
@@ -35,7 +35,7 @@ const page = () => {
         isError: isQueryError,
         refetch,
     } = useQuery<{ account: Subscription; publicKey: PublicKey; }[]>({
-        queryKey: ["AllSubscriptions"],
+        queryKey: ["userSubscriptions"],
         queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
     });

@@ -25,11 +25,7 @@ export const useMutations = () => {
             // toast.success("Plan created successfully!");
             console.log("New Plan PDA:", variables.plan.name);
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-
-            // Refetch relevant data
             queryClient.invalidateQueries({ queryKey: ["plans"] });
-            queryClient.invalidateQueries({ queryKey: ["userPlans", variables.creatorKey.toBase58()] });
-            queryClient.invalidateQueries({ queryKey: ["allPlans"] });
         },
 
         onError: (error: any, variables) => {
@@ -102,14 +98,9 @@ export const useMutations = () => {
             }
             return txSig;
         },
-        onSuccess: (txSig, creatorKey) => {
-            console.log('Plan cancelled successfully:', txSig);
-            // Invalidate any queries that depend on plans list
-            queryClient.invalidateQueries({ queryKey: ['plans'] });
-            queryClient.invalidateQueries({ queryKey: ['plans', creatorKey.toString()] });
-            // Optional: show toast
-            // toast.success('Plan cancelled successfully!');
-        },
+
+        onSuccess: (_, creatorKey) => queryClient.setQueryData<Plan[]>(['plans'], (plans) => plans ? plans.filter(plan => plan.creator == creatorKey) : []),
+
         onError: (error) => {
             console.error('Error cancelling plan:', error);
             // toast.error('Failed to cancel plan');
@@ -136,11 +127,7 @@ export const useMutations = () => {
             return txSig;
         },
 
-        onSuccess: ({ subscriptionPDA }) => {
-            deleteSubscriptionDb.mutate({ subscriptionPDA })
-            queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-            queryClient.invalidateQueries({ queryKey: ["userSubscriptions"] });
-        },
+        onSuccess: ({ subscriptionPDA }) => deleteSubscriptionDb.mutate({ subscriptionPDA }),
 
         onError: (error: any) => {
             console.error("Failed to cancel subscription:", error);

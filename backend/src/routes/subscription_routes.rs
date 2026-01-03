@@ -1,6 +1,6 @@
 use crate::handlers::subscription_handler::{
-    create_subscription, delete_subscription, get_subscriptions, renew_subscription,
-    update_subscription,
+    create_subscription, delete_subscription, get_subscriptions, get_subscriptions_by_creator,
+    renew_subscription, update_subscription,
 };
 use axum::{
     Router,
@@ -17,4 +17,8 @@ pub fn subscription_routes() -> Router {
                 .post(renew_subscription),
         )
         .route("/subscriptions", post(create_subscription))
+        .route(
+            "/subscriptions/creator/:creator_pubkey",
+            get(get_subscriptions_by_creator),
+        )
 }

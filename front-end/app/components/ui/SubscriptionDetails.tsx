@@ -1,4 +1,4 @@
-import { PaymentHistory, Plan, StatCardProps, Subscription } from '@/app/types';
+import { Transaction, Plan, StatCardProps, Subscription } from '@/app/types';
 import { formatDate, formatPeriod } from '@/app/utils/duration';
 import { ArrowUpRight, Ban, Calendar, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleAlert, CircleArrowDown, CircleArrowUp, CircleCheck, CircleDot, Coins, Dot, FileWarning, History, MousePointerClick, Pause, Pen, Play, Repeat2, RotateCw, Route, Timer, Trash, Wallet, X } from 'lucide-react';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
@@ -30,11 +30,11 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
         isFetching,
         isError: isQueryError,
         refetch,
-    } = useQuery<PaymentHistory[]>({
+    } = useQuery<Transaction[]>({
         queryKey: ["CompanyTransactions", publicKey, subscription?.account.planMetadata!.name],
         queryFn: async () => {
-            const res = await axios.get<PaymentHistory[]>(
-                `http://127.0.0.1:3000/api/transactions/${publicKey}/${subscription?.account.planMetadata!.name}`
+            const res = await axios.get<Transaction[]>(
+                `http://127.0.0.1:3000/api/transactions/${publicKey}/${subscription?.publicKey}`
             );
             return res.data;
         },
@@ -405,7 +405,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                         Subscription
                                     </button>
                                     <button
-                                        onClick={() => deleteSubscription.mutate({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed, mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount })}
+                                        onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed, mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount }).then(() => handleClose())}
                                         className={`${deleteSubscription.isPending ? "text-gray-700" : "  text-red-400"} text-center group flex w-full justify-center m-auto items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
                                         {
                                             deleteSubscription.isPending ? <Loader /> :

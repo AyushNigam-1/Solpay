@@ -14,6 +14,7 @@ use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tracing_subscriber;
 mod solana_client;
+mod types;
 use crate::worker::run_keeper;
 
 #[tokio::main]

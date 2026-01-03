@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PaymentHistory, ScheduleSubscriptionRequest, ScheduleSubscriptionResponse, UpdateParams, UpdateSubscriptionParams } from "../types";
+import { Notification, Transaction, ScheduleSubscriptionRequest, ScheduleSubscriptionResponse, SubscriptionAccount, UpdateParams, UpdateSubscriptionParams } from "../types";
 import axios from "axios";
 
 export const useDbActions = () => {
@@ -13,7 +13,7 @@ export const useDbActions = () => {
             }: {
                 userPubkey: string;
             }) => {
-                const res = await axios.get<PaymentHistory[]>(
+                const res = await axios.get<Transaction[]>(
                     `${API_BASE}/transactions/${userPubkey}`
                 );
                 return res.data;
@@ -43,12 +43,12 @@ export const useDbActions = () => {
 
             return response.data;
         },
-        onSuccess: (data) => {
-            console.log('Notification deleted successfully:', data);
-            // Invalidate notifications list for this user
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            // queryClient.invalidateQueries({ queryKey: ['notifications', userPubkey] });
+
+        onSuccess: (data, { notificationId }) => {
+            console.log(notificationId)
+            queryClient.setQueryData<Notification[]>(['notifications'], (notifications) => notifications ? notifications.filter(notification => notification.id != notificationId) : [])
         },
+
         onError: (error: any) => {
             console.error('Error deleting notification:', error);
             // toast.error(error.message || 'Failed to delete notification');
@@ -84,20 +84,12 @@ export const useDbActions = () => {
             const response = await axios.delete(
                 `${API_BASE}/api/transactions/${id}`
             );
-
             if (response.status !== 200) {
                 throw new Error(response.data.error || 'Failed to delete transaction');
             }
-
             return response.data;
         },
-        onSuccess: (data) => {
-            console.log('Transaction deleted successfully:', data);
-
-            // Invalidate all relevant transaction queries
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            // queryClient.invalidateQueries({ queryKey: ['transactions', userPubkey] });
-        },
+        onSuccess: (_, id) => queryClient.setQueryData<Transaction[]>(['transactions'], (transactions) => transactions ? transactions.filter(transaction => transaction.id != id) : []),
         onError: (error: any) => {
             console.error('Error deleting transaction:', error);
             // toast.error(error.message || 'Failed to delete transaction');
@@ -177,12 +169,9 @@ export const useDbActions = () => {
             );
             return response.data;
         },
-        onSuccess: (data) => {
-            console.log("✅ Subscription deleted from DB successfully:", data);
-            // Optional: invalidate/refetch user's subscriptions list
-            queryClient.invalidateQueries({
-                queryKey: ['subscriptions', data.address || 'all']
-            });
+        onSuccess: (_, { subscriptionPDA }) => {
+            console.log(subscriptionPDA)
+            queryClient.setQueryData<SubscriptionAccount[]>(['userSubscriptions'], (subscriptions) => subscriptions ? subscriptions.filter(subscription => subscription.publicKey.toBase58() != subscriptionPDA) : [])
         },
 
         onError: (error: any) => {
@@ -191,64 +180,6 @@ export const useDbActions = () => {
         },
     });
 
-    async function scheduleSubscription(
-        params: ScheduleSubscriptionRequest
-    ): Promise<ScheduleSubscriptionResponse> {
-        try {
-            const res = await axios.post<ScheduleSubscriptionResponse>(
-                `${API_BASE}/api/schedule-subscription`,
-                {
-                    subscription_pda: params.subscriptionPda,
-                    plan_pda: params.planPda,
-                    user_token_account: params.userTokenAccount,
-                    receiver_token_account: params.receiverTokenAccount,
-                    mint: params.mint,
-                    token_program: params.tokenProgram,
-                    execute_at_ts: params.executeAtTs,
-                },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    timeout: 15_000,
-                }
-            )
 
-            if (!res.data.success) {
-                throw new Error("TukTuk scheduling failed (success=false)")
-            }
-
-            console.log("✅ Task scheduled via TukTuk")
-            console.log("Tx signature:", res.data.tx_signature)
-
-            return res.data
-        } catch (err: any) {
-            // Axios-specific error handling
-            if (axios.isAxiosError(err)) {
-                console.error("❌ Axios error")
-
-                if (err.response) {
-                    console.error("Status:", err.response.status)
-                    console.error("Response:", err.response.data)
-                    throw new Error(
-                        typeof err.response.data === "string"
-                            ? err.response.data
-                            : JSON.stringify(err.response.data)
-                    )
-                }
-
-                if (err.request) {
-                    console.error("❌ No response from backend")
-                    throw new Error("Backend not reachable")
-                }
-
-                throw new Error(err.message)
-            }
-
-            console.error("❌ Unknown error:", err)
-            throw err
-        }
-    }
-
-    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, scheduleSubscription, useGetUserTransactions, deleteNotification, deleteTransaction, renewSubscription }
+    return { createSubscriptionDb, deleteSubscriptionDb, updateSubscriptionDb, useGetUserTransactions, deleteNotification, deleteTransaction, renewSubscription }
 }

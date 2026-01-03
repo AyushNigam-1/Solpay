@@ -82,9 +82,9 @@ pub async fn get_transactions(
     Ok(Json(records))
 }
 
-pub async fn get_user_company_transactions(
+pub async fn get_subscription_transactions(
     Extension(state): Extension<AppState>,
-    Path((user_pubkey, company_name)): Path<(String, String)>,
+    Path((user_pubkey, subscription_pda)): Path<(String, String)>,
 ) -> Result<Json<Vec<PaymentHistory>>, (StatusCode, String)> {
     let records = sqlx::query_as!(
         PaymentHistory,
@@ -100,11 +100,11 @@ pub async fn get_user_company_transactions(
             subscription_pda,
             created_at
         FROM payment_history
-        WHERE user_pubkey = $1 AND plan = $2
+        WHERE user_pubkey = $1 AND subscription_pda = $2
         ORDER BY created_at DESC
         "#,
         user_pubkey,
-        company_name
+        subscription_pda
     )
     .fetch_all(&state.db)
     .await

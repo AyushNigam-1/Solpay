@@ -1,10 +1,11 @@
 use crate::handlers::notification_handler::create_notification;
+// use crate::handlers::subscription_handler::UpdateValue;
 use crate::handlers::transaction_handler::create_transaction;
 use crate::models::notification::Notification;
 use crate::models::transaction::PaymentHistory;
 use crate::state::AppState;
+use crate::types::{SubscriptionField, UpdateValue};
 use crate::utils::{find_tier_by_name, parse_tiers};
-use anchor_lang::prelude::feature::state;
 use solana_sdk::pubkey::Pubkey;
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 use sqlx::Row;
@@ -18,12 +19,12 @@ pub async fn run_keeper(state: Arc<AppState>) {
     let interval = Duration::from_secs(60);
     let mut ticker = time::interval(interval);
 
-    // loop {
-    //     ticker.tick().await;
-    //     if let Err(err) = scan_and_renew_subscriptions(&state).await {
-    //         error!("Keeper error: {:?}", err);
-    //     }
-    // }
+    loop {
+        ticker.tick().await;
+        if let Err(err) = scan_and_renew_subscriptions(&state).await {
+            error!("Keeper error: {:?}", err);
+        }
+    }
 }
 
 pub async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
@@ -149,8 +150,6 @@ pub async fn renew_subscription_by_pda(
             return Ok(());
         }
     };
-
-    // 🔕 Auto-renew OFF → expired notification
 
     let tiers = parse_tiers(&plan.tiers)?;
     let tier = find_tier_by_name(&tiers, sub.get("tier_name"))?;
@@ -287,6 +286,14 @@ pub async fn update_subscription_active(
             active,
             subscription_pda
         );
+        state
+            .solana
+            .update_subscription_status(
+                Pubkey::from_str(subscription_pda)?,
+                SubscriptionField::Active, // Select the field
+                UpdateValue::Bool(false),  // Set the value to false
+            )
+            .await?;
     }
 
     Ok(())

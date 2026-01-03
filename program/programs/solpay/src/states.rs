@@ -84,7 +84,6 @@ pub struct UpdateSubscriptionStatus<'info> {
     pub payer: Signer<'info>,
     #[account(
         mut,
-        has_one = payer @ ErrorCode::Unauthorized
     )]
     pub subscription: Account<'info, Subscription>,
 }

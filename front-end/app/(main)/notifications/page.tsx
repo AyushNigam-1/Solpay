@@ -26,7 +26,7 @@ const page = () => {
         isError: isQueryError,
         refetch,
     } = useQuery<Notification[]>({
-        queryKey: ["Notifications", publicKey],
+        queryKey: ["notifications"],
         queryFn: async () => {
             const res = await axios.get<Notification[]>(
                 `http://127.0.0.1:3000/api/notifications/user/${publicKey}`
