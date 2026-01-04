@@ -173,7 +173,7 @@ const page = () => {
             <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} />
 
             <SubscriptionDetails isOpen={openDetails!} setPlanDetailsOpen={setPlanDetailsOpen}
-                setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} />
+                setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} isCreator={false} />
 
             <PlanDetails plan={plan!} planPDA={planPDA!} open={isPlanDetailsOpen} setOpen={setPlanDetailsOpen} type="update" subscriptionPDA={subscription?.publicKey!} subscriptionPayer={subscription?.account.payer} />
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}

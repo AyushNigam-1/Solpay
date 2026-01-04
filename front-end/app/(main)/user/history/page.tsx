@@ -5,7 +5,7 @@ import { useProgram } from '@/app/hooks/useProgram';
 import { Transaction } from '@/app/types';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, Banknote, Building, Calendar, ChartNoAxesGantt, CircleCheck, CircleDot, Logs, MousePointerClick, RotateCw, Route, Timer, Trash } from 'lucide-react';
+import { ArrowUpRight, Banknote, Calendar, ChartNoAxesGantt, CircleCheck, CircleDot, Logs, MousePointerClick, RotateCw, Trash } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import Error from '@/app/components/ui/Error';
 import TableHeaders from '@/app/components/ui/TableHeaders';
@@ -103,7 +103,7 @@ const page = () => {
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
                                         <TableHeaders columns={headers} />
                                         <tbody>
-                                            {filteredData?.map((tx, index) => {
+                                            {filteredData?.map((tx) => {
                                                 return (
                                                     <tr key={tx.txSignature} className="border-t-0 border-2  border-white/5"
                                                     >

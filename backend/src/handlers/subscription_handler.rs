@@ -134,9 +134,9 @@ struct SubscriptionRow {
     subscription_pda: String,
 }
 
-pub async fn get_subscriptions_by_creator(
+pub async fn get_subscriptions_by_plan(
     Extension(state): Extension<AppState>,
-    Path(payer): Path<String>,
+    Path(plan_pda): Path<String>,
 ) -> impl IntoResponse {
     let rows = sqlx::query_as!(
         SubscriptionRow,
@@ -153,10 +153,10 @@ pub async fn get_subscriptions_by_creator(
             bump,
             subscription_pda
         FROM subscriptions
-        WHERE payer = $1
+        WHERE plan_pda = $1
         ORDER BY next_payment_ts ASC
         "#,
-        payer
+        plan_pda
     )
     .fetch_all(&state.db)
     .await;

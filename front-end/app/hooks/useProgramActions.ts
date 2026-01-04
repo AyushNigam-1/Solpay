@@ -2,8 +2,8 @@ import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
-import { approveSubscriptionSpending, fetchTokenMetadata, getMintProgramId } from "../utils/token";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { fetchTokenMetadata, getMintProgramId } from "../utils/token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { Plan, planQuery } from "../types";
 import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
@@ -11,21 +11,21 @@ import { useWallet } from "@solana/wallet-adapter-react";
 
 export const useProgramActions = () => {
     const wallet = useWallet();
-    const { program, getGlobalStatsPDA, PROGRAM_ID, connection, provider } = useProgram()
+    const { program, getGlobalStatsPDA, PROGRAM_ID, connection } = useProgram()
 
     async function getMyPlan() {
-        // const creatorPubkey = typeof creator === "string" ? new PublicKey(creator) : creator;
         const [planPDA] = PublicKey.findProgramAddressSync(
             [
-                anchor.utils.bytes.utf8.encode("plan"), // Check if this is "plan" or "subscription_plan" in your lib.rs
+                anchor.utils.bytes.utf8.encode("plan"),
                 wallet.publicKey!.toBuffer(),
             ],
             PROGRAM_ID
         );
         const plan = await getPlan(planPDA)
         return plan
-
     }
+
+
 
     async function getEventsFromSignature(
         txSignature: string,
@@ -112,9 +112,41 @@ export const useProgramActions = () => {
         }
     }
 
-    async function fetchUserSubscriptions() {
+    async function fetchSubscriptionsByPlan(planPda: PublicKey) {
+        console.log("planPda", planPda.toBase58())
         try {
-            const subscriptions = await (program!.account as any).subscription.all();
+            const subscriptions = await (program!.account as any).subscription.all([
+                {
+                    memcmp: {
+                        offset: 40,
+                        bytes: planPda.toBase58(),
+                    },
+                },
+            ])
+
+            if (subscriptions.length === 0) {
+                console.log("No subscriptions found for this plan")
+                return []
+            }
+
+            return subscriptions
+        } catch (err) {
+            console.error("Error fetching plan subscriptions:", err)
+            return []
+        }
+    }
+
+    async function fetchUserSubscriptions() {
+
+        try {
+            const subscriptions = await (program!.account as any).subscription.all([
+                {
+                    memcmp: {
+                        offset: 8, // discriminator
+                        bytes: wallet!.publicKey!.toBase58(),
+                    },
+                },
+            ]);
             if (subscriptions.length === 0) {
                 console.log("✅ No active or inactive subscriptions found for this user.");
                 return [];
@@ -430,7 +462,7 @@ export const useProgramActions = () => {
     }
 
 
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, updateSubscription }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, updateSubscription, getMyPlan, fetchSubscriptionsByPlan }
 }
 
 

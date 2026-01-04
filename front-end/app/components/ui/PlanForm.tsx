@@ -101,7 +101,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
-                                    createPlan.mutate({ creatorKey: publicKey!, plan: formData })
+                                    createPlan.mutateAsync({ creatorKey: publicKey!, plan: formData }).then(() => closeModal())
                                 }} className="space-y-8">
                                     {/* Plan Name Section */}
                                     <InputGroup label='Name' name='name' onChange={({ target }) =>

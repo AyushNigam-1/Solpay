@@ -20,19 +20,19 @@ const Sidebar = () => {
     const navOptions = [
         {
             icon: (<ChartNoAxesGanttIcon />),
-            text: "Plans", route: "/plans"
+            text: "Plans", route: "/user/plans"
         },
         {
             icon: (<Ticket />
-            ), text: "Subscriptions", route: "/subscriptions"
+            ), text: "Subscriptions", route: "/user/subscriptions"
         },
         {
             icon: (<Bell />),
-            text: "Notifications", route: "/notifications"
+            text: "Notifications", route: "/user/notifications"
         },
         {
             icon: (<History />),
-            text: "History", route: "/history"
+            text: "History", route: "/user/history"
         }
     ];
     return (

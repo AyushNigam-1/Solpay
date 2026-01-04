@@ -199,15 +199,15 @@ pub enum SubscriptionUpdateField {
 #[derive(InitSpace)]  
 pub struct Subscription {
     pub payer: Pubkey,
+    pub plan_pda:Pubkey,
     #[max_len(32)]   
     pub tier_name :String,
-    pub plan_pda:Pubkey,
     pub next_payment_ts: i64,
     pub auto_renew: bool,
     pub active: bool,
     pub bump: u8,
     pub unique_seed: [u8; 8],
-     pub amount: u64,        
+    pub amount: u64,        
     pub period_seconds: i64,
 }
 
