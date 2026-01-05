@@ -49,7 +49,7 @@ const Sidebar = () => {
                 <ul className="space-y-2 font-medium p-3">
                     {navOptions.map((option, index) => (
                         <li key={index}>
-                            <button className={`cursor-pointer flex items-center gap-4 text-lg w-full  p-2   group ${currentPage === option.route ? "border-s-2 border-blue-400 text-blue-400" : "text-white "}`} onClick={() => handleNavigate(option.route)} >
+                            <button className={`cursor-pointer font-semibold flex items-center gap-4 text-lg w-full  p-2   group ${currentPage === option.route ? "border-s-2 border-blue-400 text-blue-400" : "text-white "}`} onClick={() => handleNavigate(option.route)} >
                                 {option.icon}
                                 <span className=" whitespace-nowrap">{option.text}</span>
                             </button>

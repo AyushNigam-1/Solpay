@@ -140,7 +140,7 @@ export type ScheduleSubscriptionResponse = {
 export interface Plan {
     creator?: string,
     receiver: string,
-    mint: string,
+    mint: PublicKey,
     token: PublicKey | string,
     tokenImage: string,
     tokenSymbol: string,

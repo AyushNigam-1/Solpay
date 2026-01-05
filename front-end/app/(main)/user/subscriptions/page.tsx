@@ -149,7 +149,7 @@ const page = () => {
                                                             {currentTier?.amount.toString()}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {formatPeriod(currentTier!.periodSeconds!)}
+                                                            {formatPeriod(currentTier?.periodSeconds!)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}

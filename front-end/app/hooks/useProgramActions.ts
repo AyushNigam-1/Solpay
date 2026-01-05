@@ -113,7 +113,6 @@ export const useProgramActions = () => {
     }
 
     async function fetchSubscriptionsByPlan(planPda: PublicKey) {
-        console.log("planPda", planPda.toBase58())
         try {
             const subscriptions = await (program!.account as any).subscription.all([
                 {
@@ -123,7 +122,11 @@ export const useProgramActions = () => {
                     },
                 },
             ])
-
+            console.log("subscribers", subscriptions)
+            const planMetadata = await getPlan(new PublicKey(planPda))
+            for (const { account } of subscriptions) {
+                account.planMetadata = planMetadata
+            }
             if (subscriptions.length === 0) {
                 console.log("No subscriptions found for this plan")
                 return []
@@ -153,7 +156,7 @@ export const useProgramActions = () => {
             }
             for (const { account } of subscriptions) {
                 const planMetadata = await getPlan(new PublicKey(account.planPda))
-                account.planMetadata = planMetadata?.data
+                account.planMetadata = planMetadata
             }
             console.log(subscriptions, "subs")
             return subscriptions
@@ -444,12 +447,11 @@ export const useProgramActions = () => {
         }
 
         try {
+
             let planAccount = await (program.account as any).plan.fetch(planPDA);
             planAccount = { ...planAccount, tiers: decompressData(planAccount.tiers) }
-            return {
-                pda: planPDA,
-                data: planAccount,
-            };
+            return planAccount
+
         } catch (error: any) {
             console.log("plan fetching error", error)
             if (error.message.includes("Account does not exist")) {

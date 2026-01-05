@@ -19,7 +19,6 @@ const page = () => {
     const { fetchSubscriptionsByPlan } = useProgramActions()
     const [planPDA, setPlanPDA] = useState<PublicKey>()
     const [subscription, setSubscription] = useState<{ publicKey: PublicKey, account: Subscription }>()
-    const [currentTier, setTier] = useState()
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const [openDetails, setOpenDetails] = useState<boolean>(false)
 
@@ -57,7 +56,8 @@ const page = () => {
         const lowerCaseQuery = searchQuery.toLowerCase().trim();
         return subscribers?.filter(subscriber => {
             return (
-                subscriber.account.payer.toString().includes(lowerCaseQuery) || subscriber.account.tierName.toString().includes(lowerCaseQuery));
+                subscriber.account.payer.toString().includes(lowerCaseQuery) ||
+                subscriber.account.tierName.toString().includes(lowerCaseQuery));
         });
     }, [subscribers, searchQuery]);
 
@@ -93,7 +93,7 @@ const page = () => {
             title: "Actions"
         },
     ]
-    console.log(currentTier)
+
     return (
         <div className='space-y-4 font-mono'>
             <Header title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
@@ -108,7 +108,7 @@ const page = () => {
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
                                         <TableHeaders columns={headers} />
                                         <tbody>
-                                            {filteredData?.map((subscriber, index) => {
+                                            {filteredData?.map((subscriber) => {
                                                 return (
                                                     <tr className="border-t-0 border-2  border-white/5"
                                                     >
@@ -127,7 +127,7 @@ const page = () => {
                                                         </td>
                                                         <td className='px-6 py-2 text-xl text-gray-400'>
                                                             <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}>
-                                                                <EyeIcon className='size-5' />                                                                    View
+                                                                <EyeIcon className='size-6' />                                                                    View
                                                             </button>
                                                         </td>
                                                     </tr>
