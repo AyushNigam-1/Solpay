@@ -8,14 +8,17 @@ const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetch
             <div className='flex justify-between items-center' >
                 <h2 className='text-2xl font-bold'>{title}</h2>
                 <div className='flex gap-3'>
-                    <div className="relative ">
-                        <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none ">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 text-gray-200">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                            </svg>
+                    {
+                        setSearchQuery && <div className="relative ">
+                            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none ">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4 text-gray-200">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                </svg>
+                            </div>
+                            <input type="text" id="simple-search" className="bg-white/5  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder={`Search ${title}`} required onChange={(e) => setSearchQuery(e.target.value)} />
                         </div>
-                        <input type="text" id="simple-search" className="bg-white/5  text-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 " placeholder={`Search ${title}`} required onChange={(e) => setSearchQuery(e.target.value)} />
-                    </div>
+                    }
+
                     <button
                         onClick={() => refetch()}
                         disabled={isFetching}
@@ -40,7 +43,6 @@ const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetch
                             Add Subscription
                         </button> : ""
                     }
-
                 </div>
             </div>
         </div>

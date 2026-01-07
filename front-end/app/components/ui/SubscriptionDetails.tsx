@@ -205,9 +205,9 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
 
                                                 <p
                                                     className={`font-medium ${subscription?.account.nextPaymentTs &&
-                                                            timeRemainingUntil(subscription?.account.nextPaymentTs) === "Expired"
-                                                            ? "text-red-400"
-                                                            : "text-blue-400"
+                                                        timeRemainingUntil(subscription?.account.nextPaymentTs) === "Expired"
+                                                        ? "text-red-400"
+                                                        : "text-blue-400"
                                                         }`}
                                                 >
                                                     {subscription?.account.nextPaymentTs &&
@@ -228,19 +228,20 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             <div className="flex-1">
                                                 <div
                                                     className="
-        h-full relative cursor-pointer rounded-2xl p-4
-        border-2 border-white/5
-        transition-all duration-200
-        flex flex-col justify-between
-      "
+                                                            h-full relative cursor-pointer rounded-2xl p-4
+                                                            border-2 border-white/5
+                                                            transition-all duration-200
+                                                            flex flex-col justify-between
+                                                        "
                                                 >
                                                     {/* Top */}
-                                                    <div className="space-y-3">
+                                                    <div className="space-y-2">
                                                         <h4 className="text-2xl font-bold text-white">
                                                             {currentTier?.tierName}
                                                         </h4>
                                                         <p className="text-gray-400">
-                                                            {currentTier?.description || "Standard subscription tier."}
+                                                            {/* {currentTier?.description || "Standard subscription tier."} */}
+                                                            Lorem ipsum, dolor sit amet consectetur adipisicing elit. Laborum a labore ratione sunt voluptatum rerum maxime modi, odio id excepturi consequuntur doloribus repellendus
                                                         </p>
                                                     </div>
 

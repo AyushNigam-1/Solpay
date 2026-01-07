@@ -107,7 +107,7 @@ export interface TokenMetadata {
 export interface HeaderProps {
     title: string;
     refetch: () => void;
-    setSearchQuery: (query: string) => void;
+    setSearchQuery?: (query: string) => void;
     isFetching: boolean;
     setOpen?: Dispatch<SetStateAction<boolean>>
 }

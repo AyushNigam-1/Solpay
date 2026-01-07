@@ -3,12 +3,13 @@
 import { useCallback, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation';
 import { Bell, ChartNoAxesGanttIcon, History, Ticket } from 'lucide-react';
+import Cookies from "js-cookie";
 
 const Sidebar = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
     const router = useRouter();
     const currentPage = usePathname();
-
+    const isCreator = Cookies.get("role") == '0'
     const handleNavigate = useCallback((route: string) => {
         router.push(route);
         console.log("Navigating to:", route);
@@ -17,7 +18,24 @@ const Sidebar = () => {
         }
     }, [isSidebarOpen]);
 
-    const navOptions = [
+    const navOptions = isCreator ? [
+        {
+            icon: (<ChartNoAxesGanttIcon />),
+            text: "Plan", route: "/creator/plan"
+        },
+        {
+            icon: (<Ticket />
+            ), text: "Subscriptions", route: "/creator/subscriptions"
+        },
+        {
+            icon: (<Bell />),
+            text: "Notifications", route: "/creator/notifications"
+        },
+        {
+            icon: (<History />),
+            text: "History", route: "/creator/history"
+        }
+    ] : [
         {
             icon: (<ChartNoAxesGanttIcon />),
             text: "Plans", route: "/user/plans"
