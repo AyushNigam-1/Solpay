@@ -2,9 +2,9 @@
 import { HeaderProps } from '@/app/types'
 import React from 'react'
 
-const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetching, setOpen }) => {
+const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetching }) => {
     return (
-        <div className='font-mono'>
+        <div className='font-mono space-y-4'>
             <div className='flex justify-between items-center' >
                 <h2 className='text-2xl font-bold'>{title}</h2>
                 <div className='flex gap-3'>
@@ -31,20 +31,11 @@ const Header: React.FC<HeaderProps> = ({ title, refetch, setSearchQuery, isFetch
                             <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" />
                         </svg>
                     </button>
-                    {
-                        setOpen ? <button
-                            onClick={() => setOpen(true)}
-                            disabled={isFetching}
-                            className={` py-2 px-4 flex items-center gap-2 rounded-lg text-white transition-all transform hover:scale-[1.01] bg-blue-400/70`}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                            </svg>
-                            Add Subscription
-                        </button> : ""
-                    }
+
                 </div>
             </div>
+            <div className='h-0.5 w-full bg-white/5' />
+
         </div>
     )
 }

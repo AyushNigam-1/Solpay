@@ -162,6 +162,22 @@ pub mod recurring_payments {
         Ok(())
     }
 
+    pub fn update_plan(ctx: Context<UpdatePlan>, name: String, tiers: Vec<u8>) -> Result<()> {
+        let plan = &mut ctx.accounts.plan;
+
+        // Security check (DO NOT SKIP THIS)
+        require!(
+            plan.creator == ctx.accounts.creator.key(),
+            ErrorCode::Unauthorized
+        );
+
+        plan.name = name;
+        plan.tiers = tiers;
+        plan.receiver = ctx.accounts.receiver.key();
+
+        Ok(())
+    }
+
     pub fn cancel_plan(_ctx: Context<CancelPlan>) -> Result<()> {
         msg!("Plan cancelled and account closed.");
         Ok(())

@@ -1,18 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CirclePlus, Plus, Trash2, X } from 'lucide-react';
+import { CirclePlus, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition } from '@headlessui/react';
 import InputGroup from './Input';
 import { Plan } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useMutations } from '@/app/hooks/useMutations';
 import Loader from './Loader';
+import { PublicKey } from '@solana/web3.js';
 
 const initialFormState: Plan = {
     name: "",
     mint: "",
     tokenImage: "",
     tokenSymbol: "",
-    token: "",
     receiver: "",
     tiers: [
         { tierName: "", amount: '', periodSeconds: "", description: "" } // Default to 30 days
@@ -20,19 +20,23 @@ const initialFormState: Plan = {
 };
 
 
-const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) => {
-    // const [isOpen, setIsOpen] = useState(false); // Controls modal visibility
-    const [formData, setFormData] = useState<Plan>(initialFormState);
+const PlanForm = ({ isOpen, setIsOpen, plan }: { isOpen: boolean, setIsOpen: any, plan?: Plan }) => {
+    console.log("plan", plan)
+    const [formData, setFormData] = useState<Plan>(plan ?? initialFormState);
     const [status, setStatus] = useState({ type: null, message: null });
     const { publicKey } = useProgram()
-    // const { createPlan } = useProgramActions()
-    const { createPlan } = useMutations()
+    const { createPlan, updatePlan } = useMutations()
+    console.log("form", formData)
+
+    useEffect(() => {
+        if (plan) setFormData(plan)
+    }, [plan])
 
     const closeModal = () => {
         setIsOpen(false);
-        // reset(); // Optional: reset form on close
         setStatus({ type: null, message: null });
     };
+
     const tiersContainerRef = useRef<HTMLDivElement>(null);
     // Auto-scroll when tiers change
     useEffect(() => {
@@ -87,7 +91,9 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                 <DialogTitle as="div" className="">
                                     <div className=" dark:border-gray-700 flex justify-between items-center ">
                                         <h2 className="text-2xl font-bold text-white ">
-                                            Create Plan
+                                            {
+                                                plan ? "Update" : "Create"
+                                            }  Plan
                                         </h2>
                                         <button
                                             onClick={closeModal}
@@ -101,8 +107,8 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
-                                    createPlan.mutateAsync({ creatorKey: publicKey!, plan: formData }).then(() => closeModal())
-                                }} className="space-y-8">
+                                    plan ? updatePlan.mutateAsync({ creatorKey: publicKey!, name: formData.name, tiers: formData.tiers, receiver: new PublicKey(formData.receiver) }).then(() => closeModal()) : createPlan.mutateAsync({ creatorKey: publicKey!, plan: formData }).then(() => closeModal())
+                                }} className="space-y-6">
                                     {/* Plan Name Section */}
                                     <InputGroup label='Name' name='name' onChange={({ target }) =>
                                         setFormData(prev => ({
@@ -123,14 +129,14 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             ...prev,
                                             token: target.value
                                         }))
-                                    } placeholder='e.g. Spotify' value={formData.token as string} />
+                                    } placeholder='e.g. Spotify' value={formData.mint as string} />
 
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center ">
                                             <label className="block font-bold tracking-wider text-xl">Tiers</label>
                                             <button
                                                 type="button"
-                                                onClick={() => setFormData((e) => ({ name: e.name, reciever: e.receiver, token: e.token, mint: e.mint, receiver: e.receiver, tokenImage: e.tokenImage, tokenSymbol: e.tokenSymbol, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
+                                                onClick={() => setFormData((e) => ({ name: e.name, reciever: e.receiver, mint: e.mint, receiver: e.receiver, tokenImage: e.tokenImage, tokenSymbol: e.tokenSymbol, tiers: [...e.tiers, initialFormState.tiers[0]] }))}
                                                 className=" flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-medium cursor-pointer"
                                             >
                                                 <Plus className="w-4 h-4" /> Add Tier
@@ -164,13 +170,27 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                                         <InputGroup label='Duration (Seconds)' type='number' value={field.periodSeconds as string} name='periodSeconds' onChange={(e) => handleChange(e, index)} placeholder='2592000 (30 Days)' />
                                                         <InputGroup label='Description' value={field.description} name='description' textarea={true} onChange={(e) => handleChange(e, index)} placeholder='Describe the pros and cons of this plan' classNames='col-span-3' />
                                                     </div>
-                                                    <div className='h-0.5 bg-white/5 w-full' />
+                                                    {
+                                                        formData.tiers.length != index + 1 &&
+                                                        <div className='h-0.5 bg-white/5 w-full' />
+                                                    }
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="">
-                                        <button
+
+                                    <div className='h-0.5 w-full bg-white/5' />
+                                    {
+                                        plan ? <button
+                                            type="submit"
+                                            disabled={updatePlan.isPending}
+                                            className={` disabled:bg-white/5 m-auto bg-blue-400 text-white hover:bg-blue-400  font-bold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2`}
+                                        >
+                                            {updatePlan.isPending ?
+                                                <Loader /> : <Upload />
+                                            }
+                                            Update
+                                        </button> : <button
                                             type="submit"
                                             disabled={createPlan.isPending}
                                             className={` disabled:bg-white/5 bg-blue-400 text-white hover:bg-blue-400 w-full font-bold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2`}
@@ -180,7 +200,7 @@ const PlanForm = ({ isOpen, setIsOpen }: { isOpen: boolean, setIsOpen: any }) =>
                                             }
                                             Create
                                         </button>
-                                    </div>
+                                    }
                                 </form>
                             </DialogPanel>
                         </Transition.Child>

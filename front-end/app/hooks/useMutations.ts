@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProgramActions } from "./useProgramActions";
 import { PublicKey } from "@solana/web3.js";
-import { Plan, UpdateField } from "../types";
+import { Plan, Tier, UpdateField } from "../types";
 import { useDbActions } from "./useDbActions";
 
 export const useMutations = () => {
@@ -33,6 +33,46 @@ export const useMutations = () => {
             // toast.error(
             //     error.message || "Failed to create plan. Check console for details."
             // );
+        },
+    });
+
+    const updatePlan = useMutation({
+        mutationFn: async ({
+            name,
+            creatorKey,
+            receiver,
+            tiers,
+        }: {
+            name: string;
+            creatorKey: PublicKey;
+            receiver: PublicKey;
+            tiers: Tier[];
+        }) => {
+            try {
+                const txSignature = await programActions.updatePlan({
+                    name,
+                    creatorKey,
+                    receiver,
+                    tiers,
+                });
+
+                return {
+                    signature: txSignature,
+                };
+            } catch (err: any) {
+                throw new Error(
+                    err?.message || "Failed to update plan"
+                );
+            }
+        },
+        onSuccess: async () => {
+            queryClient.invalidateQueries({ queryKey: ["my-plan"] });
+
+        },
+
+        onError: (error: any) => {
+            console.error("Failed to create subscription:", error);
+            // toast.error(error.message || "Failed to create subscription");
         },
     });
 
@@ -211,5 +251,5 @@ export const useMutations = () => {
             // toast.error(`Failed to update ${variables.field}: ${error.message || "Unknown error"}`);
         },
     })
-    return { createSubscription, manageStatus, manageAutoRenew, managePlan, createPlan, cancelPlan, deleteSubscription }
+    return { createSubscription, manageStatus, manageAutoRenew, managePlan, createPlan, updatePlan, cancelPlan, deleteSubscription }
 }

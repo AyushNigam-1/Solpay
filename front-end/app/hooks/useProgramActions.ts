@@ -4,7 +4,7 @@ import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
 import { fetchTokenMetadata, getMintProgramId } from "../utils/token";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { Plan, planQuery } from "../types";
+import { Plan, planQuery, Tier } from "../types";
 import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -396,14 +396,13 @@ export const useProgramActions = () => {
             console.error("Program not initialized");
             return undefined;
         }
-
         // Compress tier data
         const compressedTiers = compressData(plan.tiers);
 
         if (compressedTiers.length > 1000) {
             throw new Error("Compressed tier data exceeds on-chain limit");
         }
-        const tokenMetadata = await fetchTokenMetadata(new PublicKey(plan.token))
+        const tokenMetadata = await fetchTokenMetadata(new PublicKey(plan.mint))
 
         const [planPDA] = PublicKey.findProgramAddressSync(
             [
@@ -424,7 +423,7 @@ export const useProgramActions = () => {
                 .accounts({
                     creator: creatorKey,
                     plan: planPDA,
-                    mint: new PublicKey(plan.token),
+                    mint: new PublicKey(plan.mint),
                     receiver: new PublicKey(plan.receiver),
                     systemProgram: web3.SystemProgram.programId,
                 })
@@ -437,6 +436,44 @@ export const useProgramActions = () => {
         }
     }
 
+
+    async function updatePlan({
+        name,
+        creatorKey,
+        receiver,
+        tiers,
+    }: {
+        name: string;
+        creatorKey: PublicKey;
+        receiver: PublicKey;
+        tiers: Tier[];
+    }) {
+
+        if (!wallet?.publicKey) {
+            throw new Error("Wallet not connected");
+        }
+        const compressedTiers = compressData(tiers);
+
+        const [planPDA] = PublicKey.findProgramAddressSync(
+            [
+                Buffer.from("plan"),
+                creatorKey.toBytes(),
+            ],
+            PROGRAM_ID
+        );
+
+        return await program!.methods
+            .updatePlan(
+                name,
+                Buffer.from(compressedTiers),
+            )
+            .accounts({
+                plan: planPDA,
+                creator: creatorKey,
+                receiver,
+            })
+            .rpc();
+    }
 
     async function getPlan(planPDA: PublicKey) {
         console.log(planPDA)
@@ -464,7 +501,7 @@ export const useProgramActions = () => {
     }
 
 
-    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, getPlan, updateSubscription, getMyPlan, fetchSubscriptionsByPlan }
+    return { fetchUserSubscriptions, initializeSubscription, cancelSubscription, fetchAllSubscriptionPlans, createPlan, cancelPlan, updatePlan, getPlan, updateSubscription, getMyPlan, fetchSubscriptionsByPlan }
 }
 
 

@@ -20,11 +20,8 @@ const page = () => {
     const [subscription, setSubscription] = useState<{ account: Subscription; publicKey: PublicKey; }>()
     const [openDetails, setOpenDetails] = useState<boolean>(false)
     const [isPlanDetailsOpen, setPlanDetailsOpen] = useState<boolean>(false)
-    // const [openDetails, setOpenDetails] = useState<boolean>(false)
-    // const { publicKey } = useProgram()
     const [plan, setPlan] = useState<Plan>()
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
-    // const publicKey = new PublicKey(Cookies.get("user")!)
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const { fetchUserSubscriptions } = useProgramActions();
 
@@ -41,20 +38,6 @@ const page = () => {
     });
 
     console.log("subscriptions", subscriptions)
-    // const {
-    //     data: tokens,
-    //     // isLoading,
-    //     // isFetching,
-    //     isError,
-    //     error,
-    //     // refetch,
-    // } = useQuery({
-    //     queryKey: ['userTokens', publicKey!.toString()],
-    //     queryFn: () => fetchUserTokenAccounts(new PublicKey(publicKey!)),
-    //     enabled: !!publicKey!.toString(),
-    //     staleTime: 1000 * 3000,
-    // });
-    // console.log(tokens)
 
     const filteredData = useMemo(() => {
         if (!searchQuery) {

@@ -77,6 +77,18 @@ pub struct CancelSubscription<'info> {
     pub global_stats: Account<'info, GlobalStats>,
 }
 
+#[derive(Accounts)]
+pub struct UpdatePlan<'info> {
+    #[account(
+        mut,
+        seeds = [b"plan", creator.key().as_ref()],
+        bump = plan.bump
+    )]
+    pub plan: Account<'info, Plan>,
+
+    pub creator: Signer<'info>,
+    pub receiver: SystemAccount<'info>, // ✅ SAFE
+}
 
 #[derive(Accounts)]
 pub struct UpdateSubscriptionStatus<'info> {
@@ -138,22 +150,6 @@ pub enum SubscriptionField {
     Active,
     Tier
 }
-// --- UPDATE PLAN CONTEXT ---
-#[derive(Accounts)]
-#[instruction(new_amount: Option<u64>, new_period: Option<i64>, new_active_status: Option<bool>)]
-pub struct UpdatePlan<'info> {
-    #[account(mut)]
-    pub creator: Signer<'info>,
-
-    #[account(
-        mut,
-        seeds = [PLAN_SEED, creator.key().as_ref(), plan.name.as_bytes()],
-        bump = plan.bump,
-        has_one = creator @ ErrorCode::Unauthorized,
-    )]
-    pub plan: Account<'info, Plan>,
-}
-
 
 #[account]
 #[derive(InitSpace)]

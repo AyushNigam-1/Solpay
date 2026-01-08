@@ -39,7 +39,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                 `http://127.0.0.1:3000/api/transactions/${subscription.account.payer}/${subscription?.publicKey}`
             );
             let transactions = res.data;
-            if (transactions.length < 5) {
+            if (transactions.length < 6) {
                 const count = 6 - transactions.length;
                 const lastDate = new Date(transactions[transactions.length - 1].createdAt);
                 const upcomingTransactions = Array.from({ length: count }, (_, i) => {
@@ -140,7 +140,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                 {areTransactionsLoading ? <Loader /> : <div className='space-y-4 bg-white/5 rounded-3xl text-left align-middle shadow-2xl border border-gray-800 w-full max-w-7xl  p-6  relative'>
                                     <div className=" flex justify-between items-center ">
                                         <div className='flex gap-2' >
-                                            <h2 className="text-2xl font-bold text-white ">
+                                            <h2 className="text-2xl font-bold text-white whitespace-nowrap">
                                                 {subscription?.account.planMetadata?.name}
                                             </h2>
                                             <div className={`flex p-1 bg-white/5 rounded-lg pr-2 ${subscription?.account.active ? 'text-blue-400' : 'text-red-400'}`} >
@@ -169,7 +169,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                 <span className="hidden sm:inline text-gray-400 ">Token Address</span>
                                                 <span className='truncate font-bold text-lg'>
                                                     {subscription && getAssociatedTokenAddressSync(
-                                                        subscription?.account.planMetadata?.mint!,
+                                                        new PublicKey(subscription?.account.planMetadata?.mint!),
                                                         subscription?.account?.payer,
                                                         false, // allowOwnerOffCurve (usually false)
                                                         TOKEN_2022_PROGRAM_ID,

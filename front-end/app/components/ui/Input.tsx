@@ -12,7 +12,7 @@ const InputGroup: React.FC<{
     classNames?: string
 }> = ({ label, name, value, onChange, placeholder, type = 'text', disabled, textarea, classNames }) => (
     <div className={` ${classNames} w-full `}>
-        <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor={name} className="block  font-bold text-gray-700 dark:text-gray-300 mb-1 ">
             {label}
         </label>
         {
