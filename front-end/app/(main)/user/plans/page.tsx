@@ -12,7 +12,7 @@ import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, planQuery } from '@/app/types';
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
-import { ChartNoAxesGantt, Coins, Logs, MousePointerClick, Trash, UserPlus, UserStar, Zap } from 'lucide-react';
+import { ChartNoAxesGantt, Coins, EyeIcon, Logs, MousePointerClick, Trash, UserPlus, UserStar, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 const page = () => {
@@ -141,10 +141,12 @@ const page = () => {
                                                                             Delete
                                                                         </span>
                                                                     }
-                                                                </button> : <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { setPlan(plan.account); setPlanPDA(plan.publicKey); setOpenDetails(true) }}>
-                                                                    <Zap className="w-5 h-5 " />
-                                                                    Subscribe
-                                                                </button>
+                                                                </button> :
+                                                                    <td className=' py-2 text-xl text-gray-400'>
+                                                                        <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setPlan(plan.account); setPlanPDA(plan.publicKey); setOpenDetails(true) }}>
+                                                                            <EyeIcon className='size-6' />                                                                    View
+                                                                        </button>
+                                                                    </td>
                                                             }
                                                             {/* {subscription.account.active ? "Active" : "Disabled"} */}
                                                         </td>

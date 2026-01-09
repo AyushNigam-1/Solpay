@@ -11,7 +11,7 @@ import Error from '@/app/components/ui/Error';
 import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { PublicKey } from '@solana/web3.js';
 import { formatPeriod } from '@/app/utils/duration';
-import { Banknote, ChartNoAxesGantt, CircleDot, Coins, Logs, Timer } from 'lucide-react';
+import { Banknote, ChartNoAxesGantt, CircleDot, Coins, EyeIcon, Logs, MousePointerClick, Timer } from 'lucide-react';
 import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
 import PlanDetails from '@/app/components/ui/PlanDetails';
 
@@ -65,12 +65,12 @@ const page = () => {
             ),
             title: "Tier"
         },
-        {
-            icon: (
-                <Coins />
-            ),
-            title: "Token"
-        },
+        // {
+        //     icon: (
+        //         <Coins />
+        //     ),
+        //     title: "Token"
+        // },
         {
             icon: (
                 <Banknote />
@@ -88,6 +88,12 @@ const page = () => {
                 <CircleDot />
             ),
             title: "Status"
+        },
+        {
+            icon: (
+                <MousePointerClick />
+            ),
+            title: "Action"
         },
     ]
 
@@ -109,33 +115,29 @@ const page = () => {
                                             {filteredData!.map((subscription) => {
                                                 const currentTier = subscription.account.planMetadata?.tiers.find((tier) => tier.tierName == subscription.account.tierName)
                                                 return (
-                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscription); setOpenDetails(true) }}>
+                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition cursor-pointer" >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {subscription.account.planMetadata?.name}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {subscription.account.tierName}
                                                         </td>
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-end gap-2 ">
-                                                                <img
-                                                                    src={subscription.account.planMetadata?.tokenImage}
-                                                                    className='w-6 rounded-full object-cover'
-                                                                    alt={`${subscription.account.planMetadata?.tokenImage} icon`}
-                                                                />
-                                                                <p className="text-xl text-gray-400">
-                                                                    {subscription.account.planMetadata?.tokenSymbol}
-                                                                </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
+                                                        <td className="px-6 py-2 text-xl text-gray-400 flex items-end gap-2 ">
                                                             {currentTier?.amount.toString()}
+                                                            <p className="text-xl text-gray-400">
+                                                                {subscription.account.planMetadata?.tokenSymbol}
+                                                            </p>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {formatPeriod(currentTier?.periodSeconds!)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.account.active ? "Active" : "Disabled"}
+                                                        </td>
+                                                        <td className='px-6 py-2 text-xl text-gray-400'>
+                                                            <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscription); setOpenDetails(true) }}>
+                                                                <EyeIcon className='size-6' />                                                                    View
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 )

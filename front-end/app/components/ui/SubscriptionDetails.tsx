@@ -7,7 +7,7 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, Calendar, Check, CircleAlert, CircleCheck, CircleDot, CircleEllipsis, CircleX, Coins, Dot, Download, MousePointerClick, Pause, Play, Repeat2, RotateCw, Timer, Trash, X } from 'lucide-react';
+import { ArrowUpRight, Calendar, Check, CircleAlert, CircleCheck, CircleDot, CircleEllipsis, CircleX, Coins, Dot, Download, MousePointerClick, Pause, Play, Repeat2, RotateCw, Timer, Trash, UserPlus, UserStar, X } from 'lucide-react';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import Loader from './Loader';
 import TableHeaders from './TableHeaders';
@@ -23,7 +23,7 @@ interface subscriptionDetailsProps {
 
 const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen, onClose, isCreator }: subscriptionDetailsProps) => {
 
-    const { deleteSubscription, manageAutoRenew, manageStatus } = useMutations()
+    const { deleteSubscription, updateSubscription } = useMutations()
     const [autoRenew, setAutoRenew] = useState(false)
     const [currentTier, setCurrentTier] = useState<Tier>()
     const { publicKey } = useProgram()
@@ -47,16 +47,17 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                         lastDate.getTime() + Number(currentTier?.periodSeconds) * (i + 1) * 1000
                     );
                     return {
-                        id: -(i + 1), // negative ID to identify as dummy
-                        userPubkey: subscription.account.payer,
+                        id: -(i + 1),
+                        userPubkey: subscription.account.payer.toString(),
                         plan: transactions[0]?.plan,
                         tier: transactions[0]?.tier,
                         amount: transactions[0]?.amount || 0,
                         status: "pending",
-                        subscriptionPda: subscription.publicKey,
-                        txSignature: undefined,
+                        subscriptionPda: subscription.publicKey.toString(),
+                        txSignature: null, // Changed undefined to null (common mismatch source)
                         createdAt: nextPaymentDate.toISOString(),
-                    };
+                        // Add any other missing fields required by Transaction interface here
+                    } as unknown as Transaction;
                 });
                 transactions = [...transactions, ...upcomingTransactions];
             }
@@ -143,10 +144,6 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             <h2 className="text-2xl font-bold text-white whitespace-nowrap">
                                                 {subscription?.account.planMetadata?.name}
                                             </h2>
-                                            <div className={`flex p-1 bg-white/5 rounded-lg pr-2 ${subscription?.account.active ? 'text-blue-400' : 'text-red-400'}`} >
-                                                <Dot />
-                                                {subscription?.account.active ? "Active" : "Deactive"}
-                                            </div>
                                             <div className='h-0.5 w-full bg-white/5' />
                                         </div>
                                         <button
@@ -180,27 +177,36 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             </div>
                                         </div>
                                             : <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                                                <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-3'>
-                                                    <span className="hidden sm:inline text-gray-400 ">Creator</span>
-                                                    <span className='truncate font-bold text-lg'>
-                                                        {subscription?.account.planMetadata?.creator?.toString()}
-                                                        {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                                <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                                    <div className='flex flex-col gap-2 '>
+                                                        <span className="hidden sm:inline text-gray-400 ">Creator</span>
+                                                        <span className='truncate font-bold text-lg'>
+                                                            {subscription?.account.planMetadata?.creator?.toString()}
+                                                            {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                                        </span>
+                                                    </div>
+                                                    <span className='p-4 rounded-full bg-white/5'>
+                                                        <UserPlus />
                                                     </span>
                                                 </div>
-                                                <div className='h-full w-2 bg-white/5' />
-                                                <div className='flex flex-col gap-2 w-full bg-white/5 rounded-xl p-3'>
-                                                    <span className="hidden sm:inline text-gray-400 "> Reciever</span>
-                                                    <span className="truncate font-bold text-lg" >
-                                                        {subscription?.account.planMetadata?.receiver.toString()}
+                                                <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                                    <div className='flex flex-col gap-2 '>
+                                                        <span className="hidden sm:inline text-gray-400 "> Reciever</span>
+                                                        <span className="truncate font-bold text-lg" >
+                                                            {subscription?.account.planMetadata?.receiver.toString()}
+                                                        </span>
+                                                    </div>
+                                                    <span className='p-4 rounded-full bg-white/5'>
+                                                        <UserStar />
                                                     </span>
                                                 </div>
                                             </div>
                                     }
                                     <div className='h-0.5 w-full bg-white/5' />
                                     <div className='grid grid-cols-12 gap-3' >
-                                        <div className="col-span-3 rounded-2xl flex flex-col h-full">
+                                        <div className="col-span-3 rounded-2xl space-y-4 flex flex-col h-full">
                                             {/* Header */}
-                                            <div className="flex justify-between mb-4">
+                                            <div className="flex justify-between ">
                                                 <h6 className="text-xl font-bold">Tier</h6>
 
                                                 <p
@@ -231,7 +237,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                             h-full relative cursor-pointer rounded-2xl p-4
                                                             border-2 border-white/5
                                                             transition-all duration-200
-                                                            flex flex-col justify-between
+                                                            flex flex-col gap-4
                                                         "
                                                 >
                                                     {/* Top */}
@@ -249,7 +255,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                     <div className="flex flex-col gap-3">
                                                         <div className="h-0.5 w-full bg-white/5" />
 
-                                                        <div className="flex flex-col items-baseline gap-1">
+                                                        <div className="flex items-baseline justify-between gap-1">
                                                             <div className="flex gap-1 items-end">
                                                                 <span className="text-3xl font-bold text-white">
                                                                     {currentTier?.amount.toString()}
@@ -279,7 +285,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                                 className="sr-only"
                                                                 checked={autoRenew}
                                                                 onChange={() =>
-                                                                    manageAutoRenew.mutateAsync({
+                                                                    updateSubscription.mutateAsync({
                                                                         subscriptionPDA: subscription?.publicKey,
                                                                         field: "autoRenew",
                                                                         value: !autoRenew,
@@ -300,8 +306,8 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                                 group-has-checked:translate-x-5
                                                                 group-has-checked:bg-blue-400"
                                                                 >
-                                                                    <span className="group-has-checked:hidden text-xs p-0.5"> {manageAutoRenew.isPending ? <Loader /> : <X size={10} />}</span>
-                                                                    <span className="hidden group-has-checked:inline text-xs p-0.5">{manageAutoRenew.isPending ? <Loader /> : <Check size={10} />}</span>
+                                                                    <span className="group-has-checked:hidden text-xs p-0.5"> {updateSubscription.isPending ? <Loader /> : <X size={10} />}</span>
+                                                                    <span className="hidden group-has-checked:inline text-xs p-0.5">{updateSubscription.isPending ? <Loader /> : <Check size={10} />}</span>
                                                                 </div>
                                                             </div>
 
@@ -373,40 +379,23 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                         </div>
                                     </div>
                                     <div className='h-0.5 w-full bg-white/5 flex' />
-                                    {isCreator ? <button
-                                        onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed, mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount }).then(() => onClose())}
-                                        className={`${deleteSubscription.isPending ? "text-gray-700" : "text-red-400"} text-center group flex  justify-center m-auto items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
-                                        {
-                                            deleteSubscription.isPending ? <Loader /> :
-                                                <Trash className="size-5" />
-                                        }
-                                        Cancel Subscription
-                                    </button> : <div className='flex gap-2' >
-                                        <button className='text-center group flex w-full justify-center m-auto items-center gap-3 p-4 rounded-xl bg-white/5 text-blue-400 transition cursor-pointer font-semibold'
+                                    <div className='flex gap-2 justify-center' >
+                                        <button className='text-center group flex  justify-center items-center gap-3 p-4 rounded-xl bg-white/5 text-blue-400 transition cursor-pointer font-semibold'
                                             onClick={() => { setPlan!(subscription?.account.planMetadata); setPlanDetailsOpen(true); onClose() }}
                                         >
                                             <Repeat2 />
                                             Change Tier
                                         </button>
                                         <button
-                                            onClick={() => manageStatus.mutate({ subscriptionPDA: subscription?.publicKey, field: "active", value: !subscription?.account.active, payerKey: subscription?.account.payer })}
-                                            className={` ${manageStatus.isPending ? "text-gray-700" : !subscription?.account.active ? "text-blue-400" : "text-red-400"}  p-4 bg-white/5 w-full flex justify-center items-center gap-2 transition-shadow hover:shadow-xl rounded-xl font-semibold`}>
-                                            {subscription?.account.active ? <span className='flex justify-center items-center gap-2' >
-                                                {manageStatus.isPending ? <Loader /> : <Pause className="w-5 h-5" />} Pause   </span>
-                                                : <span className='flex justify-center items-center gap-2'>
-                                                    {manageStatus.isPending ? <Loader /> : <Play className="w-5 h-5" />} Activate   </span>}
-                                            Subscription
-                                        </button>
-                                        <button
-                                            onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed, mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount }).then(() => onClose())}
-                                            className={`${deleteSubscription.isPending ? "text-gray-700" : "  text-red-400"} text-center group flex w-full justify-center m-auto items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
+                                            onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed.toArrayLike(Buffer, 'le', 8), mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount }).then(() => onClose())}
+                                            className={`${deleteSubscription.isPending ? "text-gray-700" : "text-red-400"} text-center group flex  justify-center  items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
                                             {
                                                 deleteSubscription.isPending ? <Loader /> :
                                                     <Trash className="size-5" />
                                             }
-                                            Delete Subscription
+                                            Cancel Subscription
                                         </button>
-                                    </div>}
+                                    </div>
                                 </div>}
                             </DialogPanel>
                         </TransitionChild>

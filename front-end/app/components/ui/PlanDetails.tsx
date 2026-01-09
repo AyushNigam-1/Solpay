@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { CheckCircle2, Crown, Zap, ShieldCheck, X, Check } from 'lucide-react';
+import { CheckCircle2, Crown, Zap, ShieldCheck, X, Check, UserPlus, UserStar } from 'lucide-react';
 import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/react';
 import { Plan, Tier } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
@@ -90,7 +90,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
     }, [plan]);
 
     const { publicKey } = useProgram()
-    const { createSubscription, managePlan } = useMutations()
+    const { createSubscription, updateSubscription } = useMutations()
     // const [duration, setDuration] = useState(safeToNumber(processedPlan?.tiers[0].periodSeconds))
     // const [amount, setAmount] = useState(safeToNumber(processedPlan?.tiers[0].amount))
     const [selectedTier, setSelectedTier] = useState<Tier | null>(processedPlan?.tiers[0]!);
@@ -109,7 +109,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
     if (!processedPlan) return null;
 
     return (
-        <Transition show={open} as={React.Fragment}>
+        <Transition show={open} appear={true} as={React.Fragment}>
             <Dialog as="div" className="relative z-50 font-mono" onClose={closeModal}>
                 <TransitionChild
                     as={React.Fragment}
@@ -134,7 +134,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                             leaveFrom="opacity-100 scale-100 translate-y-0"
                             leaveTo="opacity-0 scale-90 translate-y-12"
                         >
-                            <DialogPanel className="w-full max-w-6xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-4">
+                            <DialogPanel className="w-full max-w-7xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-2xl font-extrabold text-white tracking-tight truncate">{processedPlan.name}</h2>
                                     <button
@@ -145,18 +145,28 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                     </button>
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-                                <div className="flex items-center gap-4 flex-wrap md:flex-nowrap">
-                                    <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-2'>
-                                        <span className="hidden sm:inline text-gray-400 ">Creator</span>
-                                        <span className='truncate font-bold text-lg'>
-                                            {processedPlan.creator}
-                                            {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
+                                    <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                        <div className='flex flex-col gap-2 '>
+                                            <span className="hidden sm:inline text-gray-400 ">Creator</span>
+                                            <span className='truncate font-bold text-lg'>
+                                                {processedPlan.creator?.toString()}
+                                                {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                            </span>
+                                        </div>
+                                        <span className='p-4 rounded-full bg-white/5'>
+                                            <UserPlus />
                                         </span>
                                     </div>
-                                    <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-2'>
-                                        <span className="hidden sm:inline text-gray-400 "> Reciever</span>
-                                        <span className="truncate font-bold text-lg" >
-                                            {processedPlan.receiver}
+                                    <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                        <div className='flex flex-col gap-2 '>
+                                            <span className="hidden sm:inline text-gray-400 "> Reciever</span>
+                                            <span className="truncate font-bold text-lg" >
+                                                {processedPlan.receiver.toString()}
+                                            </span>
+                                        </div>
+                                        <span className='p-4 rounded-full bg-white/5'>
+                                            <UserStar />
                                         </span>
                                     </div>
                                 </div>
@@ -258,23 +268,16 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                                     </div>
                                                 )}
                                     </div>
-
-                                    {/* Footer / Subscribe Action */}
-
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
-
-                                {/* <div className='h-0.5 w-full bg-white/5' /> */}
-
                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
-
                                     <button
-                                        onClick={() => type == "new" ? createSubscription.mutateAsync({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, periodSeconds: Number(selectedTier?.periodSeconds), amount: Number(selectedTier?.amount), autoRenew, receiver: new PublicKey(processedPlan.receiver), mint: new PublicKey(processedPlan.mint), planName: processedPlan.name }).then(() => closeModal()) : managePlan.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer! })}
-                                        disabled={!selectedTier || createSubscription.isPending || managePlan.isPending}
+                                        onClick={() => type == "new" ? createSubscription.mutateAsync({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, periodSeconds: Number(selectedTier?.periodSeconds), amount: Number(selectedTier?.amount), autoRenew, receiver: new PublicKey(processedPlan.receiver), mint: new PublicKey(processedPlan.mint), planName: processedPlan.name }).then(() => closeModal()) : updateSubscription.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer! })}
+                                        disabled={!selectedTier || createSubscription.isPending || updateSubscription.isPending}
                                         className="w-full sm:w-auto flex items-center justify-center gap-2 p-3 rounded-lg font-semibold text-lg transition-all bg-blue-400/70  text-white cursor-pointer disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed disabled:border disabled:border-gray-700"
                                     >
                                         {
-                                            (createSubscription.isPending || managePlan.isPending) ? <Loader /> :
+                                            (createSubscription.isPending || updateSubscription.isPending) ? <Loader /> :
                                                 <Zap className="size-6" />
                                         }
                                         <span>Subscribe</span>

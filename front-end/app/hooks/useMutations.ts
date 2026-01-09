@@ -67,7 +67,6 @@ export const useMutations = () => {
         },
         onSuccess: async () => {
             queryClient.invalidateQueries({ queryKey: ["my-plan"] });
-
         },
 
         onError: (error: any) => {
@@ -177,52 +176,26 @@ export const useMutations = () => {
         },
     });
 
+    const updateSubscription = useMutation({
+        mutationFn: async ({
+            subscriptionPDA,
+            field,
+            value,
+            payerKey,
+        }: {
+            subscriptionPDA: PublicKey;
+            field: UpdateField;
+            value: boolean | string;
+            payerKey: PublicKey;
+        }) => await programActions.updateSubscription(subscriptionPDA, field, value, payerKey),
 
-    const editSubscription = async ({
-        subscriptionPDA,
-        field,
-        value,
-        payerKey,
-    }: {
-        subscriptionPDA: PublicKey;
-        field: UpdateField;
-        value: boolean | string;
-        payerKey: PublicKey;
-    }) => {
-        const txSig = await programActions.updateSubscription(subscriptionPDA, field, value, payerKey);
-        if (!txSig) {
-            throw new Error("Update failed");
-        }
-        return txSig;
-    }
-
-    const manageStatus = useMutation({
-        mutationFn: editSubscription,
         onSuccess: (txSig, { field, subscriptionPDA, value }) => {
-            console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-            updateSubscriptionDb.mutate({ field, subscriptionPDA: String(subscriptionPDA), value })
-            queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-        },
 
-        onError: (error: any, variables) => {
-            console.error("Failed to update subscription:", error);
-            // toast.error(`Failed to update ${variables.field}: ${error.message || "Unknown error"}`);
-        },
-    });
-
-    const manageAutoRenew = useMutation({
-        mutationFn: editSubscription,
-        onSuccess: (txSig, { field, subscriptionPDA, value }) => {
             // toast.success(
             //     `${variables.field === "tier" ? "Tier" : variables.field === "autoRenew" ? "Auto-Renew" : variables.field === "active" ? "Status" : "Duration"} updated successfully!`
             // );
             console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
             updateSubscriptionDb.mutate({ field, subscriptionPDA: String(subscriptionPDA), value })
-
-            // Refetch relevant queries
-            // queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
-            // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-            // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
         },
 
         onError: (error: any, variables) => {
@@ -231,25 +204,5 @@ export const useMutations = () => {
         },
     })
 
-    const managePlan = useMutation({
-        mutationFn: editSubscription,
-        onSuccess: (txSig, { field, subscriptionPDA, value }) => {
-            // toast.success(
-            //     `${variables.field === "tier" ? "Tier" : variables.field === "autoRenew" ? "Auto-Renew" : variables.field === "active" ? "Status" : "Duration"} updated successfully!`
-            // );
-            console.log("Tx:", `https://solana.fm/tx/${txSig}?cluster=devnet-solana`);
-            updateSubscriptionDb.mutate({ field, subscriptionPDA: String(subscriptionPDA), value })
-
-            // Refetch relevant queries
-            // queryClient.invalidateQueries({ queryKey: ["subscription", variables.subscriptionPDA.toBase58()] });
-            // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-            // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", variables.payerKey.toBase58()] });
-        },
-
-        onError: (error: any, variables) => {
-            console.error("Failed to update subscription:", error);
-            // toast.error(`Failed to update ${variables.field}: ${error.message || "Unknown error"}`);
-        },
-    })
-    return { createSubscription, manageStatus, manageAutoRenew, managePlan, createPlan, updatePlan, cancelPlan, deleteSubscription }
+    return { createSubscription, updateSubscription, createPlan, updatePlan, cancelPlan, deleteSubscription }
 }
