@@ -4,16 +4,16 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, Subscription } from '@/app/types';
-import Header from '@/app/components/ui/Header';
-import TableHeaders from '@/app/components/ui/TableHeaders';
-import Loader from '@/app/components/ui/Loader';
-import Error from '@/app/components/ui/Error';
-import { SubscriptionForm } from '@/app/components/ui/SubscriptionForm';
 import { PublicKey } from '@solana/web3.js';
 import { formatPeriod } from '@/app/utils/duration';
-import { Banknote, ChartNoAxesGantt, CircleDot, Coins, EyeIcon, Logs, MousePointerClick, Timer } from 'lucide-react';
-import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
-import PlanDetails from '@/app/components/ui/PlanDetails';
+import { EyeIcon } from 'lucide-react';
+import { TABLE_HEADERS } from '@/app/utils/headers';
+import SubscriptionDetails from '@/app/components/ui/modals/SubscriptionDetails';
+import Header from '@/app/components/ui/layout/Header';
+import TableHeaders from '@/app/components/ui/layout/TableHeaders';
+import Loader from '@/app/components/ui/extras/Loader';
+import Error from '@/app/components/ui/extras/Error';
+import PlanDetails from '@/app/components/ui/modals/PlanDetails';
 
 const page = () => {
     const [isOpen, setOpen] = useState<boolean>(false)
@@ -36,7 +36,8 @@ const page = () => {
         queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
     });
-
+    // const { searchQuery, setSearchQuery, filteredData } = useSearch(transactions, ['plan', 'tier']);
+    // 
     console.log("subscriptions", subscriptions)
 
     const filteredData = useMemo(() => {
@@ -52,52 +53,6 @@ const page = () => {
         });
     }, [subscriptions, searchQuery]);
 
-    const headers = [
-        {
-            icon: (
-                <ChartNoAxesGantt />
-            ),
-            title: "Plan"
-        },
-        {
-            icon: (
-                <Logs />
-            ),
-            title: "Tier"
-        },
-        // {
-        //     icon: (
-        //         <Coins />
-        //     ),
-        //     title: "Token"
-        // },
-        {
-            icon: (
-                <Banknote />
-            ),
-            title: "Amount"
-        },
-        {
-            icon: (
-                <Timer />
-            ),
-            title: "Duration"
-        },
-        {
-            icon: (
-                <CircleDot />
-            ),
-            title: "Status"
-        },
-        {
-            icon: (
-                <MousePointerClick />
-            ),
-            title: "Action"
-        },
-    ]
-
-
     return (
         <div className='space-y-4 font-mono' >
             <Header title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
@@ -110,7 +65,7 @@ const page = () => {
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={headers} />
+                                        <TableHeaders columns={TABLE_HEADERS.user.subscription} />
                                         <tbody>
                                             {filteredData!.map((subscription) => {
                                                 const currentTier = subscription.account.planMetadata?.tiers.find((tier) => tier.tierName == subscription.account.tierName)
@@ -155,7 +110,6 @@ const page = () => {
                     </div>
                 )}
             </div>
-            <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} />
 
             <SubscriptionDetails isOpen={openDetails!} setPlanDetailsOpen={setPlanDetailsOpen}
                 setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} isCreator={false} />

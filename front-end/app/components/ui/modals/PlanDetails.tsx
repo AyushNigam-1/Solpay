@@ -5,7 +5,7 @@ import { Dialog, DialogPanel, Transition, TransitionChild } from '@headlessui/re
 import { Plan, Tier } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useMutations } from '@/app/hooks/useMutations';
-import Loader from './Loader';
+import Loader from '../extras/Loader';
 
 // Helper to safely convert BN/string/number to a Javascript number
 // Note: For very large numbers (token amounts), keep as string for display if needed, 

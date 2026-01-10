@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CirclePlus, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Dialog, DialogPanel, DialogTitle, Transition } from '@headlessui/react';
-import InputGroup from './Input';
+import InputGroup from '../extras/Input';
 import { Plan } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useMutations } from '@/app/hooks/useMutations';
-import Loader from './Loader';
+import Loader from '../extras/Loader';
 import { PublicKey } from '@solana/web3.js';
 
 const initialFormState: Plan = {

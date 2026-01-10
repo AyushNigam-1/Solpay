@@ -1,11 +1,11 @@
 "use client"
 
-import Error from '@/app/components/ui/Error';
-import Header from '@/app/components/ui/Header';
-import Loader from '@/app/components/ui/Loader';
-import PlanDetails from '@/app/components/ui/PlanDetails';
-import PlanForm from '@/app/components/ui/PlanForm';
-import TableHeaders from '@/app/components/ui/TableHeaders';
+import Error from '@/app/components/ui/extras/Error';
+import Header from '@/app/components/ui/layout/Header';
+import Loader from '@/app/components/ui/extras/Loader';
+import PlanDetails from '@/app/components/ui/modals/PlanDetails';
+import PlanForm from '@/app/components/ui/modals/PlanForm';
+import TableHeaders from '@/app/components/ui/layout/TableHeaders';
 import { useMutations } from '@/app/hooks/useMutations';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
@@ -14,6 +14,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import { ChartNoAxesGantt, Coins, EyeIcon, Logs, MousePointerClick, Trash, UserPlus, UserStar, Zap } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { TABLE_HEADERS } from '@/app/utils/headers';
 
 const page = () => {
 
@@ -23,9 +24,9 @@ const page = () => {
     const { publicKey } = useProgram()
     const [plan, setPlan] = useState<Plan>()
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
-
     const { fetchAllSubscriptionPlans, } = useProgramActions();
     const { cancelPlan } = useMutations()
+    // const { searchQuery, setSearchQuery, filteredData } = useSearch(transactions, ['plan', 'tier']);
 
     const {
         data: plans,
@@ -39,42 +40,6 @@ const page = () => {
         staleTime: 1000 * 3000,
     });
 
-    const headers: any = [
-        {
-            icon: (
-                <ChartNoAxesGantt />
-            ),
-            title: "Plan"
-        },
-        {
-            icon: (
-                <UserPlus />),
-            title: "Creator"
-        },
-        {
-            icon: (
-                <UserStar />),
-            title: "Reciever"
-        },
-        {
-            icon: (
-                <Coins />
-            ),
-            title: "Token"
-        },
-        {
-            icon: (
-                <Logs />
-            ),
-            title: "Tiers"
-        },
-        {
-            icon: (
-                <MousePointerClick />
-            ),
-            title: "Action"
-        },
-    ]
     const filteredData = useMemo(() => {
         if (!searchQuery) {
             return plans;
@@ -101,7 +66,7 @@ const page = () => {
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={headers} />
+                                        <TableHeaders columns={TABLE_HEADERS.user.plans} />
                                         <tbody>
                                             {filteredData!.map((plan) => {
                                                 return (
@@ -167,7 +132,6 @@ const page = () => {
                 )}
             </div>
             <PlanForm isOpen={isOpen} setIsOpen={setOpen} />
-            {/* <SubscriptionForm isOpen={isOpen} onClose={() => setOpen(false)} /> */}
             <PlanDetails plan={plan!} planPDA={planPDA!} open={openDetails} setOpen={setOpenDetails} type="new" />
         </div>
     )

@@ -1,23 +1,24 @@
 "use client"
 
-import Header from '@/app/components/ui/Header';
-import Loader from '@/app/components/ui/Loader';
+import Header from '@/app/components/ui/layout/Header';
+import Loader from '@/app/components/ui/extras/Loader';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useMemo, useState } from 'react';
-import Error from '@/app/components/ui/Error';
-import TableHeaders from '@/app/components/ui/TableHeaders';
+import Error from '@/app/components/ui/extras/Error';
+import TableHeaders from '@/app/components/ui/layout/TableHeaders';
 import { Notification } from '@/app/types';
 import { Calendar, ChartNoAxesGantt, Logs, MessageCircle, MousePointerClick, RotateCw, Trash } from 'lucide-react';
 import { formatDate } from '@/app/utils/duration';
 import { useDbActions } from '@/app/hooks/useDbActions';
+import { TABLE_HEADERS } from '@/app/utils/headers';
+import { useSearch } from '@/app/hooks/useSearch';
 
 
 const page = () => {
     const { publicKey } = useProgram()
     const { deleteNotification, renewSubscription } = useDbActions()
-    const [searchQuery, setSearchQuery] = useState<string | null>("")
 
     const {
         data: notifications,
@@ -37,51 +38,8 @@ const page = () => {
         staleTime: 1000 * 60, // 1 min cache (tweak if needed)
     });
 
-    console.log(notifications)
-    const filteredData = useMemo(() => {
-        if (!searchQuery) {
-            return notifications;
-        }
-        const lowerCaseQuery = searchQuery.toLowerCase().trim();
-        return notifications?.filter(notification => {
-            return (
-                notification.planName.toString().includes(lowerCaseQuery));
-        });
-    }, [notifications, searchQuery]);
+    const { searchQuery, setSearchQuery, filteredData } = useSearch(notifications, ['planName']);
 
-    const headers = [
-        {
-            icon: (
-                <Calendar />
-            ),
-            title: "Date"
-        },
-        {
-            icon: (
-                <ChartNoAxesGantt />
-            ),
-            title: "Plan"
-        },
-        {
-            icon: (
-                <Logs />
-            ),
-            title: "Tier"
-        },
-        {
-            icon: (
-                <MessageCircle />
-            ),
-            title: "Message"
-        },
-
-        {
-            icon: (
-                <MousePointerClick />
-            ),
-            title: "Action"
-        },
-    ]
     return (
         <div className='space-y-4 font-mono'>
             <Header title="Notifications" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
@@ -101,7 +59,7 @@ const page = () => {
                                             <col className="w-[36%]" />
                                             <col className="w-[16%]" />
                                         </colgroup>
-                                        <TableHeaders columns={headers} />
+                                        <TableHeaders columns={TABLE_HEADERS.user.notification} />
                                         <tbody>
                                             {filteredData?.map((notification) => {
                                                 return (

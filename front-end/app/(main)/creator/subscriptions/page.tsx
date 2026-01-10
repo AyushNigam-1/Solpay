@@ -6,14 +6,14 @@ import { useQuery } from '@tanstack/react-query';
 import * as anchor from "@coral-xyz/anchor"
 import { useEffect, useMemo, useState } from 'react';
 import { CircleDot, EyeIcon, Logs, MousePointerClick, Repeat2, User } from 'lucide-react';
-import Header from '@/app/components/ui/Header';
-import Error from '@/app/components/ui/Error';
-import Loader from '@/app/components/ui/Loader';
-import TableHeaders from '@/app/components/ui/TableHeaders';
-import SubscriptionDetails from '@/app/components/ui/SubscriptionDetails';
+import Header from '@/app/components/ui/layout/Header';
+import Error from '@/app/components/ui/extras/Error';
+import Loader from '@/app/components/ui/extras/Loader';
+import TableHeaders from '@/app/components/ui/layout/TableHeaders';
+import SubscriptionDetails from '@/app/components/ui/modals/SubscriptionDetails';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Subscription } from '@/app/types';
-
+import { TABLE_HEADERS } from '@/app/utils/headers';
 const page = () => {
     const { publicKey, PROGRAM_ID } = useProgram()
     const { fetchSubscriptionsByPlan } = useProgramActions()
@@ -21,6 +21,8 @@ const page = () => {
     const [subscription, setSubscription] = useState<{ publicKey: PublicKey, account: Subscription }>()
     const [searchQuery, setSearchQuery] = useState<string | null>("")
     const [openDetails, setOpenDetails] = useState<boolean>(false)
+    // const { searchQuery, setSearchQuery, filteredData } = useSearch(transactions, ['plan', 'tier']);
+
 
     useEffect(() => {
         if (publicKey) {
@@ -61,38 +63,7 @@ const page = () => {
         });
     }, [subscribers, searchQuery]);
 
-    const headers = [
-        {
-            icon: (
-                <User />
-            ),
-            title: "Payer"
-        },
-        {
-            icon: (
-                <Logs />
-            ),
-            title: "Tier"
-        },
-        {
-            icon: (
-                <Repeat2 />
-            ),
-            title: "Auto Renew"
-        },
-        {
-            icon: (
-                <CircleDot />
-            ),
-            title: "Status"
-        },
-        {
-            icon: (
-                <MousePointerClick />
-            ),
-            title: "Actions"
-        },
-    ]
+
 
     return (
         <div className='space-y-4 font-mono'>
@@ -106,7 +77,7 @@ const page = () => {
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={headers} />
+                                        <TableHeaders columns={TABLE_HEADERS.creator.subscriptions} />
                                         <tbody>
                                             {filteredData?.map((subscriber) => {
                                                 return (

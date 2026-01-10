@@ -7,10 +7,11 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, Calendar, Check, CircleAlert, CircleCheck, CircleDot, CircleEllipsis, CircleX, Coins, Dot, Download, MousePointerClick, Pause, Play, Repeat2, RotateCw, Timer, Trash, UserPlus, UserStar, X } from 'lucide-react';
+import { ArrowUpRight, Check, CircleAlert, CircleCheck, CircleEllipsis, CircleX, Download, Repeat2, RotateCw, Timer, Trash, UserPlus, UserStar, X } from 'lucide-react';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import Loader from './Loader';
-import TableHeaders from './TableHeaders';
+import Loader from '../extras/Loader';
+import TableHeaders from '../layout/TableHeaders';
+import { TABLE_HEADERS } from '@/app/utils/headers';
 
 interface subscriptionDetailsProps {
     isOpen: boolean;
@@ -56,7 +57,6 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                         subscriptionPda: subscription.publicKey.toString(),
                         txSignature: null, // Changed undefined to null (common mismatch source)
                         createdAt: nextPaymentDate.toISOString(),
-                        // Add any other missing fields required by Transaction interface here
                     } as unknown as Transaction;
                 });
                 transactions = [...transactions, ...upcomingTransactions];
@@ -67,7 +67,6 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
         staleTime: 1000 * 3000,
     });
 
-    console.log("transactions", transactions)
     useEffect(() => {
         const tier = subscription?.account.planMetadata?.tiers.find((tier: Tier) => tier.tierName == subscription?.account.tierName)
         setCurrentTier(tier)
@@ -78,35 +77,6 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
             setAutoRenew(subscription?.account.autoRenew);
         }
     }, [subscription?.account?.autoRenew]);
-
-
-    const headers: any = [
-        {
-            icon: (
-                <Calendar size={20} />
-            ),
-            title: "Date"
-        },
-        {
-            icon: (
-                <Coins size={20} />
-            ),
-            title: "Token"
-        },
-        {
-            icon: (
-                <CircleDot size={20} />
-            ),
-            title: "Status"
-        },
-        {
-            icon: (
-                <MousePointerClick />
-            ),
-            title: "Action"
-        },
-    ]
-
 
     return (
         <Transition show={isOpen} as={React.Fragment}>
@@ -250,12 +220,10 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                             Lorem ipsum, dolor sit amet consectetur adipisicing elit. Laborum a labore ratione sunt voluptatum rerum maxime modi, odio id excepturi consequuntur doloribus repellendus
                                                         </p>
                                                     </div>
-
                                                     {/* Bottom */}
-                                                    <div className="flex flex-col gap-3">
-                                                        <div className="h-0.5 w-full bg-white/5" />
-
-                                                        <div className="flex items-baseline justify-between gap-1">
+                                                    <div className="flex flex-col gap-3 mt-auto">
+                                                        <div className="h-0.5 w-full bg-white/5 " />
+                                                        <div className="flex  justify-between items-baseline gap-1">
                                                             <div className="flex gap-1 items-end">
                                                                 <span className="text-3xl font-bold text-white">
                                                                     {currentTier?.amount.toString()}
@@ -278,7 +246,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             <div className='flex justify-between '>
                                                 <h6 className='text-xl font-bold'>Transactions</h6>
                                                 {
-                                                    isCreator ? <button className='font-bold text-heading  flex gap-2 items-center text-blue-400' > <Download size={20} /> Export CSV</button> : <div className='relative' >
+                                                    isCreator ? <button className='font-bold text-heading  flex gap-2 items-center text-blue-400' > <Download size={20} /> Export CSV </button> : <div className='relative' >
                                                         <label className="inline-flex items-center cursor-pointer group">
                                                             <input
                                                                 type="checkbox"
@@ -320,13 +288,13 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             </div>
                                             <div className=" rounded-2xl overflow-hidden border border-white/5">
                                                 <table className="w-full table-fixed text-sm text-left rtl:text-right text-body h-full">
-                                                    <TableHeaders columns={headers} />
+                                                    <TableHeaders columns={TABLE_HEADERS.user.planTransactions} />
                                                     <tbody>
                                                         {transactions?.map((tx, index) => {
                                                             const isFirstRow = index === 0;
                                                             const isLastRow = index === transactions?.length - 1;
                                                             return (
-                                                                <tr key={subscription?.account.bump} className={`transition cursor-pointer border border-white/5 rounded-2xl ${tx.status == 'pending' ? 'opacity-50 cursor-not-allowed' : ''} `} >
+                                                                <tr key={tx.id} className={`transition cursor-pointer border border-white/5 rounded-2xl ${tx.status == 'pending' ? 'opacity-50 cursor-not-allowed' : ''} `} >
                                                                     <td className={`
                                                                     px-6 py-2 text-xl text-gray-400
                                                                     ${isFirstRow ? "rounded-tl-2xl" : ""}
@@ -408,16 +376,3 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
 }
 
 export default subscriptionDetails
-
-
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, }) => (
-    <div className={`w-full space-y-2 justify-between transition-shadow hover:shadow-xl bg-white/5 p-3 rounded-xl`}>
-        {/* <div className='w-full'> */}
-        <p className="text-sm font-medium text-gray-400 uppercase">{title}</p>
-        <p className="text-xl = w-full rounded-xl font-semibold ">{value}</p>
-        {/* </div> */}
-        {/* <button className="p-3.5 bg-white/10 rounded-r-xl cursor-pointer">
-            <Pencil className="w-4 text-blue-400" />
-        </button> */}
-    </div>
-);

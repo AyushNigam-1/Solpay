@@ -1,5 +1,5 @@
-import Navbar from "../components/ui/Navbar";
-import Sidebar from "../components/ui/Sidebar";
+import Navbar from "../components/ui/layout/Navbar";
+import Sidebar from "../components/ui/layout/Sidebar";
 
 export default function AppLayout({ children }: Readonly<{
     children: React.ReactNode;

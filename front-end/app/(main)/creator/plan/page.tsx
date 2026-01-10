@@ -1,9 +1,8 @@
 "use client"
 
-import Error from '@/app/components/ui/Error';
-import Header from '@/app/components/ui/Header';
-import Loader from '@/app/components/ui/Loader';
-import PlanForm from '@/app/components/ui/PlanForm';
+import Header from '@/app/components/ui/layout/Header';
+import Loader from '@/app/components/ui/extras/Loader';
+import PlanForm from '@/app/components/ui/modals/PlanForm';
 import { useMutations } from '@/app/hooks/useMutations';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Tier } from '@/app/types';
@@ -16,13 +15,11 @@ const page = () => {
     const { getMyPlan } = useProgramActions();
     const { cancelPlan } = useMutations()
     const [isOpen, setOpen] = useState<boolean>(false)
-    // const plan,setPlan]
 
     const {
         data: plan,
         isLoading,
         isFetching,
-        isError,
         refetch,
     } = useQuery({
         queryKey: ["my-plan"],
@@ -30,16 +27,6 @@ const page = () => {
         staleTime: 1000 * 3000,
     });
 
-    console.log("plan?", plan)
-
-    const cards = [
-        {
-            title: "",
-            value: "",
-            icon: ""
-        }
-
-    ]
     return (
         <div className='space-y-4 font-mono'>
             <Header isFetching={isFetching} refetch={refetch} title='Plan' />

@@ -1,20 +1,20 @@
 "use client"
-import Header from '@/app/components/ui/Header';
-import Loader from '@/app/components/ui/Loader';
+import Header from '@/app/components/ui/layout/Header';
+import Loader from '@/app/components/ui/extras/Loader';
 import { useProgram } from '@/app/hooks/useProgram';
 import { Transaction } from '@/app/types';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, Banknote, Calendar, ChartNoAxesGantt, CircleCheck, CircleDot, Logs, MousePointerClick, RotateCw, Trash } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import Error from '@/app/components/ui/Error';
-import TableHeaders from '@/app/components/ui/TableHeaders';
+import { ArrowUpRight, CircleCheck, RotateCw, Trash } from 'lucide-react';
+import Error from '@/app/components/ui/extras/Error';
+import TableHeaders from '@/app/components/ui/layout/TableHeaders';
 import { formatDate } from '@/app/utils/duration';
 import { useDbActions } from '@/app/hooks/useDbActions';
+import { TABLE_HEADERS } from '@/app/utils/headers';
+import { useSearch } from '@/app/hooks/useSearch';
 
 const page = () => {
     const { publicKey } = useProgram()
-    const [searchQuery, setSearchQuery] = useState<string | null>("")
     const { deleteTransaction, renewSubscription } = useDbActions()
 
     const {
@@ -35,59 +35,7 @@ const page = () => {
         staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     });
 
-    console.log(transactions)
-
-    const filteredData = useMemo(() => {
-        if (!searchQuery) {
-            return transactions;
-        }
-        const lowerCaseQuery = searchQuery.toLowerCase().trim();
-        return transactions?.filter(subscription => {
-            return (
-                subscription.plan.toString().includes(lowerCaseQuery) || subscription.tier.toString().includes(lowerCaseQuery));
-        });
-    }, [transactions, searchQuery]);
-
-    const headers = [
-        {
-            icon: (
-                <Calendar />
-            ),
-            title: "Date"
-        },
-        {
-            icon: (
-                <ChartNoAxesGantt />
-            ),
-            title: "Plan"
-        },
-        {
-            icon: (
-                <Logs />
-            ),
-            title: "Tier"
-        },
-        {
-            icon: (
-                <Banknote />
-            ),
-            title: "Amount"
-        },
-
-        {
-            icon: (
-                <CircleDot />
-            ),
-            title: "Status"
-        },
-        {
-            icon: (
-                <MousePointerClick />
-            ),
-            title: "Actions"
-        },
-
-    ]
+    const { searchQuery, setSearchQuery, filteredData } = useSearch(transactions, ['plan', 'tier']);
 
     return (
         <div className='space-y-4 font-mono'>
@@ -101,7 +49,7 @@ const page = () => {
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
                                     <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={headers} />
+                                        <TableHeaders columns={TABLE_HEADERS.user.history} />
                                         <tbody>
                                             {filteredData?.map((tx) => {
                                                 return (
