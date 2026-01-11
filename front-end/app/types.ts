@@ -34,6 +34,7 @@ export interface Subscription {
     bump: number;
     duration: anchor.BN;
     planMetadata?: Plan
+    planCreator: string
 }
 export type Notification = {
     id: string;                 // DB primary key

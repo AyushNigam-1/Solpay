@@ -85,7 +85,8 @@ export const useMutations = () => {
             amount,
             autoRenew,
             receiver,
-            mint
+            mint,
+            creator
         }: {
             tier: string;
             planPDA: PublicKey;
@@ -95,7 +96,9 @@ export const useMutations = () => {
             amount: number;          // 🔒 locked price
             autoRenew?: boolean;
             receiver: PublicKey,
-            mint: PublicKey
+            mint: PublicKey,
+            creator: string
+
         }) => {
             const subscription = await programActions.initializeSubscription(
                 tier,                   // tier name
@@ -114,10 +117,10 @@ export const useMutations = () => {
 
         },
 
-        onSuccess: async ({ subscriptionPDA, account }, { planName }) => {
+        onSuccess: async ({ subscriptionPDA, account }, { planName, creator }) => {
             // toast.success("Subscription created successfully!");
             console.log("New Subscription PDA:", subscriptionPDA, account);
-            createSubscriptionDb.mutate({ account: { ...account, planName } })
+            createSubscriptionDb.mutate({ account: { ...account, planName, planCreator: creator } })
             // Refetch your subscriptions list
             // queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
             // queryClient.invalidateQueries({ queryKey: ["userSubscriptions", payerKey.toBase58()] });

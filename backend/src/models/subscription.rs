@@ -14,6 +14,7 @@ pub struct Subscription {
     pub amount: String,
     pub unique_seed: [u8; 8],
     pub bump: u8,
+    pub plan_creator: String,
     pub subscription: String,
     pub tx_signature: String,
 }

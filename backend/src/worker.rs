@@ -225,7 +225,7 @@ pub async fn renew_subscription_by_pda(
             let _ = create_transaction(&state.db, &history).await;
 
             (
-                "✅ Subscription renewed successfully".to_string(),
+                "Subscription renewed successfully".to_string(),
                 "Success".to_string(),
             )
         }
@@ -233,7 +233,7 @@ pub async fn renew_subscription_by_pda(
         Err(e) => {
             tracing::error!("❌ Renewal failed {}: {}", subscription_pda, e);
             (
-                "❌ Subscription renewal failed".to_string(),
+                "Subscription renewal failed".to_string(),
                 "Failed".to_string(),
             )
         }

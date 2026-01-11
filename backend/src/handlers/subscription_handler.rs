@@ -1,4 +1,6 @@
+use crate::handlers::notification_handler::create_notification;
 use crate::handlers::transaction_handler::create_transaction;
+use crate::models::notification::Notification;
 use crate::models::subscription::Subscription;
 use crate::worker::renew_subscription_by_pda;
 use crate::{AppState, models::transaction::PaymentHistory};
@@ -8,10 +10,63 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
+use sqlx::PgPool;
 use std::str::FromStr;
+
+pub async fn record_payment_for_both(
+    db: &PgPool,
+    user_pubkey: String,
+    creator_pubkey: String,
+    plan: String,
+    tier: String,
+    amount: i64,
+    status: String,
+    tx_signature: Option<String>,
+    subscription_pda: String,
+) -> Result<()> {
+    let now = Utc::now();
+
+    // Record for the USER (payer)
+    let user_record = PaymentHistory {
+        id: None,
+        user_pubkey: user_pubkey.clone(),
+        plan: plan.clone(),
+        tier: tier.clone(),
+        amount,
+        status: status.clone(),
+        tx_signature: tx_signature.clone(),
+        subscription_pda: subscription_pda.clone(),
+        created_at: now,
+    };
+
+    if let Err(e) = create_transaction(db, &user_record).await {
+        eprintln!("Failed to record user payment history: {:?}", e);
+        // Continue — don't fail the whole flow
+    }
+
+    // Record for the CREATOR (receiver)
+    let creator_record = PaymentHistory {
+        id: None,
+        user_pubkey: creator_pubkey, // creator receives this as their "income"
+        plan,
+        tier,
+        amount, // positive for income
+        status,
+        tx_signature,
+        subscription_pda,
+        created_at: now,
+    };
+
+    if let Err(e) = create_transaction(db, &creator_record).await {
+        eprintln!("Failed to record creator payment history: {:?}", e);
+    }
+
+    Ok(())
+}
 
 pub async fn create_subscription(
     Extension(state): Extension<AppState>,
@@ -74,22 +129,40 @@ pub async fn create_subscription(
     let (status, body) = match result {
         Ok(_) => {
             // Record initial transaction history (fire and forget)
-            let history_record = PaymentHistory {
+            let _ = record_payment_for_both(
+                &state.db,
+                payload.payer.clone(),
+                payload.plan_creator.clone(), // ← creator pubkey
+                payload
+                    .plan_name
+                    .as_ref()
+                    .unwrap_or(&"Unknown".to_string())
+                    .clone(),
+                payload.tier_name.clone(),
+                amount,
+                "success".to_string(),
+                Some(payload.tx_signature),
+                payload.subscription.clone(),
+            )
+            .await;
+
+            let creator_notification = Notification {
                 id: None,
-                user_pubkey: payload.payer.clone(),
-                plan: payload.plan_name.unwrap(),
-                tier: payload.tier_name.clone(),
-                amount: amount,
-                status: "success".to_string(),
-                tx_signature: Some(payload.tx_signature), // if you have it
+                user_pubkey: payload.plan_creator.clone(), // ← creator's pubkey (you need to add this to payload)
                 subscription_pda: payload.subscription.clone(),
-                created_at: chrono::Utc::now(),
+                plan_name: payload.plan_name.clone().unwrap_or_default(),
+                tier: payload.tier_name.clone(),
+                message: format!("{} subscribed to your plan.", payload.payer),
+                is_read: false,
+                r#type: "new_subscription".to_string(),
+                created_at: Some(chrono::Utc::now()),
             };
 
-            if let Err(e) = create_transaction(&state.db, &history_record).await {
-                eprintln!("Failed to record transaction history: {:?}", e);
-                // Don't fail the whole request
+            if let Err(e) = create_notification(&state.db, &creator_notification).await {
+                eprintln!("Failed to notify creator: {:?}", e);
+                // Don't fail the whole request — it's non-critical
             }
+
             (
                 StatusCode::CREATED,
                 json!({
