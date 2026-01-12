@@ -14,15 +14,15 @@ import TableHeaders from '@/app/components/ui/layout/TableHeaders';
 import Loader from '@/app/components/ui/extras/Loader';
 import Error from '@/app/components/ui/extras/Error';
 import PlanDetails from '@/app/components/ui/modals/PlanDetails';
+import { useSearch } from '@/app/hooks/useSearch';
 
 const page = () => {
     const [isOpen, setOpen] = useState<boolean>(false)
-    const [subscription, setSubscription] = useState<{ account: Subscription; publicKey: PublicKey; }>()
+    const [subscription, setSubscription] = useState<Subscription & { publicKey: PublicKey }>();
     const [openDetails, setOpenDetails] = useState<boolean>(false)
     const [isPlanDetailsOpen, setPlanDetailsOpen] = useState<boolean>(false)
     const [plan, setPlan] = useState<Plan>()
     const [planPDA, setPlanPDA] = useState<PublicKey | null>()
-    const [searchQuery, setSearchQuery] = useState<string | null>("")
     const { fetchUserSubscriptions } = useProgramActions();
 
     const {
@@ -36,23 +36,14 @@ const page = () => {
         queryFn: () => fetchUserSubscriptions(),
         staleTime: 1000 * 3000,
     });
-    // const { searchQuery, setSearchQuery, filteredData } = useSearch(transactions, ['plan', 'tier']);
-    // 
-    console.log("subscriptions", subscriptions)
 
-    const filteredData = useMemo(() => {
-        if (!searchQuery) {
-            return subscriptions;
-        }
-        const lowerCaseQuery = searchQuery.toLowerCase().trim();
-        return subscriptions?.filter(subscription => {
-            return (
-                subscription.account.tierName.toString().includes(lowerCaseQuery) ||
-                subscription.account.name.toString().includes(lowerCaseQuery)
-            );
-        });
-    }, [subscriptions, searchQuery]);
-
+    const { searchQuery, setSearchQuery, filteredData } = useSearch(
+        subscriptions?.map((subscription) => ({
+            ...subscription.account,
+            publicKey: subscription.publicKey
+        })),
+        ['name', 'tierName']
+    );
     return (
         <div className='space-y-4 font-mono' >
             <Header title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
@@ -68,26 +59,26 @@ const page = () => {
                                         <TableHeaders columns={TABLE_HEADERS.user.subscription} />
                                         <tbody>
                                             {filteredData!.map((subscription) => {
-                                                const currentTier = subscription.account.planMetadata?.tiers.find((tier) => tier.tierName == subscription.account.tierName)
+                                                const currentTier = subscription.planMetadata?.tiers.find((tier) => tier.tierName == subscription.tierName)
                                                 return (
-                                                    <tr key={subscription.account.bump} className="border-t-0 border-2  border-white/5 transition cursor-pointer" >
+                                                    <tr key={subscription.bump} className="border-t-0 border-2  border-white/5 transition cursor-pointer" >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {subscription.account.planMetadata?.name}
+                                                            {subscription.planMetadata?.name}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {subscription.account.tierName}
+                                                            {subscription.tierName}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400 flex items-end gap-2 ">
                                                             {currentTier?.amount.toString()}
                                                             <p className="text-xl text-gray-400">
-                                                                {subscription.account.planMetadata?.tokenSymbol}
+                                                                {subscription.planMetadata?.tokenSymbol}
                                                             </p>
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {formatPeriod(currentTier?.periodSeconds!)}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {subscription.account.active ? "Active" : "Disabled"}
+                                                            {subscription.active ? "Active" : "Disabled"}
                                                         </td>
                                                         <td className='px-6 py-2 text-xl text-gray-400'>
                                                             <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscription); setOpenDetails(true) }}>
@@ -114,7 +105,7 @@ const page = () => {
             <SubscriptionDetails isOpen={openDetails!} setPlanDetailsOpen={setPlanDetailsOpen}
                 setPlan={setPlan} subscription={subscription!} onClose={() => setOpenDetails(false)} isCreator={false} />
 
-            <PlanDetails plan={plan!} planPDA={planPDA!} open={isPlanDetailsOpen} setOpen={setPlanDetailsOpen} type="update" subscriptionPDA={subscription?.publicKey!} subscriptionPayer={subscription?.account.payer} />
+            <PlanDetails plan={plan!} planPDA={planPDA!} open={isPlanDetailsOpen} setOpen={setPlanDetailsOpen} type="update" subscriptionPDA={subscription?.publicKey!} subscriptionPayer={subscription?.payer} />
             {/* <ToastContainer position="top-center" transition={Slide} theme='dark' /> */}
 
         </div>

@@ -7,7 +7,7 @@ import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, TOKEN_2022_
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, Check, CircleAlert, CircleCheck, CircleEllipsis, CircleX, Download, Repeat2, RotateCw, Timer, Trash, UserPlus, UserStar, X } from 'lucide-react';
+import { ArrowUpRight, Check, CircleAlert, CircleCheck, CircleEllipsis, CircleX, Coins, Download, Repeat2, RotateCw, Timer, Trash, User, UserPlus, UserStar, X } from 'lucide-react';
 import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import Loader from '../extras/Loader';
 import TableHeaders from '../layout/TableHeaders';
@@ -15,7 +15,7 @@ import { TABLE_HEADERS } from '@/app/utils/headers';
 
 interface subscriptionDetailsProps {
     isOpen: boolean;
-    subscription: { account: Subscription, publicKey: PublicKey }
+    subscription: Subscription & { publicKey: PublicKey };
     setPlanDetailsOpen: Dispatch<SetStateAction<boolean>>
     setPlan?: Dispatch<SetStateAction<Plan | undefined>>;
     onClose: () => void;
@@ -37,7 +37,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
         queryKey: ["CompanyTransactions"],
         queryFn: async () => {
             const res = await axios.get<Transaction[]>(
-                `http://127.0.0.1:3000/api/transactions/${subscription.account.payer}/${subscription?.publicKey}`
+                `http://127.0.0.1:3000/api/transactions/${subscription.payer}/${subscription?.publicKey}`
             );
             let transactions = res.data;
             if (transactions.length < 6) {
@@ -49,7 +49,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                     );
                     return {
                         id: -(i + 1),
-                        userPubkey: subscription.account.payer.toString(),
+                        userPubkey: subscription.payer.toString(),
                         plan: transactions[0]?.plan,
                         tier: transactions[0]?.tier,
                         amount: transactions[0]?.amount || 0,
@@ -68,15 +68,15 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
     });
 
     useEffect(() => {
-        const tier = subscription?.account.planMetadata?.tiers.find((tier: Tier) => tier.tierName == subscription?.account.tierName)
+        const tier = subscription?.planMetadata?.tiers.find((tier: Tier) => tier.tierName == subscription?.tierName)
         setCurrentTier(tier)
-    }, [subscription?.account.planMetadata])
+    }, [subscription?.planMetadata])
 
     useEffect(() => {
-        if (subscription?.account?.autoRenew !== undefined && !isCreator) {
-            setAutoRenew(subscription?.account.autoRenew);
+        if (subscription?.autoRenew !== undefined && !isCreator) {
+            setAutoRenew(subscription?.autoRenew);
         }
-    }, [subscription?.account?.autoRenew]);
+    }, [subscription?.autoRenew]);
 
     return (
         <Transition show={isOpen} as={React.Fragment}>
@@ -112,7 +112,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className=" flex justify-between items-center ">
                                         <div className='flex gap-2' >
                                             <h2 className="text-2xl font-bold text-white whitespace-nowrap">
-                                                {subscription?.account.planMetadata?.name}
+                                                {subscription?.planMetadata?.name}
                                             </h2>
                                             <div className='h-0.5 w-full bg-white/5' />
                                         </div>
@@ -125,25 +125,34 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className='h-0.5 w-full bg-white/5' />
                                     {
                                         isCreator ? <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                                            <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-3'>
-                                                <span className="hidden sm:inline text-gray-400 ">User Address</span>
-                                                <span className='truncate font-bold text-lg'>
-                                                    {subscription?.account.payer?.toString()}
-                                                    {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                            <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                                <div className='flex flex-col gap-2 '>
+                                                    <span className="hidden sm:inline text-gray-400 ">User Address</span>
+                                                    <span className='truncate font-bold text-lg'>
+                                                        {subscription?.payer?.toString()}
+                                                        {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                                    </span>
+                                                </div>
+                                                <span className='p-4 rounded-full bg-white/5'>
+                                                    <User />
                                                 </span>
                                             </div>
-                                            <div className='flex flex-col gap-2 bg-white/5 rounded-xl w-full p-3'>
-                                                <span className="hidden sm:inline text-gray-400 ">Token Address</span>
-                                                <span className='truncate font-bold text-lg'>
-                                                    {subscription && getAssociatedTokenAddressSync(
-                                                        new PublicKey(subscription?.account.planMetadata?.mint!),
-                                                        subscription?.account?.payer,
-                                                        false, // allowOwnerOffCurve (usually false)
-                                                        TOKEN_2022_PROGRAM_ID,
-                                                        ASSOCIATED_TOKEN_PROGRAM_ID
-                                                    ).toBase58()}
+                                            <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                                <div className='flex flex-col gap-2'>
+                                                    <span className="hidden sm:inline text-gray-400 ">Token Address</span>
+                                                    <span className='truncate font-bold text-lg'>
+                                                        {subscription && getAssociatedTokenAddressSync(
+                                                            new PublicKey(subscription?.planMetadata?.mint!),
+                                                            subscription?.payer,
+                                                            false, // allowOwnerOffCurve (usually false)
+                                                            TOKEN_2022_PROGRAM_ID,
+                                                            ASSOCIATED_TOKEN_PROGRAM_ID
+                                                        ).toBase58()}
+                                                    </span>
+                                                </div>
+                                                <span className='p-4 rounded-full bg-white/5'>
+                                                    <Coins />
                                                 </span>
-
                                             </div>
                                         </div>
                                             : <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
@@ -151,7 +160,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                     <div className='flex flex-col gap-2 '>
                                                         <span className="hidden sm:inline text-gray-400 ">Creator</span>
                                                         <span className='truncate font-bold text-lg'>
-                                                            {subscription?.account.planMetadata?.creator?.toString()}
+                                                            {subscription?.planMetadata?.creator?.toString()}
                                                             {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
                                                         </span>
                                                     </div>
@@ -163,7 +172,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                     <div className='flex flex-col gap-2 '>
                                                         <span className="hidden sm:inline text-gray-400 "> Reciever</span>
                                                         <span className="truncate font-bold text-lg" >
-                                                            {subscription?.account.planMetadata?.receiver.toString()}
+                                                            {subscription?.planMetadata?.receiver.toString()}
                                                         </span>
                                                     </div>
                                                     <span className='p-4 rounded-full bg-white/5'>
@@ -180,21 +189,21 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                 <h6 className="text-xl font-bold">Tier</h6>
 
                                                 <p
-                                                    className={`font-medium ${subscription?.account.nextPaymentTs &&
-                                                        timeRemainingUntil(subscription?.account.nextPaymentTs) === "Expired"
+                                                    className={`font-medium ${subscription?.nextPaymentTs &&
+                                                        timeRemainingUntil(subscription?.nextPaymentTs) === "Expired"
                                                         ? "text-red-400"
                                                         : "text-blue-400"
                                                         }`}
                                                 >
-                                                    {subscription?.account.nextPaymentTs &&
-                                                        (timeRemainingUntil(subscription?.account.nextPaymentTs) === "Expired" ? (
+                                                    {subscription?.nextPaymentTs &&
+                                                        (timeRemainingUntil(subscription?.nextPaymentTs) === "Expired" ? (
                                                             <span className="flex items-center gap-2">
                                                                 <CircleAlert size={18} /> Expired
                                                             </span>
                                                         ) : (
                                                             <span className="flex items-center gap-2">
                                                                 <Timer size={18} />{" "}
-                                                                {timeRemainingUntil(subscription?.account.nextPaymentTs)}
+                                                                {timeRemainingUntil(subscription?.nextPaymentTs)}
                                                             </span>
                                                         ))}
                                                 </p>
@@ -229,7 +238,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                                     {currentTier?.amount.toString()}
                                                                 </span>
                                                                 <span className="font-medium text-gray-400">
-                                                                    {subscription?.account.planMetadata?.tokenSymbol}
+                                                                    {subscription?.planMetadata?.tokenSymbol}
                                                                 </span>
                                                             </div>
 
@@ -257,7 +266,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                                         subscriptionPDA: subscription?.publicKey,
                                                                         field: "autoRenew",
                                                                         value: !autoRenew,
-                                                                        payerKey: subscription?.account.payer,
+                                                                        payerKey: subscription?.payer,
                                                                     }).then(() => setAutoRenew(!autoRenew))
                                                                 }
                                                             />
@@ -349,13 +358,13 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className='h-0.5 w-full bg-white/5 flex' />
                                     <div className='flex gap-2 justify-center' >
                                         <button className='text-center group flex  justify-center items-center gap-3 p-4 rounded-xl bg-white/5 text-blue-400 transition cursor-pointer font-semibold'
-                                            onClick={() => { setPlan!(subscription?.account.planMetadata); setPlanDetailsOpen(true); onClose() }}
+                                            onClick={() => { setPlan!(subscription?.planMetadata); setPlanDetailsOpen(true); onClose() }}
                                         >
                                             <Repeat2 />
                                             Change Tier
                                         </button>
                                         <button
-                                            onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.account.payer, uniqueSeed: subscription?.account.uniqueSeed, mintAddress: subscription?.account.mint, vaultTokenAccount: subscription?.account.vaultTokenAccount }).then(() => onClose())}
+                                            // onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.payer, uniqueSeed: subscription?.uniqueSeed, mintAddress: subscription?.mint, vaultTokenAccount: subscription?.vaultTokenAccount }).then(() => onClose())}
                                             className={`${deleteSubscription.isPending ? "text-gray-700" : "text-red-400"} text-center group flex  justify-center  items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
                                             {
                                                 deleteSubscription.isPending ? <Loader /> :

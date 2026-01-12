@@ -119,7 +119,7 @@ const page = () => {
                 }
                 {filteredData?.length === 0 && searchQuery && (
                     <div className="lg:col-span-4 p-8 rounded-xl text-center text-gray-400">
-                        <p className="text-xl font-medium font-mono">No Plans found matching "{searchQuery}"</p>
+                        <p className="text-2xl font-medium font-mono">No Plans found matching "{searchQuery}"</p>
                     </div>
                 )}
             </div>

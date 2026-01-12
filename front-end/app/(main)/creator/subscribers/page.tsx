@@ -4,8 +4,8 @@ import { useProgram } from '@/app/hooks/useProgram';
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import * as anchor from "@coral-xyz/anchor"
-import { useEffect, useMemo, useState } from 'react';
-import { CircleDot, EyeIcon, Logs, MousePointerClick, Repeat2, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { EyeIcon } from 'lucide-react';
 import Header from '@/app/components/ui/layout/Header';
 import Error from '@/app/components/ui/extras/Error';
 import Loader from '@/app/components/ui/extras/Loader';
@@ -14,15 +14,13 @@ import SubscriptionDetails from '@/app/components/ui/modals/SubscriptionDetails'
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Subscription } from '@/app/types';
 import { TABLE_HEADERS } from '@/app/utils/headers';
+import { useSearch } from '@/app/hooks/useSearch';
 const page = () => {
     const { publicKey, PROGRAM_ID } = useProgram()
     const { fetchSubscriptionsByPlan } = useProgramActions()
     const [planPDA, setPlanPDA] = useState<PublicKey>()
-    const [subscription, setSubscription] = useState<{ publicKey: PublicKey, account: Subscription }>()
-    const [searchQuery, setSearchQuery] = useState<string | null>("")
+    const [subscription, setSubscription] = useState<Subscription & { publicKey: PublicKey }>();
     const [openDetails, setOpenDetails] = useState<boolean>(false)
-    // const { searchQuery, setSearchQuery, filteredData } = useSearch(transactions, ['plan', 'tier']);
-
 
     useEffect(() => {
         if (publicKey) {
@@ -49,25 +47,20 @@ const page = () => {
         enabled: !!publicKey && !!planPDA,
         staleTime: 1000 * 60, // 1 min cache (tweak if needed)
     });
-    console.log("subscribers", subscribers)
 
-    const filteredData = useMemo(() => {
-        if (!searchQuery) {
-            return subscribers;
-        }
-        const lowerCaseQuery = searchQuery.toLowerCase().trim();
-        return subscribers?.filter(subscriber => {
-            return (
-                subscriber.account.payer.toString().includes(lowerCaseQuery) ||
-                subscriber.account.tierName.toString().includes(lowerCaseQuery));
-        });
-    }, [subscribers, searchQuery]);
+    const { searchQuery, setSearchQuery, filteredData } = useSearch(
+        subscribers?.map((subscriber) => ({
+            ...subscriber.account,
+            publicKey: subscriber.publicKey
+        })),
+        ['payer', 'tierName']
+    );
 
 
 
     return (
         <div className='space-y-4 font-mono'>
-            <Header title="Subscriptions" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
+            <Header title="Subscribers" refetch={refetch} isFetching={isFetching} setSearchQuery={setSearchQuery} />
             <div className=''>
                 {isLoading || isFetching ? (
                     <Loader />
@@ -84,17 +77,17 @@ const page = () => {
                                                     <tr className="border-t-0 border-2  border-white/5"
                                                     >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {subscriber.account.payer?.toString().slice(0, 10)}...
+                                                            {subscriber.payer?.toString().slice(0, 10)}...
                                                         </td>
                                                         <td className="px-6 py-2 text-xl font-semibold text-gray-400">
-                                                            {subscriber.account.tierName}
+                                                            {subscriber.tierName}
                                                         </td>
 
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {subscriber.account.autoRenew ? "Active" : "Disabled"}
+                                                            {subscriber.autoRenew ? "Active" : "Disabled"}
                                                         </td>
                                                         <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {subscriber.account.active ? "Active" : "Disabled"}
+                                                            {subscriber.active ? "Active" : "Disabled"}
                                                         </td>
                                                         <td className='px-6 py-2 text-xl text-gray-400'>
                                                             <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}>
@@ -117,6 +110,7 @@ const page = () => {
                     </div>
                 )}
             </div>
+
             <SubscriptionDetails isOpen={openDetails!} setPlanDetailsOpen={setOpenDetails}
                 subscription={subscription!} onClose={() => setOpenDetails(false)} isCreator={true} />
 

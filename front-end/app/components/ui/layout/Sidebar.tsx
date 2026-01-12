@@ -29,11 +29,11 @@ const Sidebar = () => {
         },
         {
             icon: (<Bell />),
-            text: "Notifications", route: "/creator/notifications"
+            text: "Notifications", route: "/notifications"
         },
         {
             icon: (<History />),
-            text: "History", route: "/creator/history"
+            text: "History", route: "/history"
         }
     ] : [
         {
@@ -46,13 +46,14 @@ const Sidebar = () => {
         },
         {
             icon: (<Bell />),
-            text: "Notifications", route: "/user/notifications"
+            text: "Notifications", route: "/notifications"
         },
         {
             icon: (<History />),
-            text: "History", route: "/user/history"
+            text: "History", route: "/history"
         }
     ];
+
     return (
         <aside
             id="default-sidebar"
