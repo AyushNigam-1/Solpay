@@ -227,12 +227,12 @@ export const TABLE_HEADERS = {
                 ),
                 title: "Status"
             },
-            {
-                icon: (
-                    <MousePointerClick />
-                ),
-                title: "Actions"
-            },
+            // {
+            //     icon: (
+            //         <MousePointerClick />
+            //     ),
+            //     title: "Actions"
+            // },
         ]
     }
 }

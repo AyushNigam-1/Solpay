@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import * as anchor from "@coral-xyz/anchor"
 import { useEffect, useState } from 'react';
-import { EyeIcon } from 'lucide-react';
+import { CheckCircle2, EyeIcon, XCircle } from 'lucide-react';
 import Header from '@/app/components/ui/layout/Header';
 import Error from '@/app/components/ui/extras/Error';
 import Loader from '@/app/components/ui/extras/Loader';
@@ -83,17 +83,23 @@ const page = () => {
                                                             {subscriber.tierName}
                                                         </td>
 
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {subscriber.autoRenew ? "Active" : "Disabled"}
+                                                        <td className="px-6 py-4">
+                                                            <StatusBadge
+                                                                active={subscriber.autoRenew}
+                                                                label={subscriber.autoRenew ? "Enabled" : "Disabled"}
+                                                            />
                                                         </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {subscriber.active ? "Active" : "Disabled"}
+                                                        <td className="px-6 py-4">
+                                                            <StatusBadge
+                                                                active={subscriber.active}
+                                                                label={subscriber.active ? "Active" : "Inactive"}
+                                                            />
                                                         </td>
-                                                        <td className='px-6 py-2 text-xl text-gray-400'>
+                                                        {/* <td className='px-6 py-2 text-xl text-gray-400'>
                                                             <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}>
                                                                 <EyeIcon className='size-6' />                                                                    View
                                                             </button>
-                                                        </td>
+                                                        </td> */}
                                                     </tr>
                                                 )
                                             })}
@@ -117,5 +123,13 @@ const page = () => {
         </div >
     )
 }
-
+const StatusBadge = ({ active, label }: { active: boolean, label?: string }) => (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full  font-medium border ${active
+        ? "bg-green-500/10 text-green-400 border-green-500/20"
+        : "bg-gray-500/10 text-gray-400 border-gray-500/20"
+        }`}>
+        {active ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+        {label || (active ? "Active" : "Inactive")}
+    </span>
+);
 export default page

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, ChartNoAxesGanttIcon, History, Ticket } from 'lucide-react';
+import { Bell, ChartNoAxesGanttIcon, History, Ticket, Users } from 'lucide-react';
 import Cookies from "js-cookie";
 
 const Sidebar = () => {
@@ -24,8 +24,8 @@ const Sidebar = () => {
             text: "Plan", route: "/creator/plan"
         },
         {
-            icon: (<Ticket />
-            ), text: "Subscriptions", route: "/creator/subscriptions"
+            icon: (<Users />
+            ), text: "Subscibers", route: "/creator/subscribers"
         },
         {
             icon: (<Bell />),
