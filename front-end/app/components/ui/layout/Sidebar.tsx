@@ -27,10 +27,10 @@ const Sidebar = () => {
             icon: (<Users />
             ), text: "Subscibers", route: "/creator/subscribers"
         },
-        {
-            icon: (<Bell />),
-            text: "Notifications", route: "/notifications"
-        },
+        // {
+        //     icon: (<Bell />),
+        //     text: "Notifications", route: "/notifications"
+        // },
         {
             icon: (<History />),
             text: "History", route: "/history"
@@ -44,10 +44,10 @@ const Sidebar = () => {
             icon: (<Ticket />
             ), text: "Subscriptions", route: "/user/subscriptions"
         },
-        {
-            icon: (<Bell />),
-            text: "Notifications", route: "/notifications"
-        },
+        // {
+        //     icon: (<Bell />),
+        //     text: "Notifications", route: "/notifications"
+        // },
         {
             icon: (<History />),
             text: "History", route: "/history"
