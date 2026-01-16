@@ -3,7 +3,7 @@ import { Notification, Transaction, ScheduleSubscriptionRequest, ScheduleSubscri
 import axios from "axios";
 
 export const useDbActions = () => {
-    const API_BASE = "http://127.0.0.1:3000"
+    const API_BASE = "http://127.0.0.1:3001"
     const queryClient = useQueryClient();
 
     const useGetUserTransactions = () => {

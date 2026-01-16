@@ -131,7 +131,7 @@ function App() {
   const { publicKey, connected } = useWallet();
   const [tab, setTab] = useState<number>(0)
   const router = useRouter();
-  const API_BASE = "http://localhost:3000";
+  const API_BASE = "http://localhost:3001";
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: async (address: string) => {

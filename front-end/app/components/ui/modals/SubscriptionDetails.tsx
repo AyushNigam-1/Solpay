@@ -37,7 +37,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
         queryKey: ["CompanyTransactions"],
         queryFn: async () => {
             const res = await axios.get<Transaction[]>(
-                `http://127.0.0.1:3000/api/transactions/${subscription.payer}/${subscription?.publicKey}`
+                `http://127.0.0.1:3001/api/transactions/${subscription.payer}/${subscription?.publicKey}`
             );
             let transactions = res.data;
             if (transactions.length < 6) {

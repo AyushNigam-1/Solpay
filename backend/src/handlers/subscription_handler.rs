@@ -145,16 +145,30 @@ pub async fn create_subscription(
                 payload.subscription.clone(),
             )
             .await;
-
+            let short_payer = if payload.payer.len() > 8 {
+                format!(
+                    "{}...{}",
+                    &payload.payer[0..4],
+                    &payload.payer[payload.payer.len() - 4..]
+                )
+            } else {
+                payload.payer.clone()
+            };
             let creator_notification = Notification {
                 id: None,
                 user_pubkey: payload.plan_creator.clone(), // ← creator's pubkey (you need to add this to payload)
                 subscription_pda: payload.subscription.clone(),
                 plan_name: payload.plan_name.clone().unwrap_or_default(),
+                title: "New Subscriber".to_string(),
                 tier: payload.tier_name.clone(),
-                message: format!("{} subscribed to your plan.", payload.payer),
+                message: format!(
+                    "{} just subscribed to {} ({}).",
+                    short_payer,
+                    payload.plan_name.clone().unwrap_or("Unknown".to_string()),
+                    payload.tier_name
+                ),
                 is_read: false,
-                r#type: "new_subscription".to_string(),
+                r#type: "info".to_string(),
                 created_at: Some(chrono::Utc::now()),
             };
 

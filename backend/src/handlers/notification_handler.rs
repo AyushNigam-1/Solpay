@@ -47,6 +47,7 @@ pub async fn get_notifications(
             plan_name,
             tier,
             subscription_pda, 
+            title,
             message,
             created_at,
             is_read,

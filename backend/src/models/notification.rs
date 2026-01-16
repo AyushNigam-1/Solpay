@@ -9,6 +9,7 @@ pub struct Notification {
     pub tier: String,
     pub user_pubkey: String,
     pub subscription_pda: String,
+    pub title: String,
     pub message: String,
     pub created_at: Option<DateTime<Utc>>,
     pub is_read: bool,

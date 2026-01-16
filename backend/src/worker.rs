@@ -72,18 +72,22 @@ pub async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()
             return Ok(());
         }
     };
-
+    let tier_name: String = sub.get("tier_name"); // Fetch tier name for context
     if !sub.get::<bool, _>("auto_renew") {
         let notification = Notification {
             id: None,
             user_pubkey: Pubkey::from_str(sub.get("payer"))?.to_string(),
             plan_name: plan.name.clone(),
-            tier: sub.get("tier_name"),
+            tier: tier_name.clone(),
             subscription_pda: subscription_pda.to_string(),
-            message: "⛔ Subscription has been expired".to_string(),
+            title: "Subscription Expired".to_string(),
+            message: format!(
+                "Your subscription for {} ({}) has ended.",
+                plan.name, tier_name
+            ),
             created_at: Some(chrono::Utc::now()),
             is_read: false,
-            r#type: "Expired".to_string(),
+            r#type: "warning".to_string(),
         };
 
         let _ = create_notification(&state.db, &notification).await;
@@ -194,7 +198,7 @@ pub async fn renew_subscription_by_pda(
         )
         .await;
 
-    let (notification_message, notification_type) = match result {
+    let (notification_title, notification_message, notification_type) = match result {
         Ok(signature) => {
             let next_ts = sub.get::<i64, _>("next_payment_ts") + period_seconds;
 
@@ -209,12 +213,13 @@ pub async fn renew_subscription_by_pda(
             )
             .execute(&state.db)
             .await?;
+            let tier_name: String = sub.get("tier_name");
 
             let history = PaymentHistory {
                 id: None,
                 user_pubkey: payer_pubkey.to_string(),
                 plan: plan.name.clone(),
-                tier: sub.get("tier_name"),
+                tier: tier_name.clone(),
                 amount: amount as i64,
                 status: "success".to_string(),
                 tx_signature: Some(signature.to_string()),
@@ -225,16 +230,24 @@ pub async fn renew_subscription_by_pda(
             let _ = create_transaction(&state.db, &history).await;
 
             (
-                "Subscription renewed successfully".to_string(),
-                "Success".to_string(),
+                "Payment Received".to_string(), // Clear Title
+                format!(
+                    "You successfully renewed {} ({}) for {} {}.",
+                    plan.name, tier_name, amount, plan.token_symbol
+                ),
+                "success".to_string(), // UI Type (Green Icon)
             )
         }
 
         Err(e) => {
             tracing::error!("❌ Renewal failed {}: {}", subscription_pda, e);
             (
-                "Subscription renewal failed".to_string(),
-                "Failed".to_string(),
+                "Payment Failed".to_string(), // Clear Title
+                format!(
+                    "We could not renew your subscription for {}. Please check your wallet balance.",
+                    plan.name
+                ),
+                "error".to_string(), // UI Type (Red Icon)
             )
         }
     };
@@ -245,6 +258,7 @@ pub async fn renew_subscription_by_pda(
         plan_name: plan.name,
         tier: sub.get("tier_name"),
         subscription_pda: subscription_pda.to_string(),
+        title: notification_title,
         message: notification_message,
         created_at: Some(chrono::Utc::now()),
         is_read: false,
@@ -298,197 +312,3 @@ pub async fn update_subscription_active(
 
     Ok(())
 }
-
-// async fn scan_and_renew_subscriptions(state: &AppState) -> anyhow::Result<()> {
-//     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
-
-//     let sub = sqlx::query(
-//         r#"
-//             SELECT
-//                 payer,
-//                 tier_name,
-//                 plan_pda,
-//                 next_payment_ts,
-//                 auto_renew,
-//                 active,
-//                 unique_seed,
-//                 bump,
-//                 subscription_pda AS subscription
-//             FROM subscriptions
-//             WHERE active = true
-//             AND next_payment_ts <= $1
-//             ORDER BY next_payment_ts ASC
-//             LIMIT 1
-//             "#,
-//     )
-//     .bind(now)
-//     .fetch_optional(&state.db)
-//     .await?;
-
-//     println!("{:?}", sub);
-//     let Some(sub) = sub else {
-//         tracing::info!("✅ No subscriptions due for renewal");
-//         return Ok(());
-//     };
-
-//     let subscription_pda = Pubkey::from_str(sub.get("subscription"))?;
-
-//     let plan_opt = state
-//         .solana
-//         .get_plan(Pubkey::from_str(sub.get("plan_pda"))?)
-//         .await?;
-
-//     let plan = match plan_opt {
-//         Some(p) => p,
-//         None => {
-//             tracing::warn!("Plan not found for subscription");
-//             return Ok(()); // or continue loop
-//         }
-//     };
-//     // 🔕 Auto-renew OFF → subscription expired notification
-//     if !sub.get::<bool, _>("auto_renew") {
-//         let payer_pubkey = Pubkey::from_str(sub.get("payer"))?;
-
-//         let notification = Notification {
-//             id: None,
-//             user_pubkey: payer_pubkey.to_string(),
-//             plan_name: sub.get("tier_name"),
-//             tier: sub.get("tier_name"),
-//             subscription_pda: sub.get("subscription"),
-//             message: "⛔ Subscription has been expired (auto-renew is off)".to_string(),
-//             created_at: Some(chrono::Utc::now()),
-//             is_read: false,
-//             r#type: "Expired".to_string(),
-//         };
-
-//         if let Err(e) = create_notification(&state.db, &notification).await {
-//             tracing::error!("❌ Failed to insert expired notification: {}", e);
-//         }
-
-//         tracing::info!("⛔ Subscription expired (auto-renew disabled)");
-//         return Ok(()); // ⛔ stop processing
-//     }
-
-//     let tiers = parse_tiers(&plan.tiers)?;
-
-//     let tier = find_tier_by_name(&tiers, sub.get("tier_name"))?;
-
-//     let payer_pubkey = Pubkey::from_str(sub.get("payer"))?;
-
-//     let token_program = state.solana.rpc.get_account(&plan.mint).await?;
-
-//     let payer_token_account = get_associated_token_address_with_program_id(
-//         &payer_pubkey,
-//         &plan.mint,
-//         &token_program.owner,
-//     );
-
-//     if state
-//         .solana
-//         .rpc
-//         .get_account(&payer_token_account)
-//         .await
-//         .is_err()
-//     {
-//         anyhow::bail!(
-//             "User token account {} does not exist. User must receive tokens first.",
-//             payer_token_account
-//         );
-//     }
-
-//     let receiver_token_account = get_associated_token_address_with_program_id(
-//         &plan.receiver,
-//         &plan.mint,
-//         &token_program.owner,
-//     );
-
-//     // // ----------------------------
-//     println!("{:?},{:?}", plan, tiers);
-
-//     let amount: u64 = tier.amount.parse()?;
-//     let period_seconds: i64 = tier.period_seconds.parse()?;
-//     // ⛓ Execute on-chain payment
-//     let result = state
-//         .solana
-//         .execute_subscription_payment(
-//             subscription_pda,
-//             Pubkey::from_str(sub.get("plan_pda"))?,
-//             payer_token_account,
-//             receiver_token_account,
-//             plan.mint,
-//             token_program.owner,
-//             amount,
-//             period_seconds,
-//         )
-//         .await;
-
-//     let notification_message: String;
-//     let notification_type;
-
-//     match result {
-//         Ok(signature) => {
-//             let next_ts = sub.get::<i64, _>("next_payment_ts") + period_seconds;
-//             sqlx::query!(
-//                 r#"
-//             UPDATE subscriptions
-//             SET next_payment_ts = $1
-//             WHERE subscription_pda = $2
-//             "#,
-//                 next_ts,
-//                 subscription_pda.to_string()
-//             )
-//             .execute(&state.db)
-//             .await?;
-
-//             let history = PaymentHistory {
-//                 id: None,
-//                 user_pubkey: payer_pubkey.to_string(),
-//                 plan: plan.name.to_string(),
-//                 tier: sub.get("tier_name"),
-//                 amount: amount as i64,
-//                 status: "success".to_string(),
-//                 tx_signature: Some(signature.to_string()),
-//                 subscription_pda: subscription_pda.to_string(),
-//                 created_at: chrono::Utc::now(),
-//             };
-
-//             if let Err(e) = create_transaction(&state.db, &history).await {
-//                 tracing::error!("❌ Failed to save payment history: {}", e);
-//             }
-//             notification_message = format!("✅ Subscription renewed successfully");
-//             notification_type = "Success";
-//             tracing::info!(
-//                 "✅ Subscription {} renewed. Next payment at {}",
-//                 subscription_pda,
-//                 next_ts
-//             );
-//         }
-
-//         Err(e) => {
-//             tracing::error!(
-//                 "❌ Failed to renew subscription {}: {}",
-//                 subscription_pda,
-//                 e
-//             );
-//             notification_message = format!("❌ Subscription renewal failed");
-//             notification_type = "Failed";
-//         }
-//     }
-
-//     let notification = Notification {
-//         id: None,
-//         user_pubkey: payer_pubkey.to_string(),
-//         plan_name: plan.name.to_string(),
-//         tier: sub.get("tier_name"),
-//         subscription_pda: subscription_pda.to_string(),
-//         message: notification_message,
-//         created_at: Some(chrono::Utc::now()),
-//         is_read: false,
-//         r#type: notification_type.to_string(),
-//     };
-
-//     if let Err(e) = create_notification(&state.db, &notification).await {
-//         tracing::error!("❌ Failed to insert notification: {}", e);
-//     }
-//     Ok(())
-// }

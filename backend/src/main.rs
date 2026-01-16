@@ -39,6 +39,6 @@ async fn main() {
         .layer(Extension(app_state.clone()));
 
     println!("🚀 Server running on http://127.0.0.1:3000");
-    let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:3001").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

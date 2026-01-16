@@ -27,7 +27,7 @@ const page = () => {
         queryKey: ["transactions"],
         queryFn: async () => {
             const res = await axios.get<Transaction[]>(
-                `http://127.0.0.1:3000/api/transactions/user/${publicKey}`
+                `http://127.0.0.1:3001/api/transactions/user/${publicKey}`
             );
             return res.data;
         },

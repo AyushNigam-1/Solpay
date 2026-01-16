@@ -36,15 +36,18 @@ export interface Subscription {
     planMetadata?: Plan
     planCreator: string
 }
+export type NotificationType = 'error' | 'success' | 'warning' | 'info';
+
 export type Notification = {
     id: string;                 // DB primary key
     userPubkey: string;
     planName: string;
-    tier: string      // wallet address
-    subscriptionPda: string;    // related subscription
-    message: string;            // notification text
+    title: string;
+    tier: string;
+    subscriptionPda: string;
+    message: string;
     createdAt: string;
-    type: string        // ISO timestamp from backend
+    type: NotificationType
 };
 
 export interface Transaction {
