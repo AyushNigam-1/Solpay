@@ -12,16 +12,18 @@ pub async fn create_notification(db: &PgPool, notification: &Notification) -> an
         INSERT INTO notifications (
             user_pubkey,
             subscription_pda,
+            title,
             plan_name,
             tier,
             message,
             is_read,
             type
         )
-        VALUES ($1, $2, $3, $4,$5,$6,$7)
+        VALUES ($1, $2, $3, $4,$5,$6,$7,$8)
         "#,
         notification.user_pubkey,
         notification.subscription_pda,
+        notification.title,
         notification.plan_name,
         notification.tier,
         notification.message,
@@ -62,6 +64,43 @@ pub async fn get_notifications(
     .await
     .map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(records))
+}
+
+pub async fn mark_notifications_as_read(
+    Path(user_pubkey): Path<String>,
+    Extension(state): Extension<AppState>,
+) -> impl IntoResponse {
+    let result = sqlx::query!(
+        r#"
+        UPDATE notifications 
+        SET is_read = true 
+        WHERE user_pubkey = $1 AND is_read = false
+        "#,
+        user_pubkey
+    )
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(res) => {
+            let count = res.rows_affected();
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "success": true,
+                    "message": "Notifications marked as read",
+                    "updated_count": count
+                })),
+            )
+        }
+        Err(e) => {
+            tracing::error!("Failed to mark notifications read: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "Database error" })),
+            )
+        }
+    }
 }
 
 pub async fn delete_notification(

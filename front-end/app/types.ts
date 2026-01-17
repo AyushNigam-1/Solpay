@@ -47,7 +47,8 @@ export type Notification = {
     subscriptionPda: string;
     message: string;
     createdAt: string;
-    type: NotificationType
+    type: NotificationType;
+    is_read: string
 };
 
 export interface Transaction {

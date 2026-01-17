@@ -25,7 +25,7 @@ const Sidebar = () => {
         },
         {
             icon: (<Users />
-            ), text: "Subscibers", route: "/creator/subscribers"
+            ), text: "Subscribers", route: "/creator/subscribers"
         },
         // {
         //     icon: (<Bell />),

@@ -3,6 +3,7 @@ import { useProgramActions } from "./useProgramActions";
 import { PublicKey } from "@solana/web3.js";
 import { Plan, Tier, UpdateField } from "../types";
 import { useDbActions } from "./useDbActions";
+import axios from "axios";
 
 export const useMutations = () => {
     const programActions = useProgramActions();
@@ -131,7 +132,20 @@ export const useMutations = () => {
             // toast.error(error.message || "Failed to create subscription");
         },
     });
-
+    const markReadMutation = useMutation({
+        mutationFn: async (publicKey: PublicKey) => {
+            await axios.put(`http://127.0.0.1:3001/api/notifications/read/${publicKey}`);
+        },
+        onSuccess: (_, publicKey) => {
+            // Silently update cache so the UI shows "read" (no red dots) without refetching
+            queryClient.setQueryData(
+                ["notifications", publicKey?.toString()],
+                (oldData: Notification[] | undefined) => {
+                    return oldData ? oldData.map(n => ({ ...n, is_read: true })) : [];
+                }
+            );
+        }
+    });
     const cancelPlan = useMutation({
         mutationFn: async (creatorKey: PublicKey | string) => {
             const txSig = await programActions.cancelPlan(creatorKey);
@@ -207,5 +221,5 @@ export const useMutations = () => {
         },
     })
 
-    return { createSubscription, updateSubscription, createPlan, updatePlan, cancelPlan, deleteSubscription }
+    return { createSubscription, updateSubscription, createPlan, updatePlan, cancelPlan, deleteSubscription, markReadMutation }
 }

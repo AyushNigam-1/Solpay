@@ -364,7 +364,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                             Change Tier
                                         </button>
                                         <button
-                                            // onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.payer, uniqueSeed: subscription?.uniqueSeed, mintAddress: subscription?.mint, vaultTokenAccount: subscription?.vaultTokenAccount }).then(() => onClose())}
+                                            onClick={() => deleteSubscription.mutateAsync({ payerKey: subscription?.payer, uniqueSeed: subscription?.uniqueSeed, mintAddress: subscription?.mint, vaultTokenAccount: subscription?.vaultTokenAccount }).then(() => onClose())}
                                             className={`${deleteSubscription.isPending ? "text-gray-700" : "text-red-400"} text-center group flex  justify-center  items-center gap-3 p-4 rounded-xl bg-white/5 transition cursor-pointer font-semibold`}>
                                             {
                                                 deleteSubscription.isPending ? <Loader /> :

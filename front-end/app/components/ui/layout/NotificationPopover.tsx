@@ -120,11 +120,10 @@
 
 // // export default page
 
-
 "use client"
 
 import { Popover, Transition, PopoverButton, PopoverPanel } from '@headlessui/react'
-import { Fragment } from 'react'
+import { Fragment, useEffect } from 'react'
 import {
     Bell, Check, Trash2, X,
     AlertCircle, CheckCircle2, AlertTriangle, Info
@@ -135,29 +134,12 @@ import { useProgram } from '@/app/hooks/useProgram';
 import Loader from '../extras/Loader';
 import { formatDistanceToNow } from 'date-fns';
 import { Notification, NotificationType } from '@/app/types';
-
-// --- Types & Mock Data ---
-
-// interface Notification {
-//     id: number;
-//     type: NotificationType;
-//     title: string;
-//     message: string;
-//     time: string;
-//     read: boolean;
-// }
-
-// const MOCK_NOTIFICATIONS: Notification[] = [
-//     { id: 1, type: 'error', title: "Subscription Expired", message: "Spotify (Basic) ended.", time: "2h ago", read: false },
-//     { id: 2, type: 'success', title: "Payment Received", message: "+100 OPOS received.", time: "5h ago", read: false },
-//     { id: 3, type: 'warning', title: "Low Balance", message: "Wallet below 5 SOL.", time: "1d ago", read: true },
-//     { id: 4, type: 'info', title: "System Update", message: "Maintenance tonight.", time: "2d ago", read: true },
-// ];
+import { useMutations } from '@/app/hooks/useMutations';
 
 export default function NotificationPopover() {
     // const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
     const { publicKey } = useProgram()
-
+    const { markReadMutation } = useMutations()
     const {
         data: notifications,
         isLoading,
@@ -176,22 +158,18 @@ export default function NotificationPopover() {
         staleTime: 1000 * 60, // 1 min cache (tweak if needed)
     });
     console.log("notifications", notifications)
-    // Filter logic (optional: show unread first)
-    // const unreadCount = notifications!.filter(n => !n.read).length;
 
-    // const markAsRead = (id: number) => {
-    //     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    // };
+    const unreadCount = notifications?.filter(n => !n.is_read).length;
 
-    // const deleteNotification = (id: number) => {
-    //     setNotifications(prev => prev.filter(n => n.id !== id));
-    // };
+    useEffect(() => {
+        if (notifications && notifications.length > 0) {
+            const hasUnread = notifications.some(n => !n.is_read);
+            if (hasUnread) {
+                markReadMutation.mutate(publicKey!);
+            }
+        }
+    }, [notifications]);
 
-    // const markAllRead = () => {
-    //     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    // };
-
-    // --- Helper for Icons & Colors ---
     const getIcon = (type: NotificationType) => {
         switch (type) {
             case 'error': return <AlertCircle size={22} className="text-red-400" />;
@@ -211,9 +189,9 @@ export default function NotificationPopover() {
                         ${open ? 'bg-white/10 text-white' : ' hover:text-white hover:bg-white/5'}
                     `}>
                         <Bell size={20} />
-                        {/* {unreadCount > 0 && (
+                        {unreadCount! > 0 && (
                             <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-[#0B0E14]" />
-                        )} */}
+                        )}
                     </PopoverButton>
 
                     {/* 2. The Popover Panel (Dropdown) */}
@@ -226,17 +204,17 @@ export default function NotificationPopover() {
                         leaveFrom="opacity-100 translate-y-0"
                         leaveTo="opacity-0 translate-y-1"
                     >
-                        <PopoverPanel className="absolute right-0 z-50 mt-2 w-[480px] origin-top-right rounded-xl bg-white/5 backdrop-blur-lg focus:outline-none">
+                        <PopoverPanel className="absolute right-0 z-50 mt-2 p-4 space-y-4 w-[500px] origin-top-right rounded-xl bg-white/5 backdrop-blur-lg focus:outline-none">
 
                             {/* Header */}
-                            <div className="flex items-center justify-between p-4 border-b border-white/5">
-                                <h3 className="font-semibold text-lg text-white flex items-center gap-2">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-semibold text-lg text-white flex items-center justify-between gap-2">
                                     Notifications
-                                    {/* {unreadCount > 0 && (
-                                        <span className="bg-blue-600 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full">
+                                    {unreadCount! > 0 && (
+                                        <span className="bg-blue-400 text-sm  text-white px-1.5  rounded-full">
                                             {unreadCount}
                                         </span>
-                                    )} */}
+                                    )}
                                 </h3>
                                 {/* <button
                                     onClick={markAllRead}
@@ -246,6 +224,7 @@ export default function NotificationPopover() {
                                     Mark all read
                                 </button> */}
                             </div>
+                            <div className="h-0.5 w-full bg-white/5 " />
 
                             {/* Scrollable List */}
                             <div className="h-[400px]  overflow-y-auto custom-scrollbar">
@@ -267,17 +246,14 @@ export default function NotificationPopover() {
                                                             {getIcon(notification.type)}
                                                         </div>
 
-                                                        {/* Content */}
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="flex justify-between items-start mb-0.5">
-                                                                {/* <p className={` font-medium truncate ${notification.read ? 'text-gray-400' : 'text-gray-100'}`}> */}
+                                                            <div className="flex justify-between font-semibold items-start mb-0.5">
                                                                 {notification.title}
-                                                                {/* </p> */}
                                                                 <span className="text-[10px] text-gray-500 whitespace-nowrap ml-2">
                                                                     {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                                                                 </span>
                                                             </div>
-                                                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                                                            <p className="text-sm text-gray-500 leading-relaxed line-clamp-2">
                                                                 {notification.message}
                                                             </p>
                                                         </div>
@@ -302,9 +278,6 @@ export default function NotificationPopover() {
                                                             <Trash2 size={14} />
                                                         </button>
                                                     </div>
-
-                                                    {/* Unread Dot */}
-
                                                 </div>
                                             ))}
                                         </div>
@@ -317,11 +290,11 @@ export default function NotificationPopover() {
                             </div>
 
                             {/* Footer */}
-                            <div className="p-2 border-t border-white/5 bg-white/5">
-                                <a href="/notifications" className="block w-full py-2 text-center text-sm font-medium text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5 ">
-                                    View full history
-                                </a>
-                            </div>
+                            {/* <div className="h-0.5 w-full bg-white/5 " /> */}
+
+                            {/* <a href="/notifications" className="block w-full py-2 text-center text-sm font-medium text-gray-400 hover:text-white transition-colors rounded-lg bg-white/5 ">
+                                View full history
+                            </a> */}
                         </PopoverPanel>
                     </Transition>
                 </>
