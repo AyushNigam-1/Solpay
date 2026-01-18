@@ -63,8 +63,8 @@ const page = () => {
                                         <tbody>
                                             {filteredData!.map((plan) => {
                                                 return (
-                                                    <tr key={plan.bump} className="border-t-0 border-2  border-white/5"
-                                                    //  onClick={() => { setSubscription(subscription.account); setOpenDetails(true) }}
+                                                    <tr key={plan.bump} className="border-t-0 border-2 hover:bg-white/5 delay-75 border-white/5 cursor-pointer"
+                                                        onClick={() => { setPlan(plan); setPlanPDA(plan.publicKey); setOpenDetails(true) }}
                                                     >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {plan.name}
@@ -90,7 +90,7 @@ const page = () => {
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {plan.tiers.length}
                                                         </td>
-                                                        <td className="px-6 py-2 text-xl ">
+                                                        {/* <td className="px-6 py-2 text-xl ">
                                                             {
                                                                 plan.creator?.toString() == publicKey ? <button className=' text-red-400' onClick={() => cancelPlan.mutate(plan.creator!)}>
                                                                     {
@@ -101,13 +101,12 @@ const page = () => {
                                                                     }
                                                                 </button> :
                                                                     <td className=' py-2 text-xl text-gray-400'>
-                                                                        <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setPlan(plan); setPlanPDA(plan.publicKey); setOpenDetails(true) }}>
+                                                                        <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' >
                                                                             <EyeIcon className='size-6' />                                                                    View
                                                                         </button>
                                                                     </td>
                                                             }
-                                                            {/* {subscription.account.active ? "Active" : "Disabled"} */}
-                                                        </td>
+                                                        </td> */}
                                                     </tr>
                                                 )
                                             })}

@@ -123,12 +123,6 @@ export const TABLE_HEADERS = {
                 ),
                 title: "Tiers"
             },
-            {
-                icon: (
-                    <MousePointerClick />
-                ),
-                title: "Action"
-            },
         ],
         subscription: [
             {
@@ -166,12 +160,6 @@ export const TABLE_HEADERS = {
                     <CircleDot />
                 ),
                 title: "Status"
-            },
-            {
-                icon: (
-                    <MousePointerClick />
-                ),
-                title: "Action"
             },
         ],
         planTransactions: [

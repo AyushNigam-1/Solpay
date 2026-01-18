@@ -199,12 +199,14 @@ export const useMutations = () => {
             field,
             value,
             payerKey,
+            mint
         }: {
             subscriptionPDA: PublicKey;
             field: UpdateField;
             value: boolean | string;
             payerKey: PublicKey;
-        }) => await programActions.updateSubscription(subscriptionPDA, field, value, payerKey),
+            mint: PublicKey;
+        }) => await programActions.updateSubscription(subscriptionPDA, field, value, payerKey, mint),
 
         onSuccess: (txSig, { field, subscriptionPDA, value }) => {
 

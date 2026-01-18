@@ -74,7 +74,7 @@ const page = () => {
                                         <tbody>
                                             {filteredData?.map((subscriber) => {
                                                 return (
-                                                    <tr className="border-t-0 border-2  border-white/5"
+                                                    <tr className="border-t-0 border-2 border-white/5 hover:bg-white/5 cursor-pointer" onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
                                                     >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {subscriber.payer?.toString().slice(0, 10)}...

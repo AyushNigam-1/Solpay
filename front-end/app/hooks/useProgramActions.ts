@@ -2,7 +2,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
 import { PublicKey } from "@solana/web3.js";
-import { fetchTokenMetadata, getMintProgramId } from "../utils/token";
+import { approveSubscriptionSpending, fetchTokenMetadata, getMintProgramId } from "../utils/token";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { Plan, planQuery, Tier } from "../types";
 import { formatPeriod } from "../utils/duration";
@@ -254,32 +254,14 @@ export const useProgramActions = () => {
         }
     }
 
-
-    /**
-     * Update either auto_renew or active status of a subscription
-     */
-    // import * as anchor from "@coral-xyz/anchor";
-    // import { PublicKey } from "@solana/web3.js";
-
-    // // Assuming these are globally defined or imported
-    // declare const program: anchor.Program;
-    // declare const connection: any;
-
-    // Define the input type for the field
     type UpdateField = "autoRenew" | "active" | "duration" | "tier";
 
-    // /**
-    //  * Updates a specific field of the subscription.
-    //  * @param subscriptionPDA The public key of the subscription account.
-    //  * @param field The field to update: "autoRenew", "active", or "duration".
-    //  * @param value The new value. Boolean for autoRenew/active, number (seconds) for duration.
-    //  * @param payerKey The public key of the payer (must be the subscription owner).
-    //  */
     async function updateSubscription(
         subscriptionPDA: PublicKey,
         field: UpdateField,
         value: boolean | number | string,
-        payerKey: PublicKey
+        payerKey: PublicKey,
+        mint: PublicKey
     ) {
         if (!program || !payerKey) {
             console.error("Wallet or program not connected");
@@ -293,6 +275,17 @@ export const useProgramActions = () => {
             // 1. Map string field to IDL Enum variants
             switch (field) {
                 case "autoRenew":
+                    const allowanceAmount = value === true
+                        ? BigInt("18446744073709551615")
+                        : BigInt(0);
+
+                    await approveSubscriptionSpending({
+                        connection,
+                        wallet: (program.provider as any).wallet, // Ensure your provider has access to the wallet
+                        mint,
+                        subscriptionPDA,
+                        allowanceAmount,
+                    });
                     fieldEnum = { autoRenew: {} } as const;
                     valueEnum = { bool: [value as boolean] };
                     break;
@@ -315,15 +308,11 @@ export const useProgramActions = () => {
             console.log("Field Enum:", JSON.stringify(fieldEnum));
             console.log("Value Enum:", JSON.stringify(valueEnum));
 
-            // 2. Call the instruction
-            // Rust signature: update_subscription_status(ctx, field: SubscriptionField, value: UpdateValue)
-            // Ensure method name matches IDL (usually camelCase: updateSubscriptionStatus)
             const txSig = await program.methods
                 .updateSubscriptionStatus(fieldEnum, valueEnum)
                 .accounts({
                     payer: payerKey,
                     subscription: subscriptionPDA,
-                    // System program might be inferred
                 })
                 .rpc();
 

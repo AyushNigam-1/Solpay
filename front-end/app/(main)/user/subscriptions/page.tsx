@@ -17,7 +17,6 @@ import PlanDetails from '@/app/components/ui/modals/PlanDetails';
 import { useSearch } from '@/app/hooks/useSearch';
 
 const page = () => {
-    const [isOpen, setOpen] = useState<boolean>(false)
     const [subscription, setSubscription] = useState<Subscription & { publicKey: PublicKey }>();
     const [openDetails, setOpenDetails] = useState<boolean>(false)
     const [isPlanDetailsOpen, setPlanDetailsOpen] = useState<boolean>(false)
@@ -61,7 +60,7 @@ const page = () => {
                                             {filteredData!.map((subscription) => {
                                                 const currentTier = subscription.planMetadata?.tiers.find((tier) => tier.tierName == subscription.tierName)
                                                 return (
-                                                    <tr key={subscription.bump} className="border-t-0 border-2  border-white/5 transition cursor-pointer" >
+                                                    <tr key={subscription.bump} className="border-t-0 border-2 border-white/5 transition cursor-pointer hover:bg-white/5 delay-75" onClick={() => { setSubscription(subscription); setOpenDetails(true) }} >
                                                         <td className="px-6 py-2 text-xl font-semibold text-white">
                                                             {subscription.planMetadata?.name}
                                                         </td>
@@ -80,11 +79,11 @@ const page = () => {
                                                         <td className="px-6 py-2 text-xl text-gray-400">
                                                             {subscription.active ? "Active" : "Disabled"}
                                                         </td>
-                                                        <td className='px-6 py-2 text-xl text-gray-400'>
-                                                            <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscription); setOpenDetails(true) }}>
+                                                        {/* <td className='px-6 py-2 text-xl text-gray-400'>
+                                                            <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' >
                                                                 <EyeIcon className='size-6' />                                                                    View
                                                             </button>
-                                                        </td>
+                                                        </td> */}
                                                     </tr>
                                                 )
                                             })}

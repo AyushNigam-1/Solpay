@@ -267,6 +267,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                                         field: "autoRenew",
                                                                         value: !autoRenew,
                                                                         payerKey: subscription?.payer,
+                                                                        mint: new PublicKey(subscription?.planMetadata?.mint!)
                                                                     }).then(() => setAutoRenew(!autoRenew))
                                                                 }
                                                             />
