@@ -1,119 +1,3 @@
-// "use client"
-// import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"; // still need this import for the button
-// import { useWallet } from "@solana/wallet-adapter-react";
-// import { useEffect } from "react";
-// import { useRouter } from "next/navigation";
-// import Cookies from "js-cookie"
-// import { motion } from 'framer-motion';
-// import axios from "axios";
-// import { useMutation } from "@tanstack/react-query";
-
-// function App() {
-//   // const network = WalletAdapterNetwork.Devnet;
-
-//   const { publicKey, connected } = useWallet();
-//   const router = useRouter()
-//   const API_BASE = "http://localhost:3000"
-
-//   const { mutate: submit, isPending, isError, error } = useMutation({
-//     mutationFn: async (address: string) => {
-//       const { data } = await axios.get(`${API_BASE}/api/user/${address}`);
-//       return data;
-//     },
-//     onSuccess: (data) => {
-//       console.log("User fetched or created:", data);
-//       Cookies.set("user", data);
-//       console.log(data)
-//       router.push("user/plans");
-//     },
-//     onError: (error) => {
-//       console.error("Error fetching/creating user:", error);
-//     },
-//   });
-
-//   useEffect(() => {
-//     if (connected && publicKey) {
-//       submit(publicKey.toBase58());
-//     }
-//   }, [connected, publicKey]);
-
-//   return (
-//     <div className="relative w-full h-screen overflow-hidden flex items-center justify-center font-mono text-white">
-//       {/* Floating animated background glow */}
-//       <motion.div
-//         className="absolute inset-0 -z-10"
-//         animate={{
-//           background: [
-//             'radial-gradient(circle at 20% 30%, rgba(99,102,241,0.2), transparent 70%)',
-//             'radial-gradient(circle at 80% 70%, rgba(16,185,129,0.2), transparent 70%)',
-//             'radial-gradient(circle at 50% 50%, rgba(79,70,229,0.2), transparent 70%)',
-//           ],
-//         }}
-//         transition={{
-//           repeat: Infinity,
-//           duration: 7,
-//           ease: 'easeInOut',
-//         }}
-//       />
-//       {/* Content box */}
-//       <motion.div
-//         className="backdrop-blur-md  bg-white/10 rounded-2xl shadow-2xl p-10 flex flex-col items-center text-center max-w-lg w-full mx-4"
-//         initial={{ opacity: 0, scale: 0.9 }}
-//         animate={{ opacity: 1, scale: 1 }}
-//         transition={{ duration: 0.8, ease: 'easeOut' }}
-//       >
-//         <motion.h1
-//           className="text-5xl font-extrabold mb-4 bg-clip-text text-gray-200 "
-//           initial={{ opacity: 0, y: -20 }}
-//           animate={{ opacity: 1, y: 0 }}
-//           transition={{ delay: 0.2, duration: 0.6 }}
-//         >
-//           Escrow Portal
-//         </motion.h1>
-
-//         <motion.p
-//           className="text-gray-400 mb-8"
-//           initial={{ opacity: 0, y: -10 }}
-//           animate={{ opacity: 1, y: 0 }}
-//           transition={{ delay: 0.4, duration: 0.6 }}
-//         >
-//           Secure. Transparent. Decentralized.
-//           Connect your Solana wallet to begin.
-//         </motion.p>
-
-//         {/* Wallet Button */}
-//         <motion.div
-//           initial={{ opacity: 0, y: 20 }}
-//           animate={{ opacity: 1, y: 0 }}
-//           transition={{ delay: 0.6, duration: 0.6 }}
-//         >
-//           <WalletMultiButton
-//             className="bg-indigo-600! hover:bg-indigo-500! rounded-xl! px-8! py-3! text-lg! font-semibold! transition-all! duration-300!"
-//           />
-//         </motion.div>
-
-//         {/* Connection state */}
-//         {connected && (
-//           <motion.p
-//             className="mt-6 text-sm text-gray-400"
-//             initial={{ opacity: 0 }}
-//             animate={{ opacity: 1 }}
-//             transition={{ delay: 0.8 }}
-//           >
-//             Connected as{' '}
-//             <span className="text-indigo-400 font-medium">
-//               {publicKey?.toBase58().slice(0, 6)}...
-//               {publicKey?.toBase58().slice(-4)}
-//             </span>
-//           </motion.p>
-//         )}
-//       </motion.div>
-//     </div>
-//   );
-// }
-
-// export default App;
-
 "use client";
 
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -121,17 +5,32 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { User, UserStar } from "lucide-react";
+import { Tab, TabGroup, TabList } from "@headlessui/react";
+import { User, Sparkles, ArrowRight } from "lucide-react";
+
+// --- Components ---
+
+// 1. Subtle Grid Background
+const GridBackground = () => (
+  <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+    <div className="absolute inset-0 bg-black [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,transparent_70%,black_100%)]"></div>
+  </div>
+);
 
 function App() {
   const { publicKey, connected } = useWallet();
-  const [tab, setTab] = useState<number>(0)
+  const [role, setRole] = useState<0 | 1>(0); // 0 = Creator, 1 = User
   const router = useRouter();
   const API_BASE = "http://localhost:3001";
+
+  // Dynamic Theme Colors based on Role
+  const theme = role === 0
+    ? { color: "indigo", hex: "#6366f1", label: "Creator" }
+    : { color: "emerald", hex: "#10b981", label: "User" };
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: async (address: string) => {
@@ -140,8 +39,8 @@ function App() {
     },
     onSuccess: (data) => {
       Cookies.set("user", JSON.stringify(data));
-      Cookies.set("role", tab!.toString())
-      tab == 0 ? router.push("/creator/plan") : router.push("/user/plans")
+      Cookies.set("role", role.toString());
+      role === 0 ? router.push("/creator/plan") : router.push("/user/plans");
     },
   });
 
@@ -152,113 +51,156 @@ function App() {
   }, [connected, publicKey]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center font-mono text-white">
+    <div className="relative w-full h-screen overflow-hidden flex items-center justify-center bg-[#0B0E14] text-white selection:bg-indigo-500/30">
+
+      {/* 2. Animated Background Glow */}
       <motion.div
-        className="absolute inset-0 -z-10"
+        className="absolute inset-0 z-0"
         animate={{
           background: [
-            'radial-gradient(circle at 20% 30%, rgba(99,102,241,0.2), transparent 70%)',
-            'radial-gradient(circle at 80% 70%, rgba(16,185,129,0.2), transparent 70%)',
-            'radial-gradient(circle at 50% 50%, rgba(79,70,229,0.2), transparent 70%)',
+            `radial-gradient(circle at 50% 50%, ${theme.hex}20 0%, transparent 50%)`,
           ],
         }}
-        transition={{ repeat: Infinity, duration: 7, ease: "easeInOut" }}
+        transition={{ duration: 1 }} // Smooth transition when toggling roles
       />
+      <GridBackground />
 
-
+      {/* 3. Main Card */}
       <motion.div
-        className="backdrop-blur-md bg-white/5 space-y-6 rounded-2xl shadow-2xl p-6 flex flex-col items-center text-center max-w-lg w-full "
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-md mx-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
       >
-        <div className="w-full ">
-          <TabGroup onChange={(e) => setTab(e)} className="space-y-4 ">
-            <TabList className="flex gap-2 justify-around bg-white/5 p-2 rounded-2xl">
-              <Tab
-                className="py-3 flex gap-2 items-center justify-center rounded-xl w-full font-semibold text-lg transition-all data-selected:bg-linear-to-r data-selected:bg-indigo-600 data-selected:text-white data-hover:bg-white/10"
-              >
-                <UserStar size={20} />
-                Creator
-              </Tab>
-              <Tab
-                className="py-3 flex gap-2 items-center justify-center rounded-xl w-full font-semibold text-lg transition-all data-selected:bg-linear-to-r data-selected:from-emerald-600 data-selected:to-emerald-500 data-selected:text-white data-hover:bg-white/10"
-              >
-                <User size={20} />
-                User
-              </Tab>
-            </TabList>
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl overflow-hidden relative">
 
-            {/* <TabPanels >
-              <TabPanel>
-                <p className="text-gray-300">Manage your subscription plans and earnings.</p>
-              </TabPanel>
-              <TabPanel>
-                <p className="text-gray-300">View and manage your active subscriptions.</p>
-              </TabPanel>
-            </TabPanels> */}
-          </TabGroup>
+          {/* Top Decorative Line */}
+          <motion.div
+            className={`h-1 w-full bg-${theme.color}-500`}
+            layoutId="active-strip"
+          />
+
+          <div className="p-8 space-y-8">
+
+            {/* Header Section */}
+            <div className="text-center space-y-2">
+              <motion.div
+                initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+                className="inline-flex items-center justify-center p-3 rounded-2xl bg-white/5 mb-4 ring-1 ring-white/10"
+              >
+                <span className="text-2xl">⚡</span>
+              </motion.div>
+              <h1 className="text-4xl font-bold tracking-tight text-white">
+                Solpay
+              </h1>
+              <p className="text-gray-400 text-sm">
+                The decentralized subscription layer for Solana.
+              </p>
+            </div>
+
+            {/* Role Switcher */}
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">
+                Continue as
+              </label>
+              <TabGroup selectedIndex={role} onChange={setRole}>
+                <TabList className="flex bg-black/20 p-1 rounded-xl border border-white/5 relative">
+                  {/* Creator Tab */}
+                  <Tab className={({ selected }) =>
+                    `relative w-full py-2.5 text-sm font-medium rounded-lg outline-none transition-all duration-300
+                    ${selected ? 'text-white' : 'text-gray-400 hover:text-white'}`
+                  }>
+                    <div className="flex items-center justify-center gap-2 relative z-10">
+                      <Sparkles size={16} />
+                      <span>Creator</span>
+                    </div>
+                    {role === 0 && (
+                      <motion.div
+                        layoutId="active-tab"
+                        className="absolute inset-0 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-900/20"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                  </Tab>
+
+                  {/* User Tab */}
+                  <Tab className={({ selected }) =>
+                    `relative w-full py-2.5 text-sm font-medium rounded-lg outline-none transition-all duration-300
+                    ${selected ? 'text-white' : 'text-gray-400 hover:text-white'}`
+                  }>
+                    <div className="flex items-center justify-center gap-2 relative z-10">
+                      <User size={16} />
+                      <span>User</span>
+                    </div>
+                    {role === 1 && (
+                      <motion.div
+                        layoutId="active-tab"
+                        className="absolute inset-0 bg-emerald-600 rounded-lg shadow-lg shadow-emerald-900/20"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                  </Tab>
+                </TabList>
+              </TabGroup>
+            </div>
+
+            {/* Action Section */}
+            <div className="space-y-4 pt-2">
+              <div className="wallet-adapter-wrapper w-full">
+                {/* NOTE: We use a wrapper class to force the wallet button to expand.
+                   Add this CSS to your global globals.css file:
+                   .wallet-adapter-button { width: 100% !important; justify-content: center !important; }
+                */}
+                <WalletMultiButton
+                  style={{
+                    width: '100%',
+                    height: '50px',
+                    borderRadius: '12px',
+                    backgroundColor: role === 0 ? '#4f46e5' : '#10b981', // Matches theme
+                    fontWeight: 600,
+                    transition: 'background-color 0.3s ease'
+                  }}
+                />
+              </div>
+
+              {/* Status Message */}
+              <AnimatePresence mode="wait">
+                {connected ? (
+                  <motion.div
+                    key="connected"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center justify-center gap-2 text-xs text-gray-400 bg-white/5 py-2 rounded-lg border border-white/5"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    Connected: <span className="font-mono text-white">{publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}</span>
+                  </motion.div>
+                ) : (
+                  <motion.p
+                    key="disconnected"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-center text-xs text-gray-500"
+                  >
+                    Connect your wallet to access the dashboard
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+          </div>
+
+          {/* Footer Card Decor */}
+          <div className="bg-black/20 p-4 border-t border-white/5 flex justify-between items-center text-[10px] text-gray-500 font-mono uppercase tracking-wider">
+            <span>Status: Operational</span>
+            <span className="flex items-center gap-1">v1.0.2 <ArrowRight size={10} /></span>
+          </div>
+
         </div>
-        <hr className="border-t border-gray-600 w-full" />
-        <motion.h1
-          className="text-5xl font-extrabold  bg-clip-text text-transparent bg-linear-to-r from-indigo-400 to-emerald-400"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          Solpay
-        </motion.h1>
-
-        <motion.p
-          className="text-gray-400 "
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          Secure. Transparent. Decentralized.
-        </motion.p>
-
-        {/* <motion.p
-          className="text-gray-400 font-bold text-lg"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          I want to use app as
-        </motion.p> */}
-
-
-        {/* Wallet Button */}
-        {/* <hr className="border-t border-gray-600 w-full" /> */}
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <WalletMultiButton className="bg-blue-400 rounded-xl px-8 py-3 text-lg font-semibold transition-all duration-300" />
-        </motion.div>
-
-        {
-          connected && (
-            <motion.p
-              className=" text-sm text-gray-400"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-            >
-              Connected as{" "}
-              <span className="text-indigo-400 font-medium">
-                {publicKey?.toBase58().slice(0, 6)}...{publicKey?.toBase58().slice(-4)}
-              </span>
-            </motion.p>
-          )
-        }
-
-        {/* Role Selection Tabs */}
-
-      </motion.div >
-    </div >
+      </motion.div>
+    </div>
   );
 }
 
