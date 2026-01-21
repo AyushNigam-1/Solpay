@@ -57,62 +57,67 @@ const page = () => {
                     isQueryError ? <Error refetch={refetch} /> :
                         (filteredData?.length != 0) ?
                             <>
-                                <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                                    <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={TABLE_HEADERS.user.plans} />
-                                        <tbody>
-                                            {filteredData!.map((plan) => {
-                                                return (
-                                                    <tr key={plan.bump} className="border-t-0 border-2 hover:bg-white/5 delay-75 border-white/5 cursor-pointer"
-                                                        onClick={() => { setPlan(plan); setPlanPDA(plan.publicKey); setOpenDetails(true) }}
-                                                    >
-                                                        <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {plan.name}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {plan.creator?.toString().slice(0, 10)}...
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {plan.receiver?.toString().slice(0, 10)}...
-                                                        </td>
-                                                        <td className="px-6 py-2">
-                                                            <div className="flex items-end gap-2 ">
-                                                                <img
-                                                                    src={plan.tokenImage}
-                                                                    className='w-6 rounded-full object-cover'
-                                                                    alt={`${plan.tokenSymbol} icon`}
-                                                                />
-                                                                <p className="text-xl text-gray-400">
-                                                                    {plan.tokenSymbol}
-                                                                </p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
-                                                            {plan.tiers.length}
-                                                        </td>
-                                                        {/* <td className="px-6 py-2 text-xl ">
-                                                            {
-                                                                plan.creator?.toString() == publicKey ? <button className=' text-red-400' onClick={() => cancelPlan.mutate(plan.creator!)}>
-                                                                    {
-                                                                        cancelPlan.isPending && cancelPlan.variables?.toString() == plan.creator ? <Loader /> : <span className='flex gap-2 items-center' >
-                                                                            <Trash className='size-5' />
-                                                                            Delete
-                                                                        </span>
-                                                                    }
-                                                                </button> :
-                                                                    <td className=' py-2 text-xl text-gray-400'>
-                                                                        <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' >
-                                                                            <EyeIcon className='size-6' />                                                                    View
-                                                                        </button>
-                                                                    </td>
-                                                            }
-                                                        </td> */}
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
+                                {/* 1. WRAPPER: Added 'border-b' to the outer container to close the table bottom */}
+                                <div className="w-full font-mono text-sm border-2 border-b border-white/5 rounded-2xl overflow-hidden shadow-xs">
+
+                                    {/* HEADER SECTION */}
+                                    <div className="flex bg-white/5 border-b border-white/5">
+                                        {TABLE_HEADERS.user.plans.map((header, i) => (
+                                            <div key={i} className="flex-1 px-6 py-4.5 font-bold text-lg text-white">
+                                                {header.title}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* BODY SECTION */}
+                                    <div className="flex flex-col">
+                                        {filteredData!.map((plan, index) => {
+                                            const isLast = index == filteredData!.length - 1;
+
+                                            return (
+                                                <div
+                                                    key={plan.bump}
+                                                    onClick={() => {
+                                                        setPlan(plan);
+                                                        setPlanPDA(plan.publicKey);
+                                                        setOpenDetails(true);
+                                                    }}
+
+                                                    className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                    ${isLast ? "rounded-b-2xl" : ""}`}
+                                                >
+                                                    <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                        {plan.name}
+                                                    </div>
+
+                                                    <div className="flex-1 px-6 py-4 text-xl text-gray-400">
+                                                        {plan.creator?.toString().slice(0, 10)}...
+                                                    </div>
+
+                                                    <div className="flex-1 px-6 py-4 text-xl text-gray-400">
+                                                        {plan.receiver?.toString().slice(0, 10)}...
+                                                    </div>
+
+                                                    <div className="flex-1 px-6 py-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <img
+                                                                src={plan.tokenImage}
+                                                                className='w-6 h-6 rounded-full object-cover border border-white/10'
+                                                                alt={plan.tokenSymbol}
+                                                            />
+                                                            <p className="text-xl text-gray-400">{plan.tokenSymbol}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex-1 px-6 py-4 text-xl text-gray-400">
+                                                        {plan.tiers.length}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
+
                             </>
                             :
                             !searchQuery && <p className='text-center col-span-4 text-gray-400 text-2xl'>No active plans found.</p>

@@ -14,7 +14,7 @@ pub fn notification_routes() -> Router {
             delete(delete_notification),
         )
         .route(
-            "/api/notifications/read/{user_pubkey}",
+            "/notifications/read/{user_pubkey}",
             put(mark_notifications_as_read),
         )
 }

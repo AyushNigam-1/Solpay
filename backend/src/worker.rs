@@ -231,10 +231,7 @@ pub async fn renew_subscription_by_pda(
 
             (
                 "Payment Received".to_string(), // Clear Title
-                format!(
-                    "You successfully renewed {} ({}) for {} {}.",
-                    plan.name, tier_name, amount, plan.token_symbol
-                ),
+                format!("You successfully renewed {} ({})", plan.name, tier_name),
                 "success".to_string(), // UI Type (Green Icon)
             )
         }

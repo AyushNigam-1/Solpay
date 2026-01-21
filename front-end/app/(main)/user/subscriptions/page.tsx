@@ -6,7 +6,7 @@ import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, Subscription } from '@/app/types';
 import { PublicKey } from '@solana/web3.js';
 import { formatPeriod } from '@/app/utils/duration';
-import { EyeIcon } from 'lucide-react';
+import { Banknote, Calendar, EyeIcon, Pointer } from 'lucide-react';
 import { TABLE_HEADERS } from '@/app/utils/headers';
 import SubscriptionDetails from '@/app/components/ui/modals/SubscriptionDetails';
 import Header from '@/app/components/ui/layout/Header';
@@ -54,41 +54,54 @@ const page = () => {
                         (filteredData?.length != 0) ?
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                                    <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={TABLE_HEADERS.user.subscription} />
-                                        <tbody>
-                                            {filteredData!.map((subscription) => {
-                                                const currentTier = subscription.planMetadata?.tiers.find((tier) => tier.tierName == subscription.tierName)
+                                    <div className="w-full font-mono text-sm">
+                                        {/* 1. THEAD REPLACEMENT */}
+                                        <div className="flex bg-white/5 rounded-t-2xl border-x-2 border-t-2 border-white/5">
+                                            {
+                                                TABLE_HEADERS.user.subscription.map((header) => {
+                                                    return <div className="flex-1 px-6 py-4.5 font-bold text-lg flex items-center gap-2">
+                                                        {/* {header.icon} */}
+                                                        {header.title}
+                                                    </div>
+                                                })
+                                            }
+                                        </div>
+
+                                        {/* 2. TBODY REPLACEMENT */}
+                                        <div className="border-x-2 border-b-2 border-white/5 rounded-b-2xl overflow-hidden">
+                                            {filteredData!.map((subscription, index) => {
+                                                const isLast = index === filteredData!.length - 1;
+                                                const currentTier = subscription.planMetadata?.tiers.find(
+                                                    (tier) => tier.tierName == subscription.tierName
+                                                );
+
                                                 return (
-                                                    <tr key={subscription.bump} className="border-t-0 border-2 border-white/5 transition cursor-pointer hover:bg-white/5 delay-75" onClick={() => { setSubscription(subscription); setOpenDetails(true) }} >
-                                                        <td className="px-6 py-2 text-xl font-semibold text-white">
+                                                    <div
+                                                        key={subscription.bump}
+                                                        onClick={() => { setSubscription(subscription); setOpenDetails(true); }}
+                                                        className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+            ${isLast ? "rounded-b-2xl" : ""}`}
+                                                    >
+                                                        <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
                                                             {subscription.planMetadata?.name}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl font-semibold text-white">
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
                                                             {subscription.tierName}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400 flex items-end gap-2 ">
-                                                            {currentTier?.amount.toString()}
-                                                            <p className="text-xl text-gray-400">
-                                                                {subscription.planMetadata?.tokenSymbol}
-                                                            </p>
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400 flex items-end gap-2">
+                                                            {currentTier?.amount.toString()} {subscription.planMetadata?.tokenSymbol}
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400 flex items-end gap-2">
                                                             {formatPeriod(currentTier?.periodSeconds!)}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400">
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400">
                                                             {subscription.active ? "Active" : "Disabled"}
-                                                        </td>
-                                                        {/* <td className='px-6 py-2 text-xl text-gray-400'>
-                                                            <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' >
-                                                                <EyeIcon className='size-6' />                                                                    View
-                                                            </button>
-                                                        </td> */}
-                                                    </tr>
-                                                )
+                                                        </div>
+                                                    </div>
+                                                );
                                             })}
-                                        </tbody>
-                                    </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </>
                             :

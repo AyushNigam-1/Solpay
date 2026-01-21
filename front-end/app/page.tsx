@@ -1,6 +1,6 @@
 "use client";
 
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,20 +9,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import { Tab, TabGroup, TabList } from "@headlessui/react";
-import { User, Sparkles, ArrowRight } from "lucide-react";
+import { User, Sparkles, ArrowRight, Wallet } from "lucide-react";
 
 // --- Components ---
 
 // 1. Subtle Grid Background
 const GridBackground = () => (
   <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-    <div className="absolute inset-0 bg-black [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,transparent_70%,black_100%)]"></div>
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"></div>
+    <div className="absolute inset-0 bg-black mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,transparent_70%,black_100%)]"></div>
   </div>
 );
 
 function App() {
-  const { publicKey, connected } = useWallet();
+  const { setVisible } = useWalletModal();
+  const { publicKey, connected, disconnect } = useWallet();
   const [role, setRole] = useState<0 | 1>(0); // 0 = Creator, 1 = User
   const router = useRouter();
   const API_BASE = "http://localhost:3001";
@@ -43,9 +44,16 @@ function App() {
       role === 0 ? router.push("/creator/plan") : router.push("/user/plans");
     },
   });
-
+  const handleAction = () => {
+    if (connected) {
+      disconnect();
+    } else {
+      setVisible(true); // Opens the official selection modal
+    }
+  };
   useEffect(() => {
     if (connected && publicKey) {
+      console.log("triggering")
       submit(publicKey.toBase58());
     }
   }, [connected, publicKey]);
@@ -76,11 +84,11 @@ function App() {
 
           {/* Top Decorative Line */}
           <motion.div
-            className={`h-1 w-full bg-${theme.color}-500`}
+            className={`h-1 w-full `}
             layoutId="active-strip"
           />
 
-          <div className="p-8 space-y-8">
+          <div className="p-8 space-y-8 font-mono">
 
             {/* Header Section */}
             <div className="text-center space-y-2">
@@ -99,11 +107,11 @@ function App() {
             </div>
 
             {/* Role Switcher */}
-            <div className="space-y-3">
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">
+            <div className="space-y-4 ">
+              <label className="text-xs font-semibold text-gray-500 uppercase flex justify-center">
                 Continue as
               </label>
-              <TabGroup selectedIndex={role} onChange={setRole}>
+              <TabGroup selectedIndex={role} onChange={(e) => setRole(e as any)} >
                 <TabList className="flex bg-black/20 p-1 rounded-xl border border-white/5 relative">
                   {/* Creator Tab */}
                   <Tab className={({ selected }) =>
@@ -117,7 +125,7 @@ function App() {
                     {role === 0 && (
                       <motion.div
                         layoutId="active-tab"
-                        className="absolute inset-0 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-900/20"
+                        className="absolute inset-0 bg-blue-400 hover:bg-blue-400  rounded-lg shadow-lg shadow-indigo-900/20"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
@@ -135,7 +143,7 @@ function App() {
                     {role === 1 && (
                       <motion.div
                         layoutId="active-tab"
-                        className="absolute inset-0 bg-emerald-600 rounded-lg shadow-lg shadow-emerald-900/20"
+                        className="absolute inset-0 bg-blue-400 hover:bg-blue-400 rounded-lg shadow-lg shadow-emerald-900/20"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                       />
                     )}
@@ -151,16 +159,21 @@ function App() {
                    Add this CSS to your global globals.css file:
                    .wallet-adapter-button { width: 100% !important; justify-content: center !important; }
                 */}
-                <WalletMultiButton
-                  style={{
-                    width: '100%',
-                    height: '50px',
-                    borderRadius: '12px',
-                    backgroundColor: role === 0 ? '#4f46e5' : '#10b981', // Matches theme
-                    fontWeight: 600,
-                    transition: 'background-color 0.3s ease'
-                  }}
-                />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleAction}
+                  className="w-full h-14 bg-blue-400 hover:bg-blue-400 text-white font-bold rounded-xl 
+                 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                >
+                  <Wallet className="w-5 h-5" />
+                  {connected ? (
+                    <span>{publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}</span>
+                  ) : (
+                    "Connect Your Wallet"
+                  )}
+                </motion.button>
+                {/* </motion.div> */}
               </div>
 
               {/* Status Message */}
@@ -174,7 +187,7 @@ function App() {
                     className="flex items-center justify-center gap-2 text-xs text-gray-400 bg-white/5 py-2 rounded-lg border border-white/5"
                   >
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    Connected: <span className="font-mono text-white">{publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}</span>
+                    Connected: <span className=" text-white">{publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}</span>
                   </motion.div>
                 ) : (
                   <motion.p
@@ -193,14 +206,14 @@ function App() {
           </div>
 
           {/* Footer Card Decor */}
-          <div className="bg-black/20 p-4 border-t border-white/5 flex justify-between items-center text-[10px] text-gray-500 font-mono uppercase tracking-wider">
+          {/* <div className="bg-black/20 p-4 border-t border-white/5 flex justify-between items-center text-[10px] text-gray-500 font-mono uppercase tracking-wider">
             <span>Status: Operational</span>
             <span className="flex items-center gap-1">v1.0.2 <ArrowRight size={10} /></span>
-          </div>
+          </div> */}
 
         </div>
-      </motion.div>
-    </div>
+      </motion.div >
+    </div >
   );
 }
 

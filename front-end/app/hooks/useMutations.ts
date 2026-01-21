@@ -135,6 +135,7 @@ export const useMutations = () => {
     const markReadMutation = useMutation({
         mutationFn: async (publicKey: PublicKey) => {
             await axios.put(`http://127.0.0.1:3001/api/notifications/read/${publicKey}`);
+            console.log("called")
         },
         onSuccess: (_, publicKey) => {
             // Silently update cache so the UI shows "read" (no red dots) without refetching

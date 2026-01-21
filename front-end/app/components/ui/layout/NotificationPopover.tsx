@@ -147,7 +147,7 @@ export default function NotificationPopover() {
         isError: isQueryError,
         refetch,
     } = useQuery<Notification[]>({
-        queryKey: ["notifications"],
+        queryKey: ["notifications", publicKey?.toString()],
         queryFn: async () => {
             const res = await axios.get<Notification[]>(
                 `http://127.0.0.1:3001/api/notifications/user/${publicKey}`
