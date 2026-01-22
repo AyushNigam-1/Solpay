@@ -5,13 +5,13 @@ import { useProgram } from '@/app/hooks/useProgram';
 import { Transaction } from '@/app/types';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { ArrowUpRight, CircleCheck, RotateCw, Trash } from 'lucide-react';
+import { ArrowUpRight, CircleCheck, RotateCw } from 'lucide-react';
 import Error from '@/app/components/ui/extras/Error';
-import TableHeaders from '@/app/components/ui/layout/TableHeaders';
 import { formatDate } from '@/app/utils/duration';
 import { useDbActions } from '@/app/hooks/useDbActions';
 import { TABLE_HEADERS } from '@/app/utils/headers';
 import { useSearch } from '@/app/hooks/useSearch';
+import { StatusBadge } from '@/app/components/ui/layout/StatusBadge';
 
 const page = () => {
     const { publicKey } = useProgram()
@@ -48,39 +48,58 @@ const page = () => {
                         (filteredData?.length != 0) ?
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                                    <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
-                                        <TableHeaders columns={TABLE_HEADERS.user.history} />
-                                        <tbody>
-                                            {filteredData?.map((tx) => {
-                                                return (
-                                                    <tr key={tx.txSignature} className="border-t-0 border-2  border-white/5"
-                                                    >
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {formatDate(tx.createdAt)}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl font-semibold text-white">
-                                                            {tx.plan}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl font-semibold text-gray-400">
-                                                            {tx.tier}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
-                                                            {tx.amount} OPOS
-                                                        </td>
+                                    <div className="w-full font-mono text-sm">
+                                        {/* 1. THEAD REPLACEMENT */}
+                                        <div className="flex bg-white/5 rounded-t-2xl border-x-2 border-t-2 border-white/5">
+                                            {
+                                                TABLE_HEADERS.user.history.map((header, i) => {
+                                                    return <div key={i} className="flex-1 px-6 py-4.5 font-bold text-lg flex items-center gap-2">
+                                                        {/* {header.icon} */}
+                                                        {header.title}
+                                                    </div>
+                                                })
+                                            }
+                                        </div>
 
-                                                        <td className="px-6 py-2 text-xl text-gray-400 ">
+                                        {/* 2. TBODY REPLACEMENT */}
+                                        <div className="border-x-2 border-b-2 border-white/5 rounded-b-2xl overflow-hidden">
+                                            {filteredData!.map((tx, index) => {
+                                                const isLast = index === filteredData!.length - 1;
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={`flex items-center transition cursor-pointer border-t border-white/5 
+                                                        ${isLast ? "rounded-b-2xl" : ""}`}
+                                                    >
+                                                        <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                            {formatDate(tx.createdAt)}
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                            {tx.plan}
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400 flex items-end gap-2">
+                                                            {tx.tier}
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400 flex items-end gap-2">
+                                                            {tx.amount} OPOS
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4  text-gray-400">
                                                             {tx.status == 'success' ? <span className='flex gap-2 items-center' >
-                                                                <CircleCheck />
-                                                                Succeed
+                                                                {/* <CircleCheck />
+                                                                Succeed */}
+                                                                <StatusBadge
+                                                                    active={tx.status == "success"}
+                                                                    label={tx.status == "success" ? "Success" : "Failed"}
+                                                                />
                                                             </span> :
                                                                 <span className='flex gap-2 items-center'>
                                                                     <CircleCheck />
                                                                     Failed
                                                                 </span>}
-                                                        </td>
-                                                        <td className="px-6 py-2 text-xl flex items-center gap-3">
+                                                        </div>
+                                                        <div className="px-6 py-2 text-xl flex items-center gap-3 flex-1">
                                                             {
-                                                                tx.status == 'success' ? <button className='flex gap-1 border-r-2 border-white/8 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
+                                                                tx.status == 'success' ? <button className='flex gap-1 items-center pr-3 text-blue-400 hover:text-blue-300 cursor-pointer' onClick={() =>
                                                                     window.open(
                                                                         `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
                                                                         "_blank",
@@ -89,29 +108,20 @@ const page = () => {
                                                                     <ArrowUpRight className='size-5' />
                                                                     Verify
                                                                 </button> :
-                                                                    <button className='flex gap-1  hover:text-blue-500 border-r-2 border-white/8 items-center pr-3 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
+                                                                    <button className='flex gap-1  hover:text-blue-500 items-center pr-3 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
                                                                         {
                                                                             (renewSubscription.variables?.subscriptionPda == tx.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
                                                                                 <RotateCw className='size-5' />                                                                    Retry
                                                                             </div>
                                                                         }
-
                                                                     </button>
                                                             }
-                                                            <button className=' cursor-pointer hover:text-red-500 text-red-400' onClick={() => deleteTransaction.mutate(tx.id)}>
-                                                                {
-                                                                    (deleteTransaction.variables == tx.id && deleteTransaction.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
-                                                                        <Trash className='size-5' />
-                                                                        Delete
-                                                                    </div>
-                                                                }
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                )
+                                                        </div>
+                                                    </div>
+                                                );
                                             })}
-                                        </tbody>
-                                    </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </>
                             :

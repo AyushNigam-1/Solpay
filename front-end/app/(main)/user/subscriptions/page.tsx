@@ -15,6 +15,7 @@ import Loader from '@/app/components/ui/extras/Loader';
 import Error from '@/app/components/ui/extras/Error';
 import PlanDetails from '@/app/components/ui/modals/PlanDetails';
 import { useSearch } from '@/app/hooks/useSearch';
+import { StatusBadge } from '@/app/components/ui/layout/StatusBadge';
 
 const page = () => {
     const [subscription, setSubscription] = useState<Subscription & { publicKey: PublicKey }>();
@@ -80,7 +81,7 @@ const page = () => {
                                                         key={subscription.bump}
                                                         onClick={() => { setSubscription(subscription); setOpenDetails(true); }}
                                                         className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
-            ${isLast ? "rounded-b-2xl" : ""}`}
+                                                        ${isLast ? "rounded-b-2xl" : ""}`}
                                                     >
                                                         <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
                                                             {subscription.planMetadata?.name}
@@ -94,8 +95,11 @@ const page = () => {
                                                         <div className="flex-1 px-6 py-4 text-xl text-gray-400 flex items-end gap-2">
                                                             {formatPeriod(currentTier?.periodSeconds!)}
                                                         </div>
-                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400">
-                                                            {subscription.active ? "Active" : "Disabled"}
+                                                        <div className="flex-1 px-6 py-4  text-gray-400">
+                                                            <StatusBadge
+                                                                active={subscription.active}
+                                                                label={subscription.active ? "Active" : "Inactive"}
+                                                            />
                                                         </div>
                                                     </div>
                                                 );

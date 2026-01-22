@@ -215,6 +215,12 @@ export const TABLE_HEADERS = {
                 ),
                 title: "Status"
             },
+            {
+                icon: (
+                    <CircleDot />
+                ),
+                title: "Expires On"
+            },
             // {
             //     icon: (
             //         <MousePointerClick />

@@ -15,6 +15,8 @@ import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Subscription } from '@/app/types';
 import { TABLE_HEADERS } from '@/app/utils/headers';
 import { useSearch } from '@/app/hooks/useSearch';
+import { StatusBadge } from '@/app/components/ui/layout/StatusBadge';
+import { formatPeriod } from '@/app/utils/duration';
 const page = () => {
     const { publicKey, PROGRAM_ID } = useProgram()
     const { fetchSubscriptionsByPlan } = useProgramActions()
@@ -69,7 +71,7 @@ const page = () => {
                         (filteredData?.length != 0) ?
                             <>
                                 <div className="relative overflow-x-auto shadow-xs rounded-lg ">
-                                    <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
+                                    {/* <table className="w-full table-fixed text-sm text-left rtl:text-right text-body">
                                         <TableHeaders columns={TABLE_HEADERS.creator.subscriptions} />
                                         <tbody>
                                             {filteredData?.map((subscriber) => {
@@ -95,16 +97,91 @@ const page = () => {
                                                                 label={subscriber.active ? "Active" : "Inactive"}
                                                             />
                                                         </td>
-                                                        {/* <td className='px-6 py-2 text-xl text-gray-400'>
-                                                            <button className='flex gap-2  hover:text-blue-500  border-white/8 items-center  cursor-pointer text-blue-400 ' onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}>
-                                                                <EyeIcon className='size-6' />                                                                    View
-                                                            </button>
-                                                        </td> */}
                                                     </tr>
                                                 )
                                             })}
                                         </tbody>
-                                    </table>
+                                    </table> */}
+                                    <div className="w-full font-mono text-sm">
+                                        {/* 1. THEAD REPLACEMENT */}
+                                        <div className="flex bg-white/5 rounded-t-2xl border-x-2 border-t-2 border-white/5">
+                                            {
+                                                TABLE_HEADERS.creator.subscriptions.map((header, i) => {
+                                                    return <div key={i} className="flex-1 px-6  text- py-4.5 font-bold text-lg flex items-center gap-2">
+                                                        {/* {header.icon} */}
+                                                        {header.title}
+                                                    </div>
+                                                })
+                                            }
+                                        </div>
+
+                                        {/* 2. TBODY REPLACEMENT */}
+                                        <div className="border-x-2 border-b-2 border-white/5 rounded-b-2xl overflow-hidden">
+                                            {filteredData!.map((subscriber, index) => {
+                                                const isLast = index === filteredData!.length - 1;
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                                                        ${isLast ? "rounded-b-2xl" : ""}`}
+                                                        onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
+                                                    >
+                                                        <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                            {subscriber.payer?.toString().slice(0, 10)}...
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
+                                                            {subscriber.tierName}
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                            <StatusBadge
+                                                                active={subscriber.autoRenew}
+                                                                label={subscriber.autoRenew ? "Enabled" : "Disabled"}
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                            <StatusBadge
+                                                                active={subscriber.active}
+                                                                label={subscriber.active ? "Active" : "Inactive"}
+                                                            />
+                                                        </div>
+                                                        <div className="flex-1 px-6 py-4 text-xl text-gray-400 ">
+                                                            {formatPeriod(subscriber?.nextPaymentTs!)}
+                                                        </div>
+                                                        {/* <div className="flex-1 px-6 py-4 text-xl text-gray-400">
+                                                            {tx.status == 'success' ? <span className='flex gap-2 items-center' >
+                                                                <CircleCheck />
+                                                                Succeed
+                                                            </span> :
+                                                                <span className='flex gap-2 items-center'>
+                                                                    <CircleCheck />
+                                                                    Failed
+                                                                </span>}
+                                                        </div> */}
+                                                        {/* <div className="px-6 py-2 text-xl flex items-center gap-3 flex-1">
+                                                            {
+                                                                tx.status == 'success' ? <button className='flex gap-1 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
+                                                                    window.open(
+                                                                        `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
+                                                                        "_blank",
+                                                                        "noopener,noreferrer"
+                                                                    )}>
+                                                                    <ArrowUpRight className='size-5' />
+                                                                    Verify
+                                                                </button> :
+                                                                    <button className='flex gap-1  hover:text-blue-500 items-center pr-3 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
+                                                                        {
+                                                                            (renewSubscription.variables?.subscriptionPda == tx.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
+                                                                                <RotateCw className='size-5' />                                                                    Retry
+                                                                            </div>
+                                                                        }
+                                                                    </button>
+                                                            }
+                                                        </div> */}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                             </>
                             :
@@ -123,13 +200,5 @@ const page = () => {
         </div >
     )
 }
-const StatusBadge = ({ active, label }: { active: boolean, label?: string }) => (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full  font-medium border ${active
-        ? "bg-green-500/10 text-green-400 border-green-500/20"
-        : "bg-gray-500/10 text-gray-400 border-gray-500/20"
-        }`}>
-        {active ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-        {label || (active ? "Active" : "Inactive")}
-    </span>
-);
+
 export default page

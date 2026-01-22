@@ -1,57 +1,41 @@
 import BN from "bn.js";
 
-export function formatPeriod(periodBN: string | number | BN): string {
-    // Constants in seconds
-    const SECOND = 1;
-    const MINUTE = 60 * SECOND;
-    const HOUR = 60 * MINUTE;
-    const DAY = 24 * HOUR;
-    const WEEK = 7 * DAY;
-    // Approximations (using average month length is common if exact calendar months aren't required)
-    const MONTH = 30 * DAY;
-    const YEAR = 365 * DAY;
+export function formatPeriod(secondsBN: BN): string {
+    const MINUTE = new BN(60);
+    const HOUR = new BN(3600);
+    const DAY = new BN(86400);
+    const WEEK = new BN(604800);
+    const MONTH = new BN(2592000);
+    const YEAR = new BN(31536000);
 
-    // Convert BN to a standard JavaScript number (safe since subscription periods are usually within i53 limits)
-    const totalSeconds = Number(periodBN);
-
-    // FIX: Check for 0 or negative values immediately
-    if (totalSeconds <= 0) {
-        return "2 Hour";
+    if (secondsBN.lte(new BN(0))) {
+        return "Due";
     }
 
-    if (totalSeconds >= YEAR && (totalSeconds % YEAR) === 0) {
-        const years = totalSeconds / YEAR;
-        return `${years} Year${years > 1 ? 's' : ''}`;
+    if (secondsBN.mod(YEAR).isZero()) {
+        return `${secondsBN.div(YEAR).toString()} Years`;
+    }
+    if (secondsBN.mod(MONTH).isZero()) {
+        return `${secondsBN.div(MONTH).toString()} Months`;
+    }
+    if (secondsBN.mod(WEEK).isZero()) {
+        return `${secondsBN.div(WEEK).toString()} Weeks`;
+    }
+    if (secondsBN.mod(DAY).isZero()) {
+        return `${secondsBN.div(DAY).toString()} Days`;
+    }
+    if (secondsBN.mod(HOUR).isZero()) {
+        return `${secondsBN.div(HOUR).toString()} Hours`;
+    }
+    if (secondsBN.mod(MINUTE).isZero()) {
+        return `${secondsBN.div(MINUTE).toString()} Minutes`;
     }
 
-    if (totalSeconds >= MONTH && (totalSeconds % MONTH) === 0) {
-        const months = totalSeconds / MONTH;
-        return `${months} Month${months > 1 ? 's' : ''}`;
-    }
-
-    if (totalSeconds >= WEEK && (totalSeconds % WEEK) === 0) {
-        const weeks = totalSeconds / WEEK;
-        return `${weeks} Week${weeks > 1 ? 's' : ''}`;
-    }
-
-    if (totalSeconds >= DAY && (totalSeconds % DAY) === 0) {
-        const days = totalSeconds / DAY;
-        return `${days} Day${days > 1 ? 's' : ''}`;
-    }
-
-    if (totalSeconds >= HOUR && (totalSeconds % HOUR) === 0) {
-        const hours = totalSeconds / HOUR;
-        return `${hours} Hour${hours > 1 ? 's' : ''}`;
-    }
-
-    if (totalSeconds >= MINUTE && (totalSeconds % MINUTE) === 0) {
-        const minutes = totalSeconds / MINUTE;
-        return `${minutes} Minute${minutes > 1 ? 's' : ''}`;
-    }
-
-    // Fallback to displaying raw seconds if it doesn't align neatly
-    return `${totalSeconds} Second${totalSeconds !== 1 ? 's' : ''}`;
+    return `${secondsBN.toString()} Seconds`;
 }
+
+
+
 
 export const formatDate = (isoString: string): string => {
     if (!isoString) return "";
