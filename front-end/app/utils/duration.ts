@@ -1,38 +1,34 @@
-import BN from "bn.js";
+import { BN } from "@coral-xyz/anchor";
 
-export function formatPeriod(secondsBN: BN): string {
-    const MINUTE = new BN(60);
-    const HOUR = new BN(3600);
-    const DAY = new BN(86400);
-    const WEEK = new BN(604800);
-    const MONTH = new BN(2592000);
-    const YEAR = new BN(31536000);
+export const formatTimestamp = (timestampBN: any) => {
+    if (!timestampBN) return "N/A";
 
-    if (secondsBN.lte(new BN(0))) {
-        return "Due";
-    }
-
-    if (secondsBN.mod(YEAR).isZero()) {
-        return `${secondsBN.div(YEAR).toString()} Years`;
-    }
-    if (secondsBN.mod(MONTH).isZero()) {
-        return `${secondsBN.div(MONTH).toString()} Months`;
-    }
-    if (secondsBN.mod(WEEK).isZero()) {
-        return `${secondsBN.div(WEEK).toString()} Weeks`;
-    }
-    if (secondsBN.mod(DAY).isZero()) {
-        return `${secondsBN.div(DAY).toString()} Days`;
-    }
-    if (secondsBN.mod(HOUR).isZero()) {
-        return `${secondsBN.div(HOUR).toString()} Hours`;
-    }
-    if (secondsBN.mod(MINUTE).isZero()) {
-        return `${secondsBN.div(MINUTE).toString()} Minutes`;
+    // 1. Convert BN object to a standard JavaScript Number
+    // We try/catch just in case the value is already a number or string
+    let timestamp = 0;
+    try {
+        if (timestampBN.toNumber) {
+            timestamp = timestampBN.toNumber();
+        } else {
+            timestamp = Number(timestampBN);
+        }
+    } catch (e) {
+        return "Invalid Date";
     }
 
-    return `${secondsBN.toString()} Seconds`;
-}
+    // 2. Solana timestamps are in SECONDS. JavaScript needs MILLISECONDS.
+    // So we multiply by 1000.
+    const date = new Date(timestamp * 1000);
+
+    // 3. Return readable format (e.g., "Jan 23, 2026")
+    return date.toLocaleDateString("en-US", {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        // hour: '2-digit', // Uncomment if you want time
+        // minute: '2-digit'
+    });
+};
 
 
 

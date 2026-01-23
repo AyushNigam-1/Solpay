@@ -16,7 +16,9 @@ import { Subscription } from '@/app/types';
 import { TABLE_HEADERS } from '@/app/utils/headers';
 import { useSearch } from '@/app/hooks/useSearch';
 import { StatusBadge } from '@/app/components/ui/layout/StatusBadge';
-import { formatPeriod } from '@/app/utils/duration';
+import { formatDuration, formatTimestamp } from '@/app/utils/duration';
+import { truncate } from 'fs';
+import { truncateAddress } from '@/app/utils/token';
 const page = () => {
     const { publicKey, PROGRAM_ID } = useProgram()
     const { fetchSubscriptionsByPlan } = useProgramActions()
@@ -127,7 +129,7 @@ const page = () => {
                                                         onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
                                                     >
                                                         <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
-                                                            {subscriber.payer?.toString().slice(0, 10)}...
+                                                            {truncateAddress(subscriber.payer)}
                                                         </div>
                                                         <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
                                                             {subscriber.tierName}
@@ -145,38 +147,8 @@ const page = () => {
                                                             />
                                                         </div>
                                                         <div className="flex-1 px-6 py-4 text-xl text-gray-400 ">
-                                                            {formatPeriod(subscriber?.nextPaymentTs!)}
+                                                            {formatTimestamp(subscriber?.nextPaymentTs!)}
                                                         </div>
-                                                        {/* <div className="flex-1 px-6 py-4 text-xl text-gray-400">
-                                                            {tx.status == 'success' ? <span className='flex gap-2 items-center' >
-                                                                <CircleCheck />
-                                                                Succeed
-                                                            </span> :
-                                                                <span className='flex gap-2 items-center'>
-                                                                    <CircleCheck />
-                                                                    Failed
-                                                                </span>}
-                                                        </div> */}
-                                                        {/* <div className="px-6 py-2 text-xl flex items-center gap-3 flex-1">
-                                                            {
-                                                                tx.status == 'success' ? <button className='flex gap-1 items-center pr-3 text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
-                                                                    window.open(
-                                                                        `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
-                                                                        "_blank",
-                                                                        "noopener,noreferrer"
-                                                                    )}>
-                                                                    <ArrowUpRight className='size-5' />
-                                                                    Verify
-                                                                </button> :
-                                                                    <button className='flex gap-1  hover:text-blue-500 items-center pr-3 cursor-pointer text-blue-400' onClick={() => renewSubscription.mutate({ subscriptionPda: tx.subscriptionPda })}>
-                                                                        {
-                                                                            (renewSubscription.variables?.subscriptionPda == tx.subscriptionPda && renewSubscription.isPending) ? <Loader /> : <div className='flex gap-2 items-center'>
-                                                                                <RotateCw className='size-5' />                                                                    Retry
-                                                                            </div>
-                                                                        }
-                                                                    </button>
-                                                            }
-                                                        </div> */}
                                                     </div>
                                                 );
                                             })}

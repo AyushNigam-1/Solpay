@@ -68,7 +68,7 @@ const page = () => {
                                                 return (
                                                     <div
                                                         key={index}
-                                                        className={`flex items-center transition cursor-pointer border-t border-white/5 
+                                                        className={`flex items-center transition border-t border-white/5 
                                                         ${isLast ? "rounded-b-2xl" : ""}`}
                                                     >
                                                         <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">

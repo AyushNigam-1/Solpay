@@ -6,6 +6,7 @@ import { Plan, Tier } from '@/app/types';
 import { useProgram } from '@/app/hooks/useProgram';
 import { useMutations } from '@/app/hooks/useMutations';
 import Loader from '../extras/Loader';
+import { truncateAddress } from '@/app/utils/token';
 
 // Helper to safely convert BN/string/number to a Javascript number
 // Note: For very large numbers (token amounts), keep as string for display if needed, 
@@ -134,7 +135,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                             leaveFrom="opacity-100 scale-100 translate-y-0"
                             leaveTo="opacity-0 scale-90 translate-y-12"
                         >
-                            <DialogPanel className="w-full max-w-7xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-4">
+                            <DialogPanel className="w-full max-w-6xl transform overflow-hidden rounded-3xl bg-white/5 text-left align-middle shadow-2xl border border-gray-800 transition-all font-inter text-white relative p-6 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <h2 className="text-2xl font-extrabold text-white tracking-tight truncate">{processedPlan.name}</h2>
                                     <button
@@ -146,33 +147,35 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                                    <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
-                                        <div className='flex flex-col gap-2 '>
-                                            <span className="hidden sm:inline text-gray-400 ">Creator</span>
-                                            <span className='truncate font-bold text-lg'>
-                                                {processedPlan.creator?.toString()}
-                                                {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
-                                            </span>
-                                        </div>
+                                    <div className='bg-white/5 rounded-xl w-full p-3 flex items-center gap-2'>
                                         <span className='p-4 rounded-full bg-white/5'>
                                             <UserPlus />
                                         </span>
-                                    </div>
-                                    <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
                                         <div className='flex flex-col gap-2 '>
-                                            <span className="hidden sm:inline text-gray-400 "> Reciever</span>
-                                            <span className="truncate font-bold text-lg" >
-                                                {processedPlan.receiver.toString()}
+                                            <span className="hidden sm:inline text-gray-400 ">Creator</span>
+                                            <span className='truncate font-bold text-lg'>
+                                                {truncateAddress(processedPlan.creator?.toString())}
+                                                {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
                                             </span>
                                         </div>
+
+                                    </div>
+                                    <div className='bg-white/5 rounded-xl w-full p-3 flex items-center gap-2'>
                                         <span className='p-4 rounded-full bg-white/5'>
                                             <UserStar />
                                         </span>
+                                        <div className='flex flex-col gap-2 '>
+                                            <span className="hidden sm:inline text-gray-400 "> Reciever</span>
+                                            <span className="truncate font-bold text-lg" >
+                                                {truncateAddress(processedPlan.receiver?.toString())}
+                                            </span>
+                                        </div>
+
                                     </div>
                                 </div>
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <div className="flex justify-between">
-                                    <h2 className="text-xl font-extrabold text-gray-200 tracking-tight truncate">Choose Tier</h2>
+                                    <h2 className="text-xl font-semibold text-gray-200 tracking-tight truncate">Choose Tier</h2>
                                     <div className='relative' >
                                         <label className="inline-flex items-center cursor-pointer group">
                                             <input
@@ -242,7 +245,10 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                                                 </div> */}
                                                                 <div className='space-y-3'>
                                                                     <h4 className="text-2xl font-bold text-white">{tier.tierName}</h4>
-                                                                    <p className="text-gray-400">{tier.description || "Standard subscription tier."}</p>
+                                                                    <p className="text-gray-400">
+                                                                        {/* {tier.description || "Standard subscription tier."} */}
+                                                                        Lorem, ipsum dolor sit amet consectetur adipisicing elit. Commodi tempore porro repudiandae adipisci dignissimos repellendus quibusdam enim dicta laudantium dolorum!
+                                                                    </p>
                                                                 </div>
                                                                 <div className='flex flex-col gap-3'>
                                                                     <div className='h-0.5 w-full bg-white/5 flex' />
@@ -272,7 +278,7 @@ const PlanDetails = ({ plan, planPDA, open, setOpen, onSubscribe, type, subscrip
                                 <div className='h-0.5 w-full bg-white/5' />
                                 <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
                                     <button
-                                        onClick={() => type == "new" ? createSubscription.mutateAsync({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, periodSeconds: Number(selectedTier?.periodSeconds), amount: Number(selectedTier?.amount), autoRenew, receiver: new PublicKey(processedPlan.receiver), mint: new PublicKey(processedPlan.mint), planName: processedPlan.name, creator: processedPlan.creator }).then(() => closeModal()) : updateSubscription.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer! })}
+                                        onClick={() => type == "new" ? createSubscription.mutateAsync({ tier: selectedTier!.tierName, planPDA, payerKey: publicKey!, periodSeconds: Number(selectedTier?.periodSeconds), amount: Number(selectedTier?.amount), autoRenew, receiver: new PublicKey(processedPlan.receiver), mint: new PublicKey(processedPlan.mint), planName: processedPlan.name, creator: processedPlan.creator }).then(() => closeModal()) : updateSubscription.mutate({ subscriptionPDA: subscriptionPDA!, field: "tier", value: selectedTier?.tierName!, payerKey: subscriptionPayer!, mint: new PublicKey(processedPlan.mint) })}
                                         disabled={!selectedTier || createSubscription.isPending || updateSubscription.isPending}
                                         className="w-full sm:w-auto flex items-center justify-center gap-2 p-3 rounded-lg font-semibold text-lg transition-all bg-blue-400/70  text-white cursor-pointer disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed disabled:border disabled:border-gray-700"
                                     >

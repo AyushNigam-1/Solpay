@@ -15,6 +15,7 @@ import {
     UserStar
 } from 'lucide-react';
 import { useState } from 'react';
+import { truncateAddress } from '@/app/utils/token';
 
 const Page = () => {
     const { getMyPlan } = useProgramActions();
@@ -140,7 +141,7 @@ const Page = () => {
                                 <div className="flex items-center gap-3 h-full">
                                     <UserStar className="text-gray-600" size={20} />
                                     <span className='font-mono font-medium text-gray-200'>
-                                        {plan?.creator.toBase58().slice(0, 5)}...{plan?.creator.toBase58().slice(-5)}
+                                        {truncateAddress(plan?.creator)}
                                     </span>
                                 </div>
                             </div>

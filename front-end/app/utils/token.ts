@@ -1,5 +1,5 @@
 import { ASSOCIATED_TOKEN_PROGRAM_ID, createApproveInstruction, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getTokenMetadata, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 import axios from "axios";
 import { FullTokenMetadata, UserTokenAccount } from "../types";
 import type { WalletContextState } from "@solana/wallet-adapter-react";
@@ -109,7 +109,10 @@ export async function fetchUserTokenAccounts(
     return userAccounts;
 }
 
-
+export const truncateAddress = (addr: string | PublicKey) => {
+    if (!addr) return "Unknown";
+    return `${addr.toString().slice(0, 4)}...${addr.toString().slice(-4)}`;
+}
 // import {
 //   getAssociatedTokenAddress,
 //   createAssociatedTokenAccountInstruction,
@@ -117,45 +120,42 @@ export async function fetchUserTokenAccounts(
 //   ASSOCIATED_TOKEN_PROGRAM_ID,
 // } from "@solana/spl-token";
 
-export async function approveSubscriptionSpending({
+export async function getApproveInstructions({
     connection,
-    wallet,
+    payerKey,
     mint,
     subscriptionPDA,
     allowanceAmount,
 }: {
     connection: Connection;
-    wallet: WalletContextState;
+    payerKey: PublicKey;
     mint: PublicKey;
     subscriptionPDA: PublicKey;
     allowanceAmount: bigint;
-}) {
-    if (!wallet.publicKey || !wallet.signTransaction) {
-        throw new Error("Wallet not connected or cannot sign");
-    }
+}): Promise<TransactionInstruction[]> {
+    const instructions: TransactionInstruction[] = [];
 
     try {
-        // 🔑 detect correct token program (SPL or Token-2022)
+        // 1. Detect correct token program
         const tokenProgramId = await getMintProgramId(mint);
 
+        // 2. Get ATA
         const userTokenAccount = await getAssociatedTokenAddress(
             mint,
-            wallet.publicKey,
+            payerKey,
             false,
             tokenProgramId,
             ASSOCIATED_TOKEN_PROGRAM_ID
         );
 
-        const instructions = [];
-
+        // 3. Check if ATA exists (Safety check, though likely true for a subscriber)
         const ataInfo = await connection.getAccountInfo(userTokenAccount);
-
         if (!ataInfo) {
             instructions.push(
                 createAssociatedTokenAccountInstruction(
-                    wallet.publicKey,
+                    payerKey,
                     userTokenAccount,
-                    wallet.publicKey,
+                    payerKey,
                     mint,
                     tokenProgramId,
                     ASSOCIATED_TOKEN_PROGRAM_ID
@@ -163,29 +163,22 @@ export async function approveSubscriptionSpending({
             );
         }
 
+        // 4. Create the Approve Instruction
         instructions.push(
             createApproveInstruction(
                 userTokenAccount,
-                subscriptionPDA,      // delegate
-                wallet.publicKey,
+                subscriptionPDA,      // Delegate (The subscription contract)
+                payerKey,             // Owner
                 allowanceAmount,
                 [],
-                tokenProgramId        // ✅ THIS fixes your error
+                tokenProgramId        // Correct Program ID
             )
         );
 
-        const tx = new Transaction().add(...instructions);
-        tx.feePayer = wallet.publicKey;
-        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-        const signed = await wallet.signTransaction(tx);
-        const sig = await connection.sendRawTransaction(signed.serialize());
-        await connection.confirmTransaction(sig, "confirmed");
-
-        return { txSig: sig, userTokenAccount };
+        return instructions;
     } catch (err: any) {
-        console.error("approveSubscriptionSpending error:", err);
-        throw new Error(err?.message || "Failed to approve subscription spending");
+        console.error("Error creating approve instructions:", err);
+        throw new Error("Failed to generate approval instructions");
     }
 }
 

@@ -5,6 +5,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { User, UserCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import NotificationPopover from './NotificationPopover';
+import { truncateAddress } from '@/app/utils/token';
 const Navbar = () => {
 
     const router = useRouter()
@@ -29,11 +30,12 @@ const Navbar = () => {
                             <div className="px-4 py-4 space-y-4 " aria-labelledby="user-menu-button">
                                 <MenuItem>
                                     <p className="flex gap-2 items-center text-xl  text-gray-700  dark:text-gray-200 dark:hover:text-white"><User />
-                                        {publicKey?.toString()?.slice(0, 12)}...</p>
+                                        {truncateAddress(publicKey!)}
+                                    </p>
                                 </MenuItem>
                                 <div className='bg-gray-600 w-full h-0.5 ' />
                                 <MenuItem>
-                                    <button onClick={() => disconnect().then(() => router.push("/"))} className='p-2 bg-white/5 text-red-400 rounded-lg mt-auto flex gap-2 items-center justify-center w-full cursor-pointer hover:text-red-500'> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                    <button onClick={() => disconnect().then(() => router.push("/"))} className='p-2 bg-red-400/5 text-red-300 rounded-lg mt-auto flex gap-2 items-center justify-center w-full cursor-pointer hover:text-red-400'> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                                     </svg>
                                         Logout</button>

@@ -1,11 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import { web3 } from "@coral-xyz/anchor";
 import { useProgram } from "./useProgram";
-import { PublicKey } from "@solana/web3.js";
-import { approveSubscriptionSpending, fetchTokenMetadata, getMintProgramId } from "../utils/token";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { fetchTokenMetadata, getApproveInstructions, getMintProgramId } from "../utils/token";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync, getMint } from "@solana/spl-token";
 import { Plan, planQuery, Tier } from "../types";
-import { formatPeriod } from "../utils/duration";
 import { compressData, decompressData } from "../utils/compression";
 import { useWallet } from "@solana/wallet-adapter-react";
 
@@ -180,6 +179,7 @@ export const useProgramActions = () => {
             alert("Wallet or program not connected");
             return undefined;
         }
+        console.log(amount, "amount")
 
         try {
             // 1. Generate unique seed
@@ -212,14 +212,22 @@ export const useProgramActions = () => {
                 tokenProgramId,
                 ASSOCIATED_TOKEN_PROGRAM_ID
             );
-
+            const mintInfo = await getMint(
+                connection,
+                mint,
+                "confirmed",
+                tokenProgramId
+            );
+            const rawAmount = new anchor.BN(amount).mul(
+                new anchor.BN(10).pow(new anchor.BN(mintInfo.decimals))
+            );
             // 4. Build and send transaction
             const txSig = await program.methods
                 .initializeSubscription(
                     tierName,
                     planPda,
                     new anchor.BN(periodSeconds),
-                    new anchor.BN(amount),
+                    rawAmount,
                     autoRenew,
                     Array.from(uniqueSeed),
                 )
@@ -271,7 +279,8 @@ export const useProgramActions = () => {
         try {
             let fieldEnum: any;
             let valueEnum: any; // Correct type for UpdateValue enum
-            console.log(formatPeriod(value.toString()))
+            // console.log(formatPeriod(value.toString()))
+            let preInstructions: TransactionInstruction[] = [];
             // 1. Map string field to IDL Enum variants
             switch (field) {
                 case "autoRenew":
@@ -279,13 +288,16 @@ export const useProgramActions = () => {
                         ? BigInt("18446744073709551615")
                         : BigInt(0);
 
-                    await approveSubscriptionSpending({
-                        connection,
-                        wallet: (program.provider as any).wallet, // Ensure your provider has access to the wallet
+                    const approveInstrs = await getApproveInstructions({
+                        connection: program.provider.connection,
+                        payerKey,
                         mint,
                         subscriptionPDA,
-                        allowanceAmount,
+                        allowanceAmount
                     });
+
+                    // Add them to our list
+                    preInstructions.push(...approveInstrs);
                     fieldEnum = { autoRenew: {} } as const;
                     valueEnum = { bool: [value as boolean] };
                     break;
@@ -313,7 +325,7 @@ export const useProgramActions = () => {
                 .accounts({
                     payer: payerKey,
                     subscription: subscriptionPDA,
-                })
+                }).preInstructions(preInstructions)
                 .rpc();
 
             console.log(`${field} updated successfully!`);

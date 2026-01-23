@@ -12,6 +12,8 @@ import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import Loader from '../extras/Loader';
 import TableHeaders from '../layout/TableHeaders';
 import { TABLE_HEADERS } from '@/app/utils/headers';
+import { truncateAddress } from '@/app/utils/token';
+import { StatusBadge } from '../layout/StatusBadge';
 
 interface subscriptionDetailsProps {
     isOpen: boolean;
@@ -41,7 +43,7 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
             );
             let transactions = res.data;
             if (transactions.length < 6) {
-                const count = 6 - transactions.length;
+                const count = 5 - transactions.length;
                 const lastDate = new Date(transactions[transactions.length - 1].createdAt);
                 const upcomingTransactions = Array.from({ length: count }, (_, i) => {
                     const nextPaymentDate = new Date(
@@ -125,59 +127,63 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                     <div className='h-0.5 w-full bg-white/5' />
                                     {
                                         isCreator ? <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                                            <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
-                                                <div className='flex flex-col gap-2 '>
-                                                    <span className="hidden sm:inline text-gray-400 ">User Address</span>
-                                                    <span className='truncate font-bold text-lg'>
-                                                        {subscription?.payer?.toString()}
-                                                        {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
-                                                    </span>
-                                                </div>
+                                            <div className='bg-white/5 rounded-xl w-full p-3 flex items-center gap-3'>
                                                 <span className='p-4 rounded-full bg-white/5'>
                                                     <User />
                                                 </span>
+                                                <div className='flex flex-col gap-2 '>
+                                                    <span className="hidden sm:inline text-gray-400 ">User Address</span>
+                                                    <span className='truncate font-bold text-lg'>
+                                                        {truncateAddress(subscription?.payer?.toString())}
+                                                        {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
+                                                    </span>
+                                                </div>
+
                                             </div>
-                                            <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
+                                            <div className='bg-white/5 rounded-xl w-full p-3 flex items-center gap-3'>
+                                                <span className='p-4 rounded-full bg-white/5'>
+                                                    <Coins />
+                                                </span>
                                                 <div className='flex flex-col gap-2'>
                                                     <span className="hidden sm:inline text-gray-400 ">Token Address</span>
                                                     <span className='truncate font-bold text-lg'>
-                                                        {subscription && getAssociatedTokenAddressSync(
+                                                        {subscription && truncateAddress(getAssociatedTokenAddressSync(
                                                             new PublicKey(subscription?.planMetadata?.mint!),
                                                             subscription?.payer,
                                                             false, // allowOwnerOffCurve (usually false)
                                                             TOKEN_2022_PROGRAM_ID,
                                                             ASSOCIATED_TOKEN_PROGRAM_ID
-                                                        ).toBase58()}
+                                                        ).toBase58())}
                                                     </span>
                                                 </div>
-                                                <span className='p-4 rounded-full bg-white/5'>
-                                                    <Coins />
-                                                </span>
+
                                             </div>
                                         </div>
                                             : <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
-                                                <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
-                                                    <div className='flex flex-col gap-2 '>
-                                                        <span className="hidden sm:inline text-gray-400 ">Creator</span>
-                                                        <span className='truncate font-bold text-lg'>
-                                                            {subscription?.planMetadata?.creator?.toString()}
-                                                            {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
-                                                        </span>
-                                                    </div>
+                                                <div className='bg-white/5 rounded-xl w-full p-3 flex items-center gap-3'>
                                                     <span className='p-4 rounded-full bg-white/5'>
                                                         <UserPlus />
                                                     </span>
-                                                </div>
-                                                <div className='bg-white/5 rounded-xl w-full p-3 flex items-center justify-between'>
                                                     <div className='flex flex-col gap-2 '>
-                                                        <span className="hidden sm:inline text-gray-400 "> Reciever</span>
-                                                        <span className="truncate font-bold text-lg" >
-                                                            {subscription?.planMetadata?.receiver.toString()}
+                                                        <span className="hidden sm:inline text-gray-400 ">Creator</span>
+                                                        <span className='truncate font-bold text-lg'>
+                                                            {truncateAddress(subscription?.planMetadata?.creator!)}
+                                                            {/* {processedPlan.creator.slice(0, 20)}...{processedPlan.creator.slice(30)} */}
                                                         </span>
                                                     </div>
+
+                                                </div>
+                                                <div className='bg-white/5 rounded-xl w-full p-3 flex items-center gap-3'>
                                                     <span className='p-4 rounded-full bg-white/5'>
                                                         <UserStar />
                                                     </span>
+                                                    <div className='flex flex-col gap-2 '>
+                                                        <span className="hidden sm:inline text-gray-400 "> Reciever</span>
+                                                        <span className="truncate font-bold text-lg" >
+                                                            {truncateAddress(subscription?.planMetadata?.receiver!)}
+                                                        </span>
+                                                    </div>
+
                                                 </div>
                                             </div>
                                     }
@@ -297,62 +303,56 @@ const subscriptionDetails = ({ isOpen, subscription, setPlan, setPlanDetailsOpen
                                                 }
                                             </div>
                                             <div className=" rounded-2xl overflow-hidden border border-white/5">
-                                                <table className="w-full table-fixed text-sm text-left rtl:text-right text-body h-full">
-                                                    <TableHeaders columns={TABLE_HEADERS.user.planTransactions} />
-                                                    <tbody>
-                                                        {transactions?.map((tx, index) => {
-                                                            const isFirstRow = index === 0;
-                                                            const isLastRow = index === transactions?.length - 1;
-                                                            return (
-                                                                <tr key={tx.id} className={`transition cursor-pointer border border-white/5 rounded-2xl ${tx.status == 'pending' ? 'opacity-50 cursor-not-allowed' : ''} `} >
-                                                                    <td className={`
-                                                                    px-6 py-2 text-xl text-gray-400
-                                                                    ${isFirstRow ? "rounded-tl-2xl" : ""}
-                                                                    ${isLastRow ? "rounded-bl-2xl" : ""}
-                                                                `}>
-                                                                        {formatDate(tx.createdAt)}
-                                                                    </td>
-                                                                    <td className='px-6 py-2 text-xl text-gray-400 '>
-                                                                        {tx.amount} OPOS
-                                                                    </td>
+                                                <div className="flex bg-white/5 border-b border-white/5">
+                                                    {TABLE_HEADERS.user.planTransactions.map((header, i) => (
+                                                        <div key={i} className="flex-1 px-6 py-4.5 font-bold text-lg text-white">
+                                                            {header.title}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="border-x-2 border-b border-white/5 rounded-b-2xl overflow-hidden">
+                                                    {transactions?.map((tx, index) => {
+                                                        const isLast = index === transactions!.length - 1;
+                                                        return (
+                                                            <div
+                                                                key={index}
+                                                                className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
+                                                                ${isLast ? "rounded-b-2xl" : ""} ${tx.status == 'pending' ? 'opacity-50 cursor-none' : ''}`}
+                                                            // onClick={() => { setSubscription(subscriber); setOpenDetails(true) }}
+                                                            >
+                                                                <div className="flex-1 px-6 py-2 text-lg  text-white">
+                                                                    {formatDate(tx.createdAt)}
+                                                                </div>
+                                                                <div className="flex-1 px-6 py-4 text-lg  text-white">
+                                                                    {tx.amount} OPOS
+                                                                </div>
+                                                                <div className="flex-1 px-6 py-4 text-xs text-gray-400 flex items-end gap-2">
+                                                                    <StatusBadge
+                                                                        active={tx.status == 'success'}
+                                                                        label={tx.status == 'success' ? "Success" : "Failed"}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex-1 px-6 py-4  text-gray-400 flex items-end gap-2">
+                                                                    {
+                                                                        tx.status !== 'failed' ? <button className='flex gap-2 items-center text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
+                                                                            window.open(
+                                                                                `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
+                                                                                "_blank",
+                                                                                "noopener,noreferrer"
+                                                                            )}>
+                                                                            <ArrowUpRight className='size-5' />
+                                                                            Verify
+                                                                        </button> :
+                                                                            <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { "" }}>
+                                                                                <RotateCw />                                                                    Retry
+                                                                            </button>
+                                                                    }
+                                                                </div>
 
-                                                                    <td className={`
-                                                        px-6 py-2 text-xl text-gray-400
-                                                        ${isFirstRow ? "rounded-tr-2xl" : ""}
-                                                        ${isLastRow ? "rounded-br-2xl" : ""}
-                                                    `}>
-                                                                        {tx.status == 'success' ? <span className='flex gap-2 items-center' >
-                                                                            <CircleCheck size={20} />
-                                                                            Success
-                                                                        </span> : tx.status == 'success' ? <span className='flex gap-2 items-center'>
-                                                                            <CircleX size={20} />
-                                                                            Failed
-                                                                        </span> :
-                                                                            <span className='flex gap-2 items-center'>
-                                                                                <CircleEllipsis size={20} />                                                                                Pending
-                                                                            </span>}
-                                                                    </td>
-                                                                    <td className="px-6 py-2 text-xl ">
-                                                                        {
-                                                                            tx.status !== 'failed' ? <button className='flex gap-2 items-center text-blue-400 hover:text-blue-500 cursor-pointer' onClick={() =>
-                                                                                window.open(
-                                                                                    `https://explorer.solana.com/tx/${tx.txSignature}?cluster=devnet`,
-                                                                                    "_blank",
-                                                                                    "noopener,noreferrer"
-                                                                                )}>
-                                                                                <ArrowUpRight className='size-5' />
-                                                                                Verify
-                                                                            </button> :
-                                                                                <button className='flex gap-2 items-center hover:text-blue-500 cursor-pointer text-blue-400' onClick={() => { "" }}>
-                                                                                    <RotateCw />                                                                    Retry
-                                                                                </button>
-                                                                        }
-                                                                    </td>
-                                                                </tr>
-                                                            )
-                                                        })}
-                                                    </tbody>
-                                                </table>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useProgramActions } from '@/app/hooks/useProgramActions';
 import { Plan, Subscription } from '@/app/types';
 import { PublicKey } from '@solana/web3.js';
-import { formatPeriod } from '@/app/utils/duration';
+import { formatDuration } from '@/app/utils/duration';
 import { Banknote, Calendar, EyeIcon, Pointer } from 'lucide-react';
 import { TABLE_HEADERS } from '@/app/utils/headers';
 import SubscriptionDetails from '@/app/components/ui/modals/SubscriptionDetails';
@@ -93,7 +93,7 @@ const page = () => {
                                                             {currentTier?.amount.toString()} {subscription.planMetadata?.tokenSymbol}
                                                         </div>
                                                         <div className="flex-1 px-6 py-4 text-xl text-gray-400 flex items-end gap-2">
-                                                            {formatPeriod(currentTier?.periodSeconds!)}
+                                                            {formatDuration(currentTier?.periodSeconds!)}
                                                         </div>
                                                         <div className="flex-1 px-6 py-4  text-gray-400">
                                                             <StatusBadge

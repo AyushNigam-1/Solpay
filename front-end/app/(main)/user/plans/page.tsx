@@ -16,6 +16,7 @@ import { ChartNoAxesGantt, Coins, EyeIcon, Logs, MousePointerClick, Trash, UserP
 import { useMemo, useState } from 'react';
 import { TABLE_HEADERS } from '@/app/utils/headers';
 import { useSearch } from '@/app/hooks/useSearch';
+import { truncateAddress } from '@/app/utils/token';
 
 const page = () => {
 
@@ -84,18 +85,18 @@ const page = () => {
                                                     }}
 
                                                     className={`flex items-center transition cursor-pointer hover:bg-white/5 border-t border-white/5 
-                    ${isLast ? "rounded-b-2xl" : ""}`}
+                                                                ${isLast ? "rounded-b-2xl" : ""}`}
                                                 >
                                                     <div className="flex-1 px-6 py-4 text-xl font-semibold text-white">
                                                         {plan.name}
                                                     </div>
 
                                                     <div className="flex-1 px-6 py-4 text-xl text-gray-400">
-                                                        {plan.creator?.toString().slice(0, 10)}...
+                                                        {truncateAddress(plan?.creator!)}
                                                     </div>
 
                                                     <div className="flex-1 px-6 py-4 text-xl text-gray-400">
-                                                        {plan.receiver?.toString().slice(0, 10)}...
+                                                        {truncateAddress(plan?.receiver)}
                                                     </div>
 
                                                     <div className="flex-1 px-6 py-4">
